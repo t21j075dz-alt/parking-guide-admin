@@ -73,13 +73,13 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .tool-list { display: grid; gap: 6px; }
 .tool-list button { width: 100%; text-align: left; }
 /* 中央編集領域とキャンバス。 */
-.workspace { min-width: 0; overflow: hidden; background: var(--bg); }
+.workspace { display: flex; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; background: var(--bg); }
 .workspace-head { display: flex; justify-content: space-between; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
 .workspace-head h2,.workspace-head p { margin: 0; }
 .workspace-head p { margin-top: 2px; color: var(--muted); font-size: 12px; }
 .canvas-settings { display: flex; gap: 8px; }
 .canvas-settings label { display: grid; grid-template-columns: auto 74px; align-items: center; gap: 5px; white-space: nowrap; }
-.canvas-scroll { height: calc(100% - 66px); overflow: auto; padding: 24px; }
+.canvas-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 24px; }
 .map-canvas { position: relative; width: 1000px; height: 700px; background-color: var(--canvas); background-image: linear-gradient(var(--border) 1px, transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 25px 25px; border: 1px solid var(--strong-border); transform-origin: top left; }
 /* キャンバス上の全オブジェクトに共通する見た目とドラッグ操作用設定。 */
 .map-object { position: absolute; display: grid; place-items: center; min-width: 12px; min-height: 12px; border: 2px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: hidden; font-size: 12px; font-weight: 600; text-align: center; }
@@ -175,7 +175,8 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 
 /* 航空写真を編集用の下敷きとして表示する。 */
 .background-panel {
-  margin: 0 0 0.85rem;
+  flex: 0 0 auto;
+  margin: 0;
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -254,6 +255,7 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 
 .editor-toolbar {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   min-height: 44px;
