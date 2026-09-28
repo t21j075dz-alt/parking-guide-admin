@@ -13,9 +13,11 @@
 
 window.ADMIN_FACILITY_CATALOG = {
   metadata: {
-    "total": 120,
+    "total": 121,
+    "researchTargetCount": 120,
+    "testFacilityCount": 1,
     "prefectures": 12,
-    "note": "研究対象120店舗。2026-09-28に所在地を再監査。岡山県はラ・ムー岡山中央店・トライアル岡山豊浜店を比較対象として残し、残り8施設を小規模駐車場中心に再構成。",
+    "note": "研究対象120店舗に加え、自宅テスト用1施設を別枠で登録。自宅の正確な住所・座標は公開データへ保存しない。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
     "fixedCoordinateCount": 120,
@@ -408,6 +410,23 @@ window.ADMIN_FACILITY_CATALOG = {
     "isDemo": false
   },
   // ----- 岡山県 -----
+  {
+    "id": "home-test-001",
+    "name": "自宅テスト用",
+    "prefecture": "岡山県",
+    "municipality": "岡山市",
+    "address": "岡山県岡山市北区（自宅テスト用・詳細非公開）",
+    "category": "experiment",
+    "locationVerified": false,
+    "coordinateSource": "利用端末の現在地から登録。正確な座標は公開リポジトリ・Supabaseへ保存しない",
+    "operatingStatus": "active",
+    "layoutId": "home-test-001",
+    "targetBuildingId": null,
+    "isDemo": false,
+    "isPrivateTest": true,
+    "requiresLocalCalibration": true
+  },
+
   {
     "id": "target_021",
     "name": "マルナカ 中井町店",
