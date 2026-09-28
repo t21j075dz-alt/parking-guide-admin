@@ -275,7 +275,73 @@ function updateBackgroundControls(layout) {
   elements.backgroundOpacity.value = Number.isFinite(background?.opacity) ? background.opacity : 0.75;
 }
 
-/** 国土地理院の航空写真タイルをキャンバス背景として描画する。 */
+/**
+ * 1枚分の航空写真タイルを生成する。
+ *
+ * 全国最新写真はズーム14～18を使うが、場所によって高倍率側の画像が
+ * 取得できないことがある。その場合は同じ場所の1段低いズーム画像を
+ * 切り出して拡大し、空白部分が残らないよう14まで順番にフォールバックする。
+ */
+function createBackgroundTile(targetX, targetY, targetZoom) {
+  const tile = document.createElement("div");
+  tile.className = "satellite-tile";
+
+  /**
+   * candidateZoom の画像を試す。
+   * 低いズームを使うときは親タイルを拡大し、必要な1/2・1/4…の範囲だけ表示する。
+   */
+  function loadCandidate(candidateZoom) {
+    if (candidateZoom < 14) {
+      tile.classList.add("is-missing");
+      return;
+    }
+
+    const zoomDifference = targetZoom - candidateZoom;
+    const scale = 2 ** zoomDifference;
+    const candidateTileCount = 2 ** candidateZoom;
+
+    const parentX = Math.floor(targetX / scale);
+    const parentY = Math.floor(targetY / scale);
+    const wrappedParentX = ((parentX % candidateTileCount) + candidateTileCount) % candidateTileCount;
+    const offsetX = targetX - parentX * scale;
+    const offsetY = targetY - parentY * scale;
+
+    const image = document.createElement("img");
+    image.alt = "";
+    image.draggable = false;
+    image.decoding = "async";
+    image.loading = "eager";
+
+    /*
+     * 親タイルを scale 倍へ拡大し、対象子タイルに相当する部分を
+     * 256×256px の表示枠へ切り出す。
+     */
+    image.style.width = `${256 * scale}px`;
+    image.style.height = `${256 * scale}px`;
+    image.style.left = `${-offsetX * 256}px`;
+    image.style.top = `${-offsetY * 256}px`;
+
+    image.addEventListener("load", () => {
+      if (candidateZoom < targetZoom) {
+        tile.dataset.fallbackZoom = String(candidateZoom);
+      }
+    }, { once: true });
+
+    image.addEventListener("error", () => {
+      image.remove();
+      loadCandidate(candidateZoom - 1);
+    }, { once: true });
+
+    image.src =
+      `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/${candidateZoom}/${wrappedParentX}/${parentY}.jpg`;
+    tile.append(image);
+  }
+
+  loadCandidate(targetZoom);
+  return tile;
+}
+
+/** 国土地理院の航空写真タイルをキャンバス全面へ描画する。 */
 function renderBackground(layout) {
   const background = layout.background;
   if (!background || background.type !== "gsi-seamlessphoto") {
@@ -290,10 +356,15 @@ function renderBackground(layout) {
   const center = toWorldPixel(background.centerLat, background.centerLng, zoom);
   const topLeftX = center.x - layout.canvas.width / 2;
   const topLeftY = center.y - layout.canvas.height / 2;
-  const startTileX = Math.floor(topLeftX / 256);
-  const endTileX = Math.floor((topLeftX + layout.canvas.width) / 256);
-  const startTileY = Math.floor(topLeftY / 256);
-  const endTileY = Math.floor((topLeftY + layout.canvas.height) / 256);
+
+  /*
+   * キャンバス外周に1タイル分余計に読み込む。
+   * 高倍率時・背景ドラッグ時でも端に一瞬空白が出にくくするため。
+   */
+  const startTileX = Math.floor(topLeftX / 256) - 1;
+  const endTileX = Math.floor((topLeftX + layout.canvas.width) / 256) + 1;
+  const startTileY = Math.floor(topLeftY / 256) - 1;
+  const endTileY = Math.floor((topLeftY + layout.canvas.height) / 256) + 1;
 
   const layer = document.createElement("div");
   layer.className = "satellite-layer";
@@ -303,15 +374,21 @@ function renderBackground(layout) {
     if (tileY < 0 || tileY >= tileCount) {
       continue;
     }
+
     for (let tileX = startTileX; tileX <= endTileX; tileX += 1) {
       const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
-      const image = document.createElement("img");
-      image.alt = "";
-      image.draggable = false;
-      image.src = `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/${zoom}/${wrappedX}/${tileY}.jpg`;
-      image.style.left = `${tileX * 256 - topLeftX}px`;
-      image.style.top = `${tileY * 256 - topLeftY}px`;
-      layer.append(image);
+      const tile = createBackgroundTile(wrappedX, tileY, zoom);
+
+      /*
+       * 1pxだけ重ねて描画することで、ブラウザーの小数丸めによる
+       * タイル境界の細い隙間を防ぐ。
+       */
+      tile.style.left = `${tileX * 256 - topLeftX - 0.5}px`;
+      tile.style.top = `${tileY * 256 - topLeftY - 0.5}px`;
+      tile.style.width = "257px";
+      tile.style.height = "257px";
+
+      layer.append(tile);
     }
   }
 
