@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 99
+    "fixedCoordinateCount": 109
   },
   "facilities": [
     {
@@ -1920,8 +1920,8 @@
       "municipality": "宮崎市",
       "address": "宮崎県宮崎市清武町加納乙346-1番地",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.87818,
+      "longitude": 131.4069991,
       "layoutId": "target_101",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1929,7 +1929,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1939,8 +1939,8 @@
       "municipality": "宮崎市",
       "address": "宮崎県宮崎市大字新名爪字二月田1740",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.97448649,
+      "longitude": 131.43819566,
       "layoutId": "target_102",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1948,7 +1948,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1958,8 +1958,8 @@
       "municipality": "宮崎市",
       "address": "宮崎県宮崎市柳丸町143番地2",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.9271201,
+      "longitude": 131.4356064,
       "layoutId": "target_103",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1967,7 +1967,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1977,8 +1977,8 @@
       "municipality": "都城市",
       "address": "宮崎県都城市吉尾町772番地",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.7541861,
+      "longitude": 131.0797884,
       "layoutId": "target_104",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1986,7 +1986,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1996,8 +1996,8 @@
       "municipality": "宮崎市",
       "address": "宮崎県宮崎市清武町加納乙382番地6",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.878582615988048,
+      "longitude": 131.40537184201523,
       "layoutId": "target_105",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2005,7 +2005,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2015,8 +2015,8 @@
       "municipality": "宮崎市",
       "address": "宮崎県宮崎市大字恒久1527-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.8888945,
+      "longitude": 131.423833,
       "layoutId": "target_106",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2024,7 +2024,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2034,8 +2034,8 @@
       "municipality": "都城市",
       "address": "宮崎県都城市都北町717-3",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.75840504,
+      "longitude": 131.09369529,
       "layoutId": "target_107",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2043,7 +2043,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2053,8 +2053,8 @@
       "municipality": "小林市",
       "address": "宮崎県小林市堤字西ノ原2907-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.983812,
+      "longitude": 130.9917694,
       "layoutId": "target_108",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2062,7 +2062,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2072,8 +2072,8 @@
       "municipality": "日向市",
       "address": "宮崎県日向市都町10754-11",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.42687682,
+      "longitude": 131.6272115,
       "layoutId": "target_109",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2081,7 +2081,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2091,8 +2091,8 @@
       "municipality": "日南市",
       "address": "宮崎県日南市平野字深坪2559-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.595844,
+      "longitude": 131.39153,
       "layoutId": "target_110",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2100,7 +2100,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
