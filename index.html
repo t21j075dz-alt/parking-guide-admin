@@ -135,6 +135,8 @@
                 <select id="background-type">
                   <option value="none">なし</option>
                   <option value="gsi-seamlessphoto">国土地理院・全国最新写真</option>
+                  <option value="gsi-ort">国土地理院・オルソ画像（別写真を試す）</option>
+                  <option value="gsi-airphoto">国土地理院・簡易空中写真（別写真を試す）</option>
                 </select>
               </label>
               <label>緯度 <input id="background-latitude" type="number" step="0.000001" placeholder="34.699800"></label>
@@ -144,11 +146,11 @@
             </div>
           </details>
           <p id="background-status" class="muted">「航空写真を表示」後、「写真を動かす」を押すとキャンバス上で直接位置合わせできます。</p>
-          <p class="map-attribution">背景写真を使用する場合：出典 国土地理院「全国最新写真（シームレス）」</p>
+          <p class="map-attribution">背景写真を使用する場合：出典 国土地理院（地理院タイル）。全国最新写真は最大ズーム18です。画質が不足する地点では「オルソ画像」「簡易空中写真」も比較してください。</p>
         </details>
         <div class="editor-toolbar" aria-label="編集補助">
           <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 枠を吸着</label>
-          <span class="muted">近い枠の端・中心と5pxグリッドへ自動で揃えます。</span>
+          <span class="muted">近い枠の端・中心と2pxグリッドへ自動で揃えます。</span>
           <span class="toolbar-spacer"></span>
           <div class="editor-zoom" aria-label="編集倍率">
             <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
