@@ -30,22 +30,43 @@ const ENTRANCE_LABELS = {
 };
 
 /* オブジェクト追加時の初期寸法と名称。寸法はキャンバス上の論理ピクセル。 */
+const LEGACY_OBJECT_DEFAULTS = Object.freeze({
+  parkingSpace: { width: 70, height: 130 },
+  road: { width: 260, height: 90 },
+  sidewalk: { width: 260, height: 45 },
+  crosswalk: { width: 110, height: 45 },
+  building: { width: 260, height: 160 },
+  buildingEntrance: { width: 34, height: 34 },
+  parkingEntrance: { width: 42, height: 42 },
+  stopLine: { width: 110, height: 14 },
+  speedBump: { width: 110, height: 22 },
+  noEntry: { width: 42, height: 42 },
+  cartCorral: { width: 120, height: 80 },
+  bicycleParking: { width: 150, height: 80 },
+  motorcycleParking: { width: 110, height: 80 },
+  loadingZone: { width: 180, height: 100 },
+  evCharger: { width: 42, height: 42 },
+});
+
+const OBJECT_DEFAULTS_VERSION = 2;
+
+/* 航空写真上で白線へ合わせやすいよう、従来の約1/2を初期寸法にする。 */
 const OBJECT_DEFAULTS = {
-  parkingSpace: { width: 70, height: 130, name: "駐車区画" },
-  road: { width: 260, height: 90, name: "車道" },
-  sidewalk: { width: 260, height: 45, name: "歩道" },
-  crosswalk: { width: 110, height: 45, name: "横断歩道" },
-  building: { width: 260, height: 160, name: "建物" },
-  buildingEntrance: { width: 34, height: 34, name: "店舗入口" },
-  parkingEntrance: { width: 42, height: 42, name: "駐車場出入口" },
-  stopLine: { width: 110, height: 14, name: "停止線" },
-  speedBump: { width: 110, height: 22, name: "速度抑制ハンプ" },
-  noEntry: { width: 42, height: 42, name: "進入禁止" },
-  cartCorral: { width: 120, height: 80, name: "カート置き場" },
-  bicycleParking: { width: 150, height: 80, name: "駐輪場" },
-  motorcycleParking: { width: 110, height: 80, name: "二輪車置場" },
-  loadingZone: { width: 180, height: 100, name: "荷捌きスペース" },
-  evCharger: { width: 42, height: 42, name: "EV充電器" },
+  parkingSpace: { width: 32, height: 58, name: "駐車区画" },
+  road: { width: 130, height: 44, name: "車道" },
+  sidewalk: { width: 130, height: 22, name: "歩道" },
+  crosswalk: { width: 54, height: 22, name: "横断歩道" },
+  building: { width: 140, height: 90, name: "建物" },
+  buildingEntrance: { width: 20, height: 20, name: "店舗入口" },
+  parkingEntrance: { width: 24, height: 24, name: "駐車場出入口" },
+  stopLine: { width: 54, height: 8, name: "停止線" },
+  speedBump: { width: 54, height: 10, name: "速度抑制ハンプ" },
+  noEntry: { width: 24, height: 24, name: "進入禁止" },
+  cartCorral: { width: 60, height: 40, name: "カート置き場" },
+  bicycleParking: { width: 74, height: 40, name: "駐輪場" },
+  motorcycleParking: { width: 54, height: 40, name: "二輪車置場" },
+  loadingZone: { width: 90, height: 50, name: "荷捌きスペース" },
+  evCharger: { width: 22, height: 22, name: "EV充電器" },
 };
 
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
@@ -184,6 +205,42 @@ function ensureLayoutMatchesFacility(facility) {
   return layout;
 }
 
+/** 従来の初期寸法のまま残っているオブジェクトだけ、新しい小型初期寸法へ移行する。 */
+function migrateLegacyObjectDefaults(layout) {
+  if (!layout || Number(layout.objectDefaultsVersion) >= OBJECT_DEFAULTS_VERSION) {
+    return false;
+  }
+
+  let changed = false;
+  (layout.objects ?? []).forEach((item) => {
+    const legacy = LEGACY_OBJECT_DEFAULTS[item.objectType];
+    const current = OBJECT_DEFAULTS[item.objectType];
+    if (!legacy || !current) {
+      return;
+    }
+
+    /*
+     * 手動でサイズ変更済みのオブジェクトは触らない。
+     * 旧初期寸法と完全一致するものだけ中心位置を保ったまま縮小する。
+     */
+    if (Number(item.width) === legacy.width && Number(item.height) === legacy.height) {
+      const centerX = Number(item.x || 0) + legacy.width / 2;
+      const centerY = Number(item.y || 0) + legacy.height / 2;
+      item.width = current.width;
+      item.height = current.height;
+      item.x = Math.round(centerX - current.width / 2);
+      item.y = Math.round(centerY - current.height / 2);
+      if (item.objectType === "parkingSpace" && Number(item.markingWidth) === 3) {
+        item.markingWidth = 2;
+      }
+      changed = true;
+    }
+  });
+
+  layout.objectDefaultsVersion = OBJECT_DEFAULTS_VERSION;
+  return changed;
+}
+
 /** facilityId に対応する編集用レイアウトを取得し、未作成なら初期状態を生成する。 */
 function ensureLayout(facilityId) {
   if (!state.layouts[facilityId]) {
@@ -195,7 +252,9 @@ function ensureLayout(facilityId) {
       objects: [],
     };
   }
-  return state.layouts[facilityId];
+  const layout = state.layouts[facilityId];
+  migrateLegacyObjectDefaults(layout);
+  return layout;
 }
 
 /** キャンバス上で現在選択されているオブジェクトを取得する。 */
@@ -255,7 +314,7 @@ function addObject(type, options = {}) {
     /* 区画の論理外形と路面標示を分離する。 */
     item.markingStyle = "full";
     item.markingColor = "#ffffff";
-    item.markingWidth = 3;
+    item.markingWidth = 2;
 
     item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
   }
@@ -333,24 +392,43 @@ function updateBackgroundControls(layout) {
  * 取得できないことがある。その場合は同じ場所の1段低いズーム画像を
  * 切り出して拡大し、空白部分が残らないよう14まで順番にフォールバックする。
  */
-function createBackgroundTile(targetX, targetY, targetZoom) {
+const GSI_PHOTO_SOURCES = Object.freeze({
+  "gsi-seamlessphoto": {
+    id: "seamlessphoto",
+    extension: "jpg",
+    label: "全国最新写真（シームレス）",
+  },
+  "gsi-ort": {
+    id: "ort",
+    extension: "jpg",
+    label: "電子国土基本図（オルソ画像）",
+  },
+  "gsi-airphoto": {
+    id: "airphoto",
+    extension: "png",
+    label: "簡易空中写真",
+  },
+});
+
+/**
+ * 1枚分の航空写真タイルを生成する。
+ * 選択した写真レイヤーのZL18を最優先し、欠損時だけ低いズームへフォールバックする。
+ */
+function createBackgroundTile(targetX, targetY, targetZoom, backgroundType) {
   const tile = document.createElement("div");
   tile.className = "satellite-tile";
+  const source = GSI_PHOTO_SOURCES[backgroundType] ?? GSI_PHOTO_SOURCES["gsi-seamlessphoto"];
 
-  /**
-   * candidateZoom の画像を試す。
-   * 低いズームを使うときは親タイルを拡大し、必要な1/2・1/4…の範囲だけ表示する。
-   */
   function loadCandidate(candidateZoom) {
     if (candidateZoom < 14) {
       tile.classList.add("is-missing");
+      tile.dataset.quality = "missing";
       return;
     }
 
     const zoomDifference = targetZoom - candidateZoom;
     const scale = 2 ** zoomDifference;
     const candidateTileCount = 2 ** candidateZoom;
-
     const parentX = Math.floor(targetX / scale);
     const parentY = Math.floor(targetY / scale);
     const wrappedParentX = ((parentX % candidateTileCount) + candidateTileCount) % candidateTileCount;
@@ -362,17 +440,15 @@ function createBackgroundTile(targetX, targetY, targetZoom) {
     image.draggable = false;
     image.decoding = "async";
     image.loading = "eager";
-
-    /*
-     * 親タイルを scale 倍へ拡大し、対象子タイルに相当する部分を
-     * 256×256px の表示枠へ切り出す。
-     */
     image.style.width = `${256 * scale}px`;
     image.style.height = `${256 * scale}px`;
     image.style.left = `${-offsetX * 256}px`;
     image.style.top = `${-offsetY * 256}px`;
 
     image.addEventListener("load", () => {
+      tile.dataset.loadedZoom = String(candidateZoom);
+      tile.dataset.source = source.id;
+      tile.dataset.quality = candidateZoom === targetZoom ? "native" : "fallback";
       if (candidateZoom < targetZoom) {
         tile.dataset.fallbackZoom = String(candidateZoom);
       }
@@ -384,7 +460,7 @@ function createBackgroundTile(targetX, targetY, targetZoom) {
     }, { once: true });
 
     image.src =
-      `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/${candidateZoom}/${wrappedParentX}/${parentY}.jpg`;
+      `https://cyberjapandata.gsi.go.jp/xyz/${source.id}/${candidateZoom}/${wrappedParentX}/${parentY}.${source.extension}`;
     tile.append(image);
   }
 
@@ -395,7 +471,7 @@ function createBackgroundTile(targetX, targetY, targetZoom) {
 /** 国土地理院の航空写真タイルをキャンバス全面へ描画する。 */
 function renderBackground(layout) {
   const background = layout.background;
-  if (!background || background.type !== "gsi-seamlessphoto") {
+  if (!background || !GSI_PHOTO_SOURCES[background.type]) {
     return;
   }
   if (!Number.isFinite(background.centerLat) || !Number.isFinite(background.centerLng)) {
@@ -428,7 +504,7 @@ function renderBackground(layout) {
 
     for (let tileX = startTileX; tileX <= endTileX; tileX += 1) {
       const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
-      const tile = createBackgroundTile(wrappedX, tileY, zoom);
+      const tile = createBackgroundTile(wrappedX, tileY, zoom, background.type);
 
       /*
        * 1pxだけ重ねて描画することで、ブラウザーの小数丸めによる
@@ -463,7 +539,7 @@ function enableBackground() {
     return;
   }
 
-  layout.background.type = "gsi-seamlessphoto";
+  layout.background.type = GSI_PHOTO_SOURCES[layout.background.type] ? layout.background.type : "gsi-seamlessphoto";
   saveLocal();
   render();
   elements.backgroundStatus.textContent =
@@ -592,7 +668,7 @@ function applyBackgroundSettings() {
   }
 
   layout.background = {
-    type: "gsi-seamlessphoto",
+    type: GSI_PHOTO_SOURCES[elements.backgroundType.value] ? elements.backgroundType.value : "gsi-seamlessphoto",
     centerLat,
     centerLng,
     zoom: Math.max(14, Math.min(18, Math.round(zoom || 18))),
@@ -693,9 +769,9 @@ function fitViewScale() {
   scroll.scrollTop = 0;
 }
 
-/** 指定値を5pxグリッドへ丸める。吸着OFFの場合は元の値を返す。 */
+/** 指定値を2pxグリッドへ丸める。小さい駐車枠でも位置合わせしやすくする。 */
 function snapToGrid(value) {
-  return elements.snapEnabled?.checked ? Math.round(value / 5) * 5 : value;
+  return elements.snapEnabled?.checked ? Math.round(value / 2) * 2 : value;
 }
 
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
@@ -703,7 +779,7 @@ function snapObjectPosition(item, x, y) {
   if (!elements.snapEnabled?.checked) {
     return { x, y, guideX: null, guideY: null };
   }
-  const threshold = 8;
+  const threshold = 4;
   const layout = getCurrentLayout();
   const width = item.width ?? 34;
   const height = item.height ?? 34;
@@ -822,7 +898,7 @@ function moveResize(event) {
   const direction = state.resize.direction;
   const sx = direction.includes("e") ? 1 : direction.includes("w") ? -1 : 0;
   const sy = direction.includes("s") ? 1 : direction.includes("n") ? -1 : 0;
-  const minSize = 12;
+  const minSize = 6;
   const requestedWidth = sx === 0 ? state.resize.width : state.resize.width + sx * localDx;
   const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
   const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
@@ -963,6 +1039,7 @@ function render() {
     node.classList.toggle("selected", item.uid === state.selectedUid);
     const label = document.createElement("span");
     label.textContent = item.name || item.uid;
+    label.title = item.name || item.uid;
     node.append(label);
     if (item.uid === state.selectedUid) {
       addResizeHandles(node, item);
@@ -1803,7 +1880,7 @@ document.querySelector("#reset-facility-location-button").addEventListener(
 );
 elements.backgroundOpacity.addEventListener("input", () => {
   const layout = getCurrentLayout();
-  if (layout?.background?.type === "gsi-seamlessphoto") {
+  if (layout?.background && GSI_PHOTO_SOURCES[layout.background.type]) {
     layout.background.opacity = Number(elements.backgroundOpacity.value);
     const layer = elements.canvas.querySelector(".satellite-layer");
     if (layer) {
