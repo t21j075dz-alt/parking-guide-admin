@@ -1704,6 +1704,8 @@ function startDrag(event) {
     return;
   }
   if (BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false) {
+    state.selectedUid = item.uid;
+    render();
     return;
   }
   state.selectedUid = item.uid;
@@ -2529,10 +2531,6 @@ elements.backgroundOpacity.addEventListener("input", () => {
   }
 });
 elements.baseLayerLock?.addEventListener("change", () => {
-  const item = getSelectedObject();
-  if (elements.baseLayerLock.checked && item && BASE_LAYER_OBJECT_TYPES.has(item.objectType)) {
-    state.selectedUid = null;
-  }
   render();
 });
 elements.parkingSnapStrong?.addEventListener("change", () => {
