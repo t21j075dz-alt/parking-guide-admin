@@ -850,3 +850,46 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
     var(--grid-origin-x) var(--grid-origin-y),
     var(--grid-origin-x) var(--grid-origin-y);
 }
+
+
+/* =========================================================
+   固定レイヤー順
+   敷地・道路系は選択中でも常に最奥へ置く。
+   ========================================================= */
+.map-object[data-object-type="parkingLot"] { z-index: 0 !important; }
+.map-object[data-object-type="nationalRoad"],
+.map-object[data-object-type="prefecturalRoad"],
+.map-object[data-object-type="publicRoad"] { z-index: 1 !important; }
+.map-object[data-object-type="road"],
+.map-object[data-object-type="sidewalk"],
+.map-object[data-object-type="crosswalk"] { z-index: 2 !important; }
+
+.map-object[data-object-type="building"] { z-index: 6; }
+.map-object[data-object-type="parkingSpace"] { z-index: 20; }
+.map-object[data-object-type="cartCorral"],
+.map-object[data-object-type="bicycleParking"],
+.map-object[data-object-type="motorcycleParking"],
+.map-object[data-object-type="loadingZone"],
+.map-object[data-object-type="stopLine"],
+.map-object[data-object-type="speedBump"] { z-index: 24; }
+.map-object[data-object-type="buildingEntrance"],
+.map-object[data-object-type="parkingEntrance"],
+.map-object[data-object-type="noEntry"],
+.map-object[data-object-type="evCharger"] { z-index: 30; }
+
+/* 背景レイヤーを固定中はクリック・ドラッグ対象から外す。 */
+.base-layer-object.is-layer-locked {
+  pointer-events: none;
+}
+.base-layer-object.selected {
+  z-index: 2 !important;
+}
+.map-object[data-object-type="parkingLot"].selected { z-index: 0 !important; }
+.map-object[data-object-type="nationalRoad"].selected,
+.map-object[data-object-type="prefecturalRoad"].selected,
+.map-object[data-object-type="publicRoad"].selected { z-index: 1 !important; }
+
+/* 駐車枠は吸着時にも白線が見やすいよう前面を確保。 */
+.map-object[data-object-type="parkingSpace"].selected {
+  z-index: 40 !important;
+}
