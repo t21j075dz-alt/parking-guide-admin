@@ -7,6 +7,7 @@
     <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
     <title>駐車場マップ管理｜卒業研究</title>
     <link rel="stylesheet" href="./admin.css">
+    <script src="./sync-config.js" defer></script>
     <script src="./facility-catalog.js" defer></script>
     <script src="./admin.js" defer></script>
   </head>
@@ -34,6 +35,22 @@
           <label class="field-label" for="facility-select">施設</label>
           <select id="facility-select"></select>
           <p id="facility-id" class="muted"></p>
+        </section>
+
+        <section class="cloud-sync-panel">
+          <h2>ユーザーアプリへ自動反映</h2>
+          <p id="cloud-sync-status" class="muted">クラウド連携は未設定です。</p>
+          <label class="field-label" for="cloud-email">管理者メール</label>
+          <input id="cloud-email" type="email" autocomplete="username" placeholder="管理者メール">
+          <label class="field-label" for="cloud-password">パスワード</label>
+          <input id="cloud-password" type="password" autocomplete="current-password" placeholder="パスワード">
+          <div class="tool-list">
+            <button id="cloud-login-button" type="button">クラウドにログイン</button>
+            <button id="cloud-sync-button" type="button">今すぐ反映</button>
+            <button id="cloud-load-button" type="button">クラウドから読込</button>
+            <button id="cloud-logout-button" type="button">ログアウト</button>
+          </div>
+          <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
         </section>
 
         <section>
