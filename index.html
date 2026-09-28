@@ -161,8 +161,20 @@
           <p class="map-attribution">背景写真を使用する場合：出典 国土地理院（地理院タイル）。全国最新写真は最大ズーム18です。画質が不足する地点では「オルソ画像」「簡易空中写真」も比較してください。</p>
         </details>
         <div class="editor-toolbar" aria-label="編集補助">
-          <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 枠を吸着</label>
-          <span class="muted">近い枠の端・中心と1pxグリッドへ自動で揃えます。</span>
+          <div class="grid-toolbar">
+            <label class="toolbar-check"><input id="grid-visible" type="checkbox" checked> 方眼グリッド</label>
+            <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 吸着</label>
+            <label class="toolbar-check"><input id="orthogonal-snap" type="checkbox" checked> 直角・直線補正</label>
+            <label class="grid-size-label">グリッド
+              <select id="grid-size">
+                <option value="5" selected>0.5m</option>
+                <option value="10">1m</option>
+                <option value="25">2.5m</option>
+                <option value="50">5m</option>
+              </select>
+            </label>
+          </div>
+          <span class="muted grid-help">薄線＝設定間隔、太線＝1m、最太線＝5m。頂点は近い水平・垂直線へ自動で揃います。Shift＋ドラッグで水平/垂直固定。</span>
           <span class="toolbar-spacer"></span>
           <div class="editor-zoom" aria-label="編集倍率">
             <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
@@ -197,7 +209,7 @@
               <label>Y<input id="object-y" type="number" step="1"></label>
               <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
               <label id="width-field">幅<input id="object-width" type="number" min="3" step="1"></label>
-              <label id="height-field">高さ<input id="object-height" type="number" min="8" step="1"></label>
+              <label id="height-field">高さ<input id="object-height" type="number" min="3" step="1"></label>
             </div>
           </details>
 
