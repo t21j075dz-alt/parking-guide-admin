@@ -1,3 +1,16 @@
+/* =========================================================
+   駐車場マップ管理：管理画面専用スタイル
+
+   画面構成：
+   - 上部：保存・出力・テーマ操作
+   - 左：施設選択と追加ツール
+   - 中央：編集キャンバス
+   - 右：選択オブジェクト設定
+
+   色だけで意味を伝えず、名称・枠線・記号も併用する。
+   ========================================================= */
+
+/* ライトテーマの共通色。以降の各UIは可能な限りCSS変数を参照する。 */
 :root {
   color-scheme: light;
   --bg: #f5f5f4;
@@ -15,6 +28,7 @@
   --sidewalk: #e7e5e4;
   --building: #dbeafe;
 }
+/* ダークテーマ。同じ意味の要素はライトテーマと同一構造を維持する。 */
 html[data-theme="dark"] {
   color-scheme: dark;
   --bg: #111827;
@@ -32,6 +46,7 @@ html[data-theme="dark"] {
   --sidewalk: #334155;
   --building: #1e3a5f;
 }
+/* 基本リセットとフォーム部品。 */
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 1100px; background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; font-size: 14px; line-height: 1.5; }
 button,input,select { font: inherit; color: inherit; }
@@ -39,12 +54,14 @@ button,.file-button,select,input { border: 1px solid var(--border); border-radiu
 button,.file-button { min-height: 34px; padding: 6px 10px; cursor: pointer; }
 button:hover,.file-button:hover { border-color: var(--strong-border); background: var(--panel-2); }
 input,select { width: 100%; min-height: 34px; padding: 5px 7px; }
+/* 上部ヘッダーと保存・出力操作。 */
 .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
 .topbar h1 { margin: 0; font-size: 20px; }
 .app-kicker { margin: 0 0 2px; color: var(--muted); font-size: 12px; }
 .topbar-actions { display: flex; gap: 6px; }
 .file-button { display: inline-flex; align-items: center; }
 .file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+/* 3ペインの管理画面レイアウト。編集作業を優先しPC幅を前提とする。 */
 .admin-layout { display: grid; grid-template-columns: 220px minmax(660px,1fr) 280px; height: calc(100vh - 118px); min-height: 620px; }
 .left-panel,.right-panel { overflow: auto; padding: 14px; background: var(--panel); }
 .left-panel { border-right: 1px solid var(--border); }
@@ -55,6 +72,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .muted { color: var(--muted); font-size: 12px; }
 .tool-list { display: grid; gap: 6px; }
 .tool-list button { width: 100%; text-align: left; }
+/* 中央編集領域とキャンバス。 */
 .workspace { min-width: 0; overflow: hidden; background: var(--bg); }
 .workspace-head { display: flex; justify-content: space-between; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
 .workspace-head h2,.workspace-head p { margin: 0; }
@@ -63,6 +81,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .canvas-settings label { display: grid; grid-template-columns: auto 74px; align-items: center; gap: 5px; white-space: nowrap; }
 .canvas-scroll { height: calc(100% - 66px); overflow: auto; padding: 24px; }
 .map-canvas { position: relative; width: 1000px; height: 700px; background-color: var(--canvas); background-image: linear-gradient(var(--border) 1px, transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 25px 25px; border: 1px solid var(--strong-border); transform-origin: top left; }
+/* キャンバス上の全オブジェクトに共通する見た目とドラッグ操作用設定。 */
 .map-object { position: absolute; display: grid; place-items: center; min-width: 12px; min-height: 12px; border: 2px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: hidden; font-size: 12px; font-weight: 600; text-align: center; }
 .map-object.selected { outline: 3px solid #f59e0b; outline-offset: 2px; z-index: 20; }
 .map-object[data-object-type="parkingSpace"] { border-color: #047857; background: #ecfdf5; }
@@ -74,6 +93,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .map-object[data-object-type="buildingEntrance"]::before { content: "入口"; font-size: 9px; }
 .map-object[data-object-type="parkingEntrance"]::before { content: "P出入口"; font-size: 8px; }
 .map-object[data-object-type="buildingEntrance"] span,.map-object[data-object-type="parkingEntrance"] span { display: none; }
+/* 右側のオブジェクト設定フォーム。 */
 .empty-settings { padding: 16px 0; color: var(--muted); }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .settings-grid label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
@@ -211,4 +231,17 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   .background-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+
+/* クラウド同期設定。管理者資格情報は保存せず、パスワード入力欄も都度空にする。 */
+.cloud-sync-panel input {
+  width: 100%;
+  margin-bottom: 0.45rem;
+}
+.cloud-sync-panel .tool-list {
+  margin-top: 0.55rem;
+}
+#cloud-sync-status {
+  min-height: 2.6em;
 }
