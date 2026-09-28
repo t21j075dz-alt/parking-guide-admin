@@ -58,6 +58,12 @@ const state = {
   resize: null,
   backgroundEdit: false,
   backgroundDrag: null,
+
+  /*
+   * viewScale は編集画面だけの倍率。
+   * レイアウト座標そのものは変えず、航空写真と全オブジェクトをまとめて拡大する。
+   */
+  viewScale: 1,
   remoteAccessToken: null,
   remoteSyncTimer: null,
 };
@@ -68,6 +74,10 @@ const elements = {
   facilitySelect: document.querySelector("#facility-select"),
   facilityId: document.querySelector("#facility-id"),
   canvas: document.querySelector("#map-canvas"),
+  canvasScroll: document.querySelector("#canvas-scroll"),
+  canvasStage: document.querySelector("#canvas-stage"),
+  editorZoomRange: document.querySelector("#editor-zoom-range"),
+  editorZoomOutput: document.querySelector("#editor-zoom-output"),
   canvasWidth: document.querySelector("#canvas-width"),
   canvasHeight: document.querySelector("#canvas-height"),
   canvasScale: document.querySelector("#canvas-scale"),
@@ -98,6 +108,10 @@ const elements = {
   parkingSpaceSettings: document.querySelector("#parking-space-settings"),
   spaceType: document.querySelector("#space-type"),
   spaceStatus: document.querySelector("#space-status"),
+  spaceMarkingStyle: document.querySelector("#space-marking-style"),
+  spaceMarkingColor: document.querySelector("#space-marking-color"),
+  spaceMarkingWidth: document.querySelector("#space-marking-width"),
+  spaceMarkingWidthOutput: document.querySelector("#space-marking-width-output"),
   roadSettings: document.querySelector("#road-settings"),
   roadDirection: document.querySelector("#road-direction"),
   parkingEntranceSettings: document.querySelector("#parking-entrance-settings"),
@@ -186,6 +200,12 @@ function addObject(type, options = {}) {
   if (type === "parkingSpace") {
     item.spaceType = options.spaceType ?? "standard";
     item.status = "available";
+
+    /* 区画の論理外形と路面標示を分離する。 */
+    item.markingStyle = "full";
+    item.markingColor = "#ffffff";
+    item.markingWidth = 3;
+
     item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
   }
   if (type === "road") {
@@ -480,6 +500,61 @@ function useCurrentLocationForBackground() {
    オブジェクトの直接操作・吸着・連続生成
    ========================================================= */
 
+/** 編集倍率を25%～3200%へ制限し、写真とオブジェクトを同じ倍率で表示する。 */
+function applyViewScale(scale, preserveCenter = false) {
+  const layout = getCurrentLayout();
+  if (!layout || !elements.canvasStage) {
+    return;
+  }
+
+  const nextScale = Math.max(0.25, Math.min(32, Number(scale) || 1));
+  const scroll = elements.canvasScroll;
+  let centerX = null;
+  let centerY = null;
+
+  if (preserveCenter && scroll) {
+    centerX = (scroll.scrollLeft + scroll.clientWidth / 2) / state.viewScale;
+    centerY = (scroll.scrollTop + scroll.clientHeight / 2) / state.viewScale;
+  }
+
+  state.viewScale = nextScale;
+  elements.canvas.style.transform = `scale(${nextScale})`;
+  elements.canvasStage.style.width = `${layout.canvas.width * nextScale}px`;
+  elements.canvasStage.style.height = `${layout.canvas.height * nextScale}px`;
+  elements.editorZoomRange.value = String(Math.round(nextScale * 100));
+  elements.editorZoomOutput.value = `${Math.round(nextScale * 100)}%`;
+  elements.editorZoomOutput.textContent = `${Math.round(nextScale * 100)}%`;
+
+  if (preserveCenter && scroll && centerX !== null && centerY !== null) {
+    scroll.scrollLeft = Math.max(0, centerX * nextScale - scroll.clientWidth / 2);
+    scroll.scrollTop = Math.max(0, centerY * nextScale - scroll.clientHeight / 2);
+  }
+}
+
+/** 編集倍率を現在値から指定量だけ変更する。 */
+function changeViewScale(delta) {
+  applyViewScale(state.viewScale + delta, true);
+}
+
+/** キャンバス全体が現在の編集領域へ収まる倍率へ変更する。 */
+function fitViewScale() {
+  const layout = getCurrentLayout();
+  const scroll = elements.canvasScroll;
+  if (!layout || !scroll) {
+    return;
+  }
+  const availableWidth = Math.max(100, scroll.clientWidth - 48);
+  const availableHeight = Math.max(100, scroll.clientHeight - 48);
+  const scale = Math.min(
+    availableWidth / layout.canvas.width,
+    availableHeight / layout.canvas.height,
+    1,
+  );
+  applyViewScale(Math.max(0.25, scale));
+  scroll.scrollLeft = 0;
+  scroll.scrollTop = 0;
+}
+
 /** 指定値を5pxグリッドへ丸める。吸着OFFの場合は元の値を返す。 */
 function snapToGrid(value) {
   return elements.snapEnabled?.checked ? Math.round(value / 5) * 5 : value;
@@ -601,8 +676,8 @@ function moveResize(event) {
   if (!item || !layout) {
     return;
   }
-  const dx = event.clientX - state.resize.startClientX;
-  const dy = event.clientY - state.resize.startClientY;
+  const dx = (event.clientX - state.resize.startClientX) / state.viewScale;
+  const dy = (event.clientY - state.resize.startClientY) / state.viewScale;
   const radians = state.resize.rotation * Math.PI / 180;
   const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
   const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
@@ -723,6 +798,8 @@ function render() {
   elements.canvas.replaceChildren();
   renderBackground(layout);
 
+  applyViewScale(state.viewScale);
+
   layout.objects.forEach((item) => {
     const node = document.createElement("div");
     node.className = "map-object";
@@ -733,6 +810,12 @@ function render() {
     }
     if (item.objectType === "parkingEntrance") {
       node.dataset.accessType = item.accessType ?? "both";
+    }
+    if (item.objectType === "parkingSpace") {
+      /* CSSが路面標示を描画できるよう、保存値をdata属性とCSS変数へ渡す。 */
+      node.dataset.markingStyle = item.markingStyle ?? "full";
+      node.style.setProperty("--space-line-color", item.markingColor ?? "#ffffff");
+      node.style.setProperty("--space-line-width", `${Math.max(1, Number(item.markingWidth) || 3)}px`);
     }
     node.style.left = `${item.x}px`;
     node.style.top = `${item.y}px`;
@@ -799,11 +882,11 @@ function moveDrag(event) {
   }
   const proposedX = Math.max(0, Math.min(
     layout.canvas.width - (item.width ?? 34),
-    state.drag.startX + event.clientX - state.drag.startClientX,
+    state.drag.startX + (event.clientX - state.drag.startClientX) / state.viewScale,
   ));
   const proposedY = Math.max(0, Math.min(
     layout.canvas.height - (item.height ?? 34),
-    state.drag.startY + event.clientY - state.drag.startClientY,
+    state.drag.startY + (event.clientY - state.drag.startClientY) / state.viewScale,
   ));
   const snapped = snapObjectPosition(item, proposedX, proposedY);
   item.x = Math.round(snapped.x);
@@ -865,6 +948,11 @@ function updateSettings() {
   if (item.objectType === "parkingSpace") {
     elements.spaceType.value = item.spaceType ?? "standard";
     elements.spaceStatus.value = item.status ?? "available";
+    elements.spaceMarkingStyle.value = item.markingStyle ?? "full";
+    elements.spaceMarkingColor.value = item.markingColor ?? "#ffffff";
+    elements.spaceMarkingWidth.value = String(Math.max(1, Number(item.markingWidth) || 3));
+    elements.spaceMarkingWidthOutput.value = `${elements.spaceMarkingWidth.value}px`;
+    elements.spaceMarkingWidthOutput.textContent = `${elements.spaceMarkingWidth.value}px`;
   }
 
   elements.buildingEntranceSettings.hidden = item.objectType !== "buildingEntrance";
@@ -917,6 +1005,11 @@ function updateSelectedFromForm() {
   if (item.objectType === "parkingSpace") {
     item.spaceType = elements.spaceType.value;
     item.status = elements.spaceStatus.value;
+
+    /* 見た目の線形状は検索・距離計算へ影響させず、表示情報として保存する。 */
+    item.markingStyle = elements.spaceMarkingStyle.value;
+    item.markingColor = elements.spaceMarkingColor.value;
+    item.markingWidth = Math.max(1, Number(elements.spaceMarkingWidth.value) || 3);
   }
   if (item.objectType === "buildingEntrance") {
     item.entranceType = elements.entranceType.value;
@@ -1232,6 +1325,73 @@ function getExperimentFacility() {
   };
 }
 
+/**
+ * 施設の登録座標がない場合、国土地理院の地名検索APIへ施設名と都道府県を渡し、
+ * 最上位候補の座標を航空写真の中心として保存する。
+ *
+ * 店舗名検索で必ず一致する保証はないため、既存の手動位置調整も残す。
+ */
+async function locateFacilityForBackground(facility, layout) {
+  if (!facility || !layout || layout.background) {
+    return;
+  }
+
+  if (Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude)) {
+    layout.background = {
+      type: "gsi-seamlessphoto",
+      centerLat: facility.latitude,
+      centerLng: facility.longitude,
+      zoom: 18,
+      opacity: 0.75,
+    };
+    saveLocal();
+    render();
+    return;
+  }
+
+  const query = [facility.prefecture, facility.municipality, facility.name]
+    .filter(Boolean)
+    .join(" ");
+  elements.backgroundStatus.textContent = `「${facility.name}」の位置を検索しています…`;
+
+  try {
+    const response = await fetch(
+      `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`,
+      { cache: "force-cache" },
+    );
+    if (!response.ok) {
+      throw new Error("location search failed");
+    }
+    const data = await response.json();
+    const candidates = Array.isArray(data) ? data : (data.features ?? []);
+    const feature = candidates[0];
+    const coordinates = feature?.geometry?.coordinates;
+    const longitude = Number(coordinates?.[0]);
+    const latitude = Number(coordinates?.[1]);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error("location not found");
+    }
+
+    layout.background = {
+      type: "gsi-seamlessphoto",
+      centerLat: latitude,
+      centerLng: longitude,
+      zoom: 18,
+      opacity: 0.75,
+      locatedBy: "gsi-search",
+      locationQuery: query,
+    };
+    saveLocal();
+    render();
+    elements.backgroundStatus.textContent =
+      `「${facility.name}」の検索位置を中心に表示しました。航空写真を見て、必要なら「写真を動かす」で微調整してください。`;
+  } catch {
+    elements.backgroundStatus.textContent =
+      `「${facility.name}」の位置を自動取得できませんでした。現在地を使うか、緯度・経度を直接指定してください。`;
+  }
+}
+
 /** 選択した都道府県に属する施設だけを施設プルダウンへ表示する。 */
 function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   const experiment = getExperimentFacility();
@@ -1261,14 +1421,8 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
     const facility = state.facilityId === experiment.id
       ? experiment
       : state.facilities.find((item) => item.id === state.facilityId);
-    if (!layout.background && Number.isFinite(facility?.latitude) && Number.isFinite(facility?.longitude)) {
-      layout.background = {
-        type: "gsi-seamlessphoto",
-        centerLat: facility.latitude,
-        centerLng: facility.longitude,
-        zoom: 18,
-        opacity: 0.75,
-      };
+    if (!layout.background) {
+      void locateFacilityForBackground(facility, layout);
     }
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   } else {
@@ -1316,9 +1470,16 @@ function changeFacility() {
   elements.backgroundEditButton.setAttribute("aria-pressed", "false");
   elements.backgroundEditButton.textContent = "写真を動かす";
   elements.canvas.classList.remove("is-background-editing", "is-panning");
-  ensureLayout(state.facilityId);
+  const layout = ensureLayout(state.facilityId);
+  const experiment = getExperimentFacility();
+  const facility = state.facilityId === experiment.id
+    ? experiment
+    : state.facilities.find((item) => item.id === state.facilityId);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   render();
+  if (!layout.background) {
+    void locateFacilityForBackground(facility, layout);
+  }
 }
 
 /** キャンバス寸法とメートル換算係数を現在施設のレイアウトへ保存する。 */
@@ -1415,14 +1576,32 @@ elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
 [elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height,
   elements.roadDirection, elements.parkingAccessType,
-  elements.spaceType, elements.spaceStatus, elements.entranceType, elements.publicAccess,
+  elements.spaceType, elements.spaceStatus, elements.spaceMarkingStyle, elements.spaceMarkingColor,
+  elements.spaceMarkingWidth, elements.entranceType, elements.publicAccess,
   elements.wheelchairAccessible, elements.guideTarget, elements.buildingId].forEach((control) => {
   control.addEventListener("change", updateSelectedFromForm);
+});
+
+/* 線の太さはスライダー操作中にも数値を表示する。 */
+elements.spaceMarkingWidth.addEventListener("input", () => {
+  elements.spaceMarkingWidthOutput.value = `${elements.spaceMarkingWidth.value}px`;
+  elements.spaceMarkingWidthOutput.textContent = `${elements.spaceMarkingWidth.value}px`;
 });
 
 document.querySelectorAll("[data-adjacent-direction]").forEach((button) => {
   button.addEventListener("click", () => createAdjacentSpaces(button.dataset.adjacentDirection));
 });
+elements.editorZoomRange.addEventListener("input", () => {
+  applyViewScale(Number(elements.editorZoomRange.value) / 100, true);
+});
+document.querySelector("#editor-zoom-in-button").addEventListener("click", () => changeViewScale(
+  state.viewScale < 2 ? 0.25 : state.viewScale < 8 ? 0.5 : 1,
+));
+document.querySelector("#editor-zoom-out-button").addEventListener("click", () => changeViewScale(
+  -(state.viewScale <= 2 ? 0.25 : state.viewScale <= 8 ? 0.5 : 1),
+));
+document.querySelector("#editor-zoom-fit-button").addEventListener("click", fitViewScale);
+
 document.querySelector("#rotate-left-button").addEventListener("click", () => rotateSelected(-90));
 document.querySelector("#rotate-right-button").addEventListener("click", () => rotateSelected(90));
 document.querySelector("#duplicate-button").addEventListener("click", duplicateSelected);
