@@ -39,6 +39,7 @@
           <label class="field-label" for="facility-select">施設</label>
           <select id="facility-select"></select>
           <p id="facility-id" class="muted"></p>
+          <p id="facility-address" class="muted"></p>
         </section>
 
         <section class="cloud-sync-panel">
@@ -122,6 +123,7 @@
             <button id="background-zoom-out-button" type="button" aria-label="航空写真を縮小">－</button>
             <button id="background-zoom-in-button" type="button" aria-label="航空写真を拡大">＋</button>
             <button id="current-location-background-button" type="button">現在地を中心にする</button>
+            <button id="reset-facility-location-button" type="button">店舗位置へ戻す</button>
           </div>
           <label class="background-opacity-row">写真の濃さ
             <input id="background-opacity" type="range" min="0.15" max="1" step="0.05" value="0.75">
@@ -150,7 +152,7 @@
           <span class="toolbar-spacer"></span>
           <div class="editor-zoom" aria-label="編集倍率">
             <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
-            <input id="editor-zoom-range" type="range" min="25" max="3200" step="25" value="100" aria-label="編集倍率">
+            <input id="editor-zoom-range" type="range" min="25" max="12800" step="25" value="100" aria-label="編集倍率">
             <output id="editor-zoom-output" for="editor-zoom-range">100%</output>
             <button id="editor-zoom-in-button" type="button" aria-label="編集画面を拡大">＋</button>
             <button id="editor-zoom-fit-button" type="button">全体表示</button>
