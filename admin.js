@@ -314,7 +314,13 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 4 ? V4_OBJECT_DEFAULTS : previousVersion >= 3 ? V3_OBJECT_DEFAULTS : previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
+  const previousDefaults = previousVersion >= 4
+    ? V4_OBJECT_DEFAULTS
+    : previousVersion >= 3
+      ? V3_OBJECT_DEFAULTS
+      : previousVersion >= 2
+        ? V2_OBJECT_DEFAULTS
+        : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
 
   (layout.objects ?? []).forEach((item) => {
@@ -324,23 +330,56 @@ function migrateLegacyObjectDefaults(layout) {
       return;
     }
 
-    /*
-     * 旧版の初期寸法と完全一致するものだけ自動縮小する。
-     * 利用者が手動で寸法を変更したオブジェクトはそのまま残す。
-     */
-    if (Number(item.width) === previous.width && Number(item.height) === previous.height) {
-      const centerX = Number(item.x || 0) + previous.width / 2;
-      const centerY = Number(item.y || 0) + previous.height / 2;
-      item.width = current.width;
-      item.height = current.height;
-      item.x = Math.round(centerX - current.width / 2);
-      item.y = Math.round(centerY - current.height / 2);
+    const matchesPreviousSize =
+      Number(item.width) === previous.width &&
+      Number(item.height) === previous.height;
+    const sizeActuallyChanges =
+      previous.width !== current.width ||
+      previous.height !== current.height;
 
-      if (item.objectType === "parkingSpace") {
-        item.markingWidth = 1;
-      }
-      changed = true;
+    if (!matchesPreviousSize || !sizeActuallyChanges) {
+      return;
     }
+
+    /*
+     * 多角形をユーザーがすでに変形している場合は自動縮小しない。
+     * 未編集の四角形（四隅が外接矩形と一致）だけを安全に移行する。
+     */
+    if (POLYGON_OBJECT_TYPES.has(item.objectType) && Array.isArray(item.polygonPoints)) {
+      const expected = [
+        [0, 0],
+        [previous.width, 0],
+        [previous.width, previous.height],
+        [0, previous.height],
+      ];
+      const isDefaultRectangle =
+        item.polygonPoints.length === 4 &&
+        item.polygonPoints.every((point, index) =>
+          Number(point.x) === expected[index][0] &&
+          Number(point.y) === expected[index][1]
+        );
+      if (!isDefaultRectangle) {
+        return;
+      }
+    }
+
+    const centerX = Number(item.x || 0) + previous.width / 2;
+    const centerY = Number(item.y || 0) + previous.height / 2;
+    const scaleX = current.width / previous.width;
+    const scaleY = current.height / previous.height;
+
+    if (Array.isArray(item.polygonPoints)) {
+      item.polygonPoints = item.polygonPoints.map((point) => ({
+        x: Number(point.x) * scaleX,
+        y: Number(point.y) * scaleY,
+      }));
+    }
+
+    item.width = current.width;
+    item.height = current.height;
+    item.x = Math.round(centerX - current.width / 2);
+    item.y = Math.round(centerY - current.height / 2);
+    changed = true;
   });
 
   layout.objectDefaultsVersion = OBJECT_DEFAULTS_VERSION;
