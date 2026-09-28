@@ -295,7 +295,8 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   pointer-events: none;
   background: #d6d3d1;
 }
-.satellite-layer img {
+.satellite-layer > img {
+  /* 旧データとの互換用。現在は通常 satellite-tile 内のimgを使用する。 */
   position: absolute;
   width: 256px;
   height: 256px;
@@ -555,4 +556,26 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   min-width: 2.8rem;
   color: var(--muted);
   text-align: right;
+}
+
+
+/* 航空写真1タイル分の表示枠。高倍率タイル欠損時は親タイルを切り出して埋める。 */
+.satellite-tile {
+  position: absolute;
+  overflow: hidden;
+  background: #d6d3d1;
+  pointer-events: none;
+}
+
+.satellite-tile img {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.satellite-tile.is-missing {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 14%) 25%, transparent 25%) 0 0 / 16px 16px,
+    #8b8f93;
 }
