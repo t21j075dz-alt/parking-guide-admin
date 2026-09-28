@@ -337,10 +337,26 @@ function updateSelectedFromForm() {
     item.height = Math.max(8, Number(elements.height.value) || 8);
   }
   if (item.objectType === "road") {
+    const previousDirection = item.trafficDirection ?? "twoWay";
+    const previousDefaultName = previousDirection === "oneWay" ? "一方通行" : "車道";
     item.trafficDirection = elements.roadDirection.value;
+    if (item.name === previousDefaultName) {
+      item.name = item.trafficDirection === "oneWay" ? "一方通行" : "車道";
+      elements.name.value = item.name;
+    }
   }
   if (item.objectType === "parkingEntrance") {
+    const accessNames = {
+      entrance: "駐車場入口",
+      exit: "駐車場出口",
+      both: "駐車場出入口",
+    };
+    const previousAccessType = item.accessType ?? "both";
     item.accessType = elements.parkingAccessType.value;
+    if (item.name === accessNames[previousAccessType]) {
+      item.name = accessNames[item.accessType];
+      elements.name.value = item.name;
+    }
   }
   if (item.objectType === "parkingSpace") {
     item.spaceType = elements.spaceType.value;
