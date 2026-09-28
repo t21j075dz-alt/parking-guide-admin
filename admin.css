@@ -894,3 +894,105 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .map-object[data-object-type="parkingSpace"].selected {
   z-index: 40 !important;
 }
+
+
+/* =========================================================
+   駐車枠の種別表示
+   ========================================================= */
+.map-object[data-object-type="parkingSpace"] > .space-type-mark {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 6;
+  display: grid !important;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 75%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.map-object[data-object-type="parkingSpace"] > .space-number-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  z-index: 6;
+  display: block !important;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 88%);
+  font-size: 6px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 75%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.map-object[data-object-type="parkingSpace"][data-space-type="accessible"] {
+  background: rgb(37 99 235 / 22%);
+}
+.map-object[data-object-type="parkingSpace"][data-space-type="ev"] {
+  background: rgb(16 185 129 / 18%);
+}
+.map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
+  left: 50%;
+  top: 46%;
+  bottom: auto;
+  display: grid !important;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+  transform: translate(-50%, -50%);
+}
+.map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
+  left: 50%;
+  top: auto;
+  bottom: 3px;
+  display: block !important;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  background: transparent;
+  font-size: 6px;
+  transform: translateX(-50%);
+}
+
+/* 対象外の別駐車場。案内対象のアスファルト敷地と明確に区別する。 */
+.polygon-object[data-object-type="excludedParkingLot"] .polygon-fill {
+  fill: #72777d;
+  stroke: #d1d5db;
+  stroke-width: 3;
+  stroke-dasharray: 10 6;
+}
+.polygon-object[data-object-type="excludedParkingLot"] > .object-label {
+  background: rgb(31 41 55 / 88%);
+  color: #fff;
+  font-size: 9px;
+}
+.map-object[data-object-type="excludedParkingLot"] {
+  z-index: 0 !important;
+}
+.map-object[data-object-type="excludedParkingLot"].selected {
+  z-index: 0 !important;
+}
+
+/* 駐車枠追加UI */
+.parking-add-actions {
+  margin-top: 6px;
+}
+#new-parking-space-type {
+  width: 100%;
+}
