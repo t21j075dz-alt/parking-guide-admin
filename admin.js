@@ -1034,9 +1034,36 @@ function snapParkingSpacePosition(item, x, y) {
     return null;
   }
 
-  const threshold = Math.max(10, getGridSize() * 1.6);
+  /*
+   * 普通車・軽・車椅子用など大きさが異なる枠でも整列できるよう、
+   * 同じ回転角の駐車枠をローカル座標の「横方向(u)」「奥行方向(v)」で比較する。
+   *
+   * 横並びでは優先順位を
+   *   1. 奥側（上辺）を一致
+   *   2. 手前側（下辺）を一致
+   *   3. 中心を一致
+   * とし、軽枠と普通車枠を混ぜても奥側の白線が一直線になりやすくする。
+   */
+  const threshold = Math.max(14, getGridSize() * 2);
   const itemRotation = ((Number(item.rotation) || 0) % 360 + 360) % 360;
+  const iw = Number(item.width) || 25;
+  const ih = Number(item.height) || 50;
   let best = null;
+
+  function consider(candidate, priority) {
+    const distance = Math.hypot(candidate.x - x, candidate.y - y);
+    if (distance > threshold) return;
+
+    /*
+     * 数px程度の差なら優先度を距離より重視する。
+     * 奥側揃えを最優先にすることで、軽枠が普通車枠の中央へ
+     * 半端に寄るのを防ぐ。
+     */
+    const score = distance + priority * 2.5;
+    if (!best || score < best.score) {
+      best = { ...candidate, distance, score };
+    }
+  }
 
   layout.objects.forEach((other) => {
     if (other.uid === item.uid || other.objectType !== "parkingSpace") return;
@@ -1053,25 +1080,78 @@ function snapParkingSpacePosition(item, x, y) {
     const uy = Math.sin(angle);
     const vx = -Math.sin(angle);
     const vy = Math.cos(angle);
-    const iw = Number(item.width) || 25;
-    const ih = Number(item.height) || 50;
     const ow = Number(other.width) || 25;
     const oh = Number(other.height) || 50;
 
-    const candidates = [
-      { x: other.x + ow * ux, y: other.y + ow * uy, guideX: other.x + ow * ux, guideY: other.y + ow * uy },
-      { x: other.x - iw * ux, y: other.y - iw * uy, guideX: other.x, guideY: other.y },
-      { x: other.x + oh * vx, y: other.y + oh * vy, guideX: other.x + oh * vx, guideY: other.y + oh * vy },
-      { x: other.x - ih * vx, y: other.y - ih * vy, guideX: other.x, guideY: other.y },
-      { x: other.x, y: other.y, guideX: other.x, guideY: other.y },
+    /*
+     * 横並び候補。
+     * alignV=0 が奥側揃え、oh-ih が手前側揃え、
+     * (oh-ih)/2 が中心揃え。
+     */
+    const sideAlignments = [
+      { offset: 0, priority: 0 },
+      { offset: oh - ih, priority: 1 },
+      { offset: (oh - ih) / 2, priority: 2 },
     ];
 
-    candidates.forEach((candidate) => {
-      const distance = Math.hypot(candidate.x - x, candidate.y - y);
-      if (distance <= threshold && (!best || distance < best.distance)) {
-        best = { ...candidate, distance };
-      }
+    sideAlignments.forEach(({ offset, priority }) => {
+      // 右隣
+      consider({
+        x: other.x + ow * ux + offset * vx,
+        y: other.y + ow * uy + offset * vy,
+        guideX: other.x,
+        guideY: other.y,
+        alignment: priority === 0 ? "head" : priority === 1 ? "front" : "center",
+      }, priority);
+
+      // 左隣
+      consider({
+        x: other.x - iw * ux + offset * vx,
+        y: other.y - iw * uy + offset * vy,
+        guideX: other.x,
+        guideY: other.y,
+        alignment: priority === 0 ? "head" : priority === 1 ? "front" : "center",
+      }, priority);
     });
+
+    /*
+     * 前後に並べる場合は、左端・右端・中心の3種類で揃える。
+     * 異なる幅の枠でも列を崩さず配置できる。
+     */
+    const depthAlignments = [
+      { offset: 0, priority: 0 },
+      { offset: ow - iw, priority: 1 },
+      { offset: (ow - iw) / 2, priority: 2 },
+    ];
+
+    depthAlignments.forEach(({ offset, priority }) => {
+      // 手前側
+      consider({
+        x: other.x + offset * ux + oh * vx,
+        y: other.y + offset * uy + oh * vy,
+        guideX: other.x,
+        guideY: other.y,
+        alignment: priority === 0 ? "left" : priority === 1 ? "right" : "center",
+      }, priority + 1);
+
+      // 奥側
+      consider({
+        x: other.x + offset * ux - ih * vx,
+        y: other.y + offset * uy - ih * vy,
+        guideX: other.x,
+        guideY: other.y,
+        alignment: priority === 0 ? "left" : priority === 1 ? "right" : "center",
+      }, priority + 1);
+    });
+
+    // 完全重ね合わせ位置は低優先度。複製後の位置合わせ用。
+    consider({
+      x: other.x,
+      y: other.y,
+      guideX: other.x,
+      guideY: other.y,
+      alignment: "same-origin",
+    }, 5);
   });
 
   return best;
