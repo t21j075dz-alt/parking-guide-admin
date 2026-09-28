@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 109
+    "fixedCoordinateCount": 118
   },
   "facilities": [
     {
@@ -774,7 +774,7 @@
       "name": "トライアル 山口小郡店",
       "prefecture": "山口県",
       "municipality": "山口市",
-      "address": "山口県山口市陶11170番1",
+      "address": "山口県山口市陶1170-1",
       "category": "supermarket",
       "latitude": null,
       "longitude": null,
@@ -783,10 +783,11 @@
       "isDemo": false,
       "locationVerified": true,
       "locationVerificationDate": "2026-09-28",
-      "locationSource": "TRIAL公式店舗情報",
+      "locationSource": "山口県大規模小売店舗届出・TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
       "coordinateSource": "確認済み住所から地理院住所検索",
-      "operatingStatus": "opening-scheduled",
+      "openingNote": "2026年11月開店予定。2026年9月28日時点では開店前",
+    "operatingStatus": "planned",
     "plannedOpen": "2026-11",
     "statusNote": "2026年11月開業予定。航空写真には建設中または完成前の状態が写る場合があります。",
       "statusNote": "2026年11月中オープン予定（2026年9月28日時点）"
@@ -2110,8 +2111,8 @@
       "municipality": "鹿児島市",
       "address": "鹿児島県鹿児島市宇宿2丁目14番5号",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.5423913,
+      "longitude": 130.5415956,
       "layoutId": "target_111",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2119,7 +2120,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2129,8 +2130,8 @@
       "municipality": "霧島市",
       "address": "鹿児島県霧島市国分府中町32番23号",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.7433155,
+      "longitude": 130.760537,
       "layoutId": "target_112",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2138,7 +2139,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2148,8 +2149,8 @@
       "municipality": "鹿児島市",
       "address": "鹿児島県鹿児島市東開町3-16",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.5268046,
+      "longitude": 130.53273,
       "layoutId": "target_113",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2157,7 +2158,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2167,8 +2168,8 @@
       "municipality": "霧島市",
       "address": "鹿児島県霧島市隼人町真孝480",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.723473937706,
+      "longitude": 130.73231200147,
       "layoutId": "target_114",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2176,7 +2177,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2186,8 +2187,8 @@
       "municipality": "指宿市",
       "address": "鹿児島県指宿市西方4558番地",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.2718006045,
+      "longitude": 130.6251749027,
       "layoutId": "target_115",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2195,7 +2196,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地図更新情報（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2205,8 +2206,8 @@
       "municipality": "鹿屋市",
       "address": "鹿児島県鹿屋市笠之原町1950-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.3982586,
+      "longitude": 130.8867193,
       "layoutId": "target_116",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2214,7 +2215,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2243,8 +2244,8 @@
       "municipality": "出水市",
       "address": "鹿児島県出水市黄金町562",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.1030355,
+      "longitude": 130.3428956,
       "layoutId": "target_118",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2252,7 +2253,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2262,8 +2263,8 @@
       "municipality": "姶良市",
       "address": "鹿児島県姶良市加治木町反土字上古川2864-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.7456386,
+      "longitude": 130.6564682,
       "layoutId": "target_119",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2271,7 +2272,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -2281,8 +2282,8 @@
       "municipality": "鹿児島市",
       "address": "鹿児島県鹿児島市東開町4-15",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 31.5310573,
+      "longitude": 130.5365604,
       "layoutId": "target_120",
       "targetBuildingId": null,
       "isDemo": false,
@@ -2290,7 +2291,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     }
   ]
