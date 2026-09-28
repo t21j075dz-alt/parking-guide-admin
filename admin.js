@@ -46,6 +46,12 @@ const elements = {
   canvasWidth: document.querySelector("#canvas-width"),
   canvasHeight: document.querySelector("#canvas-height"),
   canvasScale: document.querySelector("#canvas-scale"),
+  backgroundType: document.querySelector("#background-type"),
+  backgroundLatitude: document.querySelector("#background-latitude"),
+  backgroundLongitude: document.querySelector("#background-longitude"),
+  backgroundZoom: document.querySelector("#background-zoom"),
+  backgroundOpacity: document.querySelector("#background-opacity"),
+  backgroundStatus: document.querySelector("#background-status"),
   emptySettings: document.querySelector("#empty-settings"),
   form: document.querySelector("#object-form"),
   uid: document.querySelector("#object-uid"),
@@ -88,6 +94,7 @@ function ensureLayout(facilityId) {
       schemaVersion: 1,
       facilityId,
       canvas: { width: 1000, height: 700, scaleMetersPerPixel: null },
+      background: null,
       objects: [],
     };
   }
@@ -173,6 +180,140 @@ function addObject(type, options = {}) {
   render();
 }
 
+
+
+/* =========================================================
+   航空写真の背景
+   ========================================================= */
+
+/** Web Mercator の緯度上限内へ収める。 */
+function clampLatitude(latitude) {
+  return Math.max(-85.05112878, Math.min(85.05112878, latitude));
+}
+
+/** 緯度経度を指定ズームの世界ピクセル座標へ変換する。 */
+function toWorldPixel(latitude, longitude, zoom) {
+  const size = 256 * (2 ** zoom);
+  const lat = clampLatitude(latitude) * Math.PI / 180;
+  return {
+    x: ((longitude + 180) / 360) * size,
+    y: (1 - Math.log(Math.tan(lat) + (1 / Math.cos(lat))) / Math.PI) / 2 * size,
+  };
+}
+
+/** 現在の背景設定を入力欄へ反映する。 */
+function updateBackgroundControls(layout) {
+  const background = layout.background;
+  elements.backgroundType.value = background?.type ?? "none";
+  elements.backgroundLatitude.value = Number.isFinite(background?.centerLat) ? background.centerLat : "";
+  elements.backgroundLongitude.value = Number.isFinite(background?.centerLng) ? background.centerLng : "";
+  elements.backgroundZoom.value = Number.isFinite(background?.zoom) ? background.zoom : 18;
+  elements.backgroundOpacity.value = Number.isFinite(background?.opacity) ? background.opacity : 0.75;
+}
+
+/** 国土地理院の航空写真タイルをキャンバス背景として描画する。 */
+function renderBackground(layout) {
+  const background = layout.background;
+  if (!background || background.type !== "gsi-seamlessphoto") {
+    return;
+  }
+  if (!Number.isFinite(background.centerLat) || !Number.isFinite(background.centerLng)) {
+    return;
+  }
+
+  const zoom = Math.max(14, Math.min(18, Math.round(background.zoom ?? 18)));
+  const tileCount = 2 ** zoom;
+  const center = toWorldPixel(background.centerLat, background.centerLng, zoom);
+  const topLeftX = center.x - layout.canvas.width / 2;
+  const topLeftY = center.y - layout.canvas.height / 2;
+  const startTileX = Math.floor(topLeftX / 256);
+  const endTileX = Math.floor((topLeftX + layout.canvas.width) / 256);
+  const startTileY = Math.floor(topLeftY / 256);
+  const endTileY = Math.floor((topLeftY + layout.canvas.height) / 256);
+
+  const layer = document.createElement("div");
+  layer.className = "satellite-layer";
+  layer.style.opacity = String(background.opacity ?? 0.75);
+
+  for (let tileY = startTileY; tileY <= endTileY; tileY += 1) {
+    if (tileY < 0 || tileY >= tileCount) {
+      continue;
+    }
+    for (let tileX = startTileX; tileX <= endTileX; tileX += 1) {
+      const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
+      const image = document.createElement("img");
+      image.alt = "";
+      image.draggable = false;
+      image.src = `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/${zoom}/${wrappedX}/${tileY}.jpg`;
+      image.style.left = `${tileX * 256 - topLeftX}px`;
+      image.style.top = `${tileY * 256 - topLeftY}px`;
+      layer.append(image);
+    }
+  }
+
+  elements.canvas.append(layer);
+}
+
+/** 背景設定を保存して再描画する。 */
+function applyBackgroundSettings() {
+  const layout = getCurrentLayout();
+  if (!layout) {
+    return;
+  }
+
+  if (elements.backgroundType.value === "none") {
+    layout.background = null;
+    saveLocal();
+    render();
+    return;
+  }
+
+  const centerLat = Number(elements.backgroundLatitude.value);
+  const centerLng = Number(elements.backgroundLongitude.value);
+  const zoom = Number(elements.backgroundZoom.value);
+  const opacity = Number(elements.backgroundOpacity.value);
+
+  if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)
+      || Math.abs(centerLat) > 90 || Math.abs(centerLng) > 180) {
+    elements.backgroundStatus.textContent = "緯度・経度を入力してください。";
+    return;
+  }
+
+  layout.background = {
+    type: "gsi-seamlessphoto",
+    centerLat,
+    centerLng,
+    zoom: Math.max(14, Math.min(18, Math.round(zoom || 18))),
+    opacity: Math.max(0.15, Math.min(1, opacity || 0.75)),
+  };
+  elements.backgroundStatus.textContent = "航空写真を更新しました。背景を合わせてからオブジェクトを配置してください。";
+  saveLocal();
+  render();
+}
+
+/** ブラウザーの現在地を航空写真の中心に設定する。 */
+function useCurrentLocationForBackground() {
+  if (!navigator.geolocation) {
+    elements.backgroundStatus.textContent = "このブラウザーでは現在地を取得できません。";
+    return;
+  }
+  elements.backgroundStatus.textContent = "現在地を取得しています…";
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      elements.backgroundType.value = "gsi-seamlessphoto";
+      elements.backgroundLatitude.value = position.coords.latitude.toFixed(6);
+      elements.backgroundLongitude.value = position.coords.longitude.toFixed(6);
+      elements.backgroundZoom.value = 18;
+      applyBackgroundSettings();
+    },
+    () => {
+      elements.backgroundStatus.textContent = "現在地を取得できませんでした。緯度・経度を直接入力してください。";
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+  );
+}
+
+
 /* =========================================================
    描画・選択・ドラッグ
    ========================================================= */
@@ -184,7 +325,9 @@ function render() {
   elements.canvasWidth.value = layout.canvas.width;
   elements.canvasHeight.value = layout.canvas.height;
   elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? "";
+  updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
+  renderBackground(layout);
 
   layout.objects.forEach((item) => {
     const node = document.createElement("div");
@@ -492,6 +635,8 @@ function getExperimentFacility() {
     id: "ous-main-gate-experiment",
     name: "実験用駐車場（岡山理科大学正門）",
     prefecture: "岡山県",
+    latitude: 34.6998,
+    longitude: 133.9280,
   };
 }
 
@@ -519,7 +664,19 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   state.facilityId = elements.facilitySelect.value || null;
 
   if (state.facilityId) {
-    ensureLayout(state.facilityId);
+    const layout = ensureLayout(state.facilityId);
+    const facility = state.facilityId === experiment.id
+      ? experiment
+      : state.facilities.find((item) => item.id === state.facilityId);
+    if (!layout.background && Number.isFinite(facility?.latitude) && Number.isFinite(facility?.longitude)) {
+      layout.background = {
+        type: "gsi-seamlessphoto",
+        centerLat: facility.latitude,
+        centerLng: facility.longitude,
+        zoom: 18,
+        opacity: 0.75,
+      };
+    }
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   } else {
     elements.facilityId.textContent = "該当する施設がありません。";
@@ -591,6 +748,19 @@ elements.canvas.addEventListener("pointermove", moveDrag);
 elements.canvas.addEventListener("pointerup", endDrag);
 elements.canvas.addEventListener("pointercancel", endDrag);
 
+document.querySelector("#apply-background-button").addEventListener("click", applyBackgroundSettings);
+document.querySelector("#current-location-background-button").addEventListener("click", useCurrentLocationForBackground);
+elements.backgroundOpacity.addEventListener("input", () => {
+  const layout = getCurrentLayout();
+  if (layout?.background?.type === "gsi-seamlessphoto") {
+    layout.background.opacity = Number(elements.backgroundOpacity.value);
+    const layer = elements.canvas.querySelector(".satellite-layer");
+    if (layer) {
+      layer.style.opacity = String(layout.background.opacity);
+    }
+    saveLocal();
+  }
+});
 elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
 [elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height,
