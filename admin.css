@@ -879,7 +879,8 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 /* 背景レイヤーを固定中はクリック・ドラッグ対象から外す。 */
 .base-layer-object.is-layer-locked {
-  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.92;
 }
 .base-layer-object.selected {
   z-index: 2 !important;
