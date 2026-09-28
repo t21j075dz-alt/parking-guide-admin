@@ -116,25 +116,40 @@
         <!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
         <details class="background-panel" open>
           <summary>航空写真を下敷きにする</summary>
-          <div class="background-controls">
-            <label>背景
-              <select id="background-type">
-                <option value="none">なし</option>
-                <option value="gsi-seamlessphoto">国土地理院・全国最新写真</option>
-              </select>
-            </label>
-            <label>緯度 <input id="background-latitude" type="number" step="0.000001" placeholder="34.699800"></label>
-            <label>経度 <input id="background-longitude" type="number" step="0.000001" placeholder="133.928000"></label>
-            <label>ズーム <input id="background-zoom" type="number" min="14" max="18" step="1" value="18"></label>
-            <label>濃さ <input id="background-opacity" type="range" min="0.15" max="1" step="0.05" value="0.75"></label>
-            <button id="apply-background-button" type="button">背景を更新</button>
+          <div class="background-main-actions">
+            <button id="background-enable-button" type="button">航空写真を表示</button>
+            <button id="background-edit-button" type="button" aria-pressed="false">写真を動かす</button>
+            <button id="background-zoom-out-button" type="button" aria-label="航空写真を縮小">－</button>
+            <button id="background-zoom-in-button" type="button" aria-label="航空写真を拡大">＋</button>
             <button id="current-location-background-button" type="button">現在地を中心にする</button>
           </div>
-          <p id="background-status" class="muted">航空写真は編集用の下敷きです。配置データには背景の中心座標・ズームも保存します。</p>
+          <label class="background-opacity-row">写真の濃さ
+            <input id="background-opacity" type="range" min="0.15" max="1" step="0.05" value="0.75">
+          </label>
+          <details class="background-advanced">
+            <summary>緯度・経度を直接指定する</summary>
+            <div class="background-controls">
+              <label>背景
+                <select id="background-type">
+                  <option value="none">なし</option>
+                  <option value="gsi-seamlessphoto">国土地理院・全国最新写真</option>
+                </select>
+              </label>
+              <label>緯度 <input id="background-latitude" type="number" step="0.000001" placeholder="34.699800"></label>
+              <label>経度 <input id="background-longitude" type="number" step="0.000001" placeholder="133.928000"></label>
+              <label>ズーム <input id="background-zoom" type="number" min="14" max="18" step="1" value="18"></label>
+              <button id="apply-background-button" type="button">数値を反映</button>
+            </div>
+          </details>
+          <p id="background-status" class="muted">「航空写真を表示」後、「写真を動かす」を押すとキャンバス上で直接位置合わせできます。</p>
           <p class="map-attribution">背景写真を使用する場合：出典 国土地理院「全国最新写真（シームレス）」</p>
         </details>
-        <div class="workspace-head workspace-head--compact">
-          <p class="muted">航空写真の位置を決めてから区画・道路を配置すると、現地形状に合わせやすくなります。</p>
+        <div class="editor-toolbar" aria-label="編集補助">
+          <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 枠を吸着</label>
+          <span class="muted">近い枠の端・中心と5pxグリッドへ自動で揃えます。</span>
+          <span class="toolbar-spacer"></span>
+          <button id="rotate-left-button" type="button">↶ 90°</button>
+          <button id="rotate-right-button" type="button">↷ 90°</button>
         </div>
         <div id="canvas-scroll" class="canvas-scroll">
           <div id="map-canvas" class="map-canvas" tabindex="0" aria-label="駐車場配置編集キャンバス"></div>
@@ -146,21 +161,35 @@
         <h2>設定</h2>
         <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
         <form id="object-form" hidden>
-          <div class="settings-grid">
-            <label>内部ID<input id="object-uid" type="text" readonly></label>
-            <label>種類<input id="object-type" type="text" readonly></label>
-            <label>名称<input id="object-name" type="text"></label>
-            <label>X<input id="object-x" type="number" step="1"></label>
-            <label>Y<input id="object-y" type="number" step="1"></label>
-            <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
-            <label id="width-field">幅<input id="object-width" type="number" min="8" step="1"></label>
-            <label id="height-field">高さ<input id="object-height" type="number" min="8" step="1"></label>
-          </div>
+          <label class="primary-setting">名称<input id="object-name" type="text"></label>
+          <p class="direct-edit-help">移動は枠をドラッグ、サイズ変更は周囲の白いハンドルをドラッグします。</p>
+          <details class="numeric-settings">
+            <summary>数値で微調整</summary>
+            <div class="settings-grid">
+              <label>内部ID<input id="object-uid" type="text" readonly></label>
+              <label>種類<input id="object-type" type="text" readonly></label>
+              <label>X<input id="object-x" type="number" step="1"></label>
+              <label>Y<input id="object-y" type="number" step="1"></label>
+              <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
+              <label id="width-field">幅<input id="object-width" type="number" min="8" step="1"></label>
+              <label id="height-field">高さ<input id="object-height" type="number" min="8" step="1"></label>
+            </div>
+          </details>
 
           <fieldset id="parking-space-settings" hidden>
             <legend>駐車区画</legend>
             <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
             <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
+            <div class="adjacent-generator">
+              <label>連続数<input id="adjacent-count" type="number" min="1" max="50" value="1"></label>
+              <p class="muted">選択中の枠と同じ大きさ・向きで、隙間なく追加します。</p>
+              <div class="adjacent-buttons">
+                <button type="button" data-adjacent-direction="up">↑ 上</button>
+                <button type="button" data-adjacent-direction="left">← 左</button>
+                <button type="button" data-adjacent-direction="right">右 →</button>
+                <button type="button" data-adjacent-direction="down">↓ 下</button>
+              </div>
+            </div>
           </fieldset>
 
           <fieldset id="road-settings" hidden>
