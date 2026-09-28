@@ -245,3 +245,179 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 #cloud-sync-status {
   min-height: 2.6em;
 }
+
+
+/* =========================================================
+   直接操作エディター
+   PowerPointのように「選ぶ→ドラッグ→ハンドルでサイズ変更」を基本操作にする。
+   ========================================================= */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.toolbar-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.toolbar-check input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.primary-setting {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.direct-edit-help {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.numeric-settings {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  padding: 8px;
+}
+
+.numeric-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.numeric-settings .settings-grid {
+  margin-top: 8px;
+}
+
+.map-object.selected {
+  overflow: visible;
+}
+
+.resize-handle {
+  position: absolute;
+  z-index: 40;
+  width: 12px !important;
+  min-width: 12px;
+  height: 12px !important;
+  min-height: 12px;
+  padding: 0;
+  border: 2px solid #2563eb;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.resize-handle--nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.resize-handle--n  { left: calc(50% - 6px); top: -7px; cursor: ns-resize; }
+.resize-handle--ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.resize-handle--e  { right: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+.resize-handle--se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.resize-handle--s  { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
+.resize-handle--sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.resize-handle--w  { left: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+
+.snap-guide {
+  position: absolute;
+  z-index: 35;
+  pointer-events: none;
+  background: #e11d48;
+}
+
+.snap-guide--vertical {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.snap-guide--horizontal {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.adjacent-generator {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.adjacent-generator > label {
+  grid-template-columns: auto 70px;
+  align-items: center;
+}
+
+.adjacent-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.background-main-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.background-main-actions #background-zoom-in-button,
+.background-main-actions #background-zoom-out-button {
+  min-width: 42px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.background-opacity-row {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr);
+  align-items: center;
+  max-width: 420px;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.background-advanced {
+  margin-top: 8px;
+}
+
+.background-advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.map-canvas.is-background-editing {
+  cursor: grab;
+}
+
+.map-canvas.is-background-editing.is-panning {
+  cursor: grabbing;
+}
+
+.map-canvas.is-background-editing .map-object {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.map-canvas.is-background-editing .satellite-layer {
+  pointer-events: auto;
+}
+
+.satellite-layer {
+  transform-origin: 0 0;
+  will-change: transform;
+}
