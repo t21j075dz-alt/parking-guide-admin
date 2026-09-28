@@ -82,8 +82,8 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .canvas-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 24px; }
 .map-canvas { position: relative; width: 1000px; height: 700px; background-color: var(--canvas); background-image: linear-gradient(var(--border) 1px, transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 25px 25px; border: 1px solid var(--strong-border); transform-origin: top left; }
 /* キャンバス上の全オブジェクトに共通する見た目とドラッグ操作用設定。 */
-.map-object { position: absolute; display: grid; place-items: center; min-width: 6px; min-height: 6px; border: 1px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: hidden; font-size: 8px; line-height: 1.05; font-weight: 600; text-align: center; }
-.map-object.selected { outline: 2px solid #f59e0b; outline-offset: 1px; z-index: 20; }
+.map-object { position: absolute; display: grid; place-items: center; min-width: 3px; min-height: 3px; border: 1px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: visible; font-size: 6px; line-height: 1; font-weight: 600; text-align: center; }
+.map-object.selected { outline: 1px solid #f59e0b; outline-offset: 1px; z-index: 20; }
 .map-object[data-object-type="parkingSpace"] {
   --space-line-color: #ffffff;
   --space-line-width: 3px;
@@ -106,18 +106,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 }
 
 .map-object[data-object-type="parkingSpace"] > span {
-  position: relative;
   z-index: 2;
-  max-width: 100%;
-  padding: 1px 2px;
-  overflow: hidden;
-  border-radius: 2px;
-  font-size: 7px;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: rgb(15 23 42 / 64%);
-  color: #ffffff;
 }
 
 .map-object[data-object-type="parkingSpace"][data-marking-style="full"]::before {
@@ -399,10 +388,10 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 .resize-handle {
   position: absolute;
   z-index: 40;
-  width: 9px !important;
-  min-width: 9px;
-  height: 9px !important;
-  min-height: 9px;
+  width: 7px !important;
+  min-width: 7px;
+  height: 7px !important;
+  min-height: 7px;
   padding: 0;
   border: 2px solid #2563eb;
   border-radius: 2px;
@@ -587,22 +576,43 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 }
 
 
-/* 小型オブジェクト向け：文字が図形を覆わないよう省スペース表示する。 */
+/* 小型オブジェクトでは通常時の文字を隠し、選択時だけ上側へ表示する。 */
 .map-object > span {
-  max-width: 100%;
+  display: none;
+}
+.map-object.selected > span {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  display: block;
+  width: max-content;
+  max-width: 120px;
+  padding: 2px 4px;
   overflow: hidden;
-  padding: 0 1px;
+  border-radius: 3px;
+  background: rgb(15 23 42 / 88%);
+  color: #fff;
+  font-size: 7px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.map-object[data-object-type="building"] > span {
+  display: block;
+  max-width: 100%;
+  padding: 1px 2px;
+  overflow: hidden;
+  font-size: 6px;
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.map-object[data-object-type="building"] > span {
-  font-size: 9px;
-}
-.map-object[data-object-type="buildingEntrance"] > span,
-.map-object[data-object-type="parkingEntrance"] > span,
-.map-object[data-object-type="noEntry"] > span,
-.map-object[data-object-type="evCharger"] > span {
-  font-size: 6px;
+.map-object[data-object-type="building"].selected > span {
+  bottom: calc(100% + 4px);
+  max-width: 120px;
+  font-size: 7px;
 }
 .satellite-tile[data-quality="fallback"]::after {
   content: "";
