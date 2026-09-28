@@ -36,6 +36,8 @@ const state = {
   facilityId: null,
   selectedUid: null,
   drag: null,
+  remoteAccessToken: null,
+  remoteSyncTimer: null,
 };
 
 const elements = {
@@ -52,6 +54,9 @@ const elements = {
   backgroundZoom: document.querySelector("#background-zoom"),
   backgroundOpacity: document.querySelector("#background-opacity"),
   backgroundStatus: document.querySelector("#background-status"),
+  cloudStatus: document.querySelector("#cloud-sync-status"),
+  cloudEmail: document.querySelector("#cloud-email"),
+  cloudPassword: document.querySelector("#cloud-password"),
   emptySettings: document.querySelector("#empty-settings"),
   form: document.querySelector("#object-form"),
   uid: document.querySelector("#object-uid"),
@@ -545,6 +550,175 @@ function deleteSelected() {
   render();
 }
 
+
+
+/* =========================================================
+   Supabaseを使った自動反映
+   ========================================================= */
+
+/** 公開設定が入力済みか確認する。秘密鍵は使用しない。 */
+function getRemoteConfig() {
+  const config = window.PARKING_REMOTE_CONFIG ?? {};
+  const url = String(config.supabaseUrl ?? "").replace(/\/$/, "");
+  const publishableKey = String(config.publishableKey ?? "");
+  return {
+    enabled: config.enabled === true && /^https:\/\//.test(url) && publishableKey.length > 10,
+    url,
+    publishableKey,
+  };
+}
+
+/** クラウド同期状態の表示を更新する。 */
+function updateCloudStatus(message = null) {
+  const config = getRemoteConfig();
+  if (message) {
+    elements.cloudStatus.textContent = message;
+    return;
+  }
+  if (!config.enabled) {
+    elements.cloudStatus.textContent = "クラウド連携は未設定です。sync-config.js を設定してください。";
+  } else if (state.remoteAccessToken) {
+    elements.cloudStatus.textContent = "ログイン済みです。編集内容は自動反映されます。";
+  } else {
+    elements.cloudStatus.textContent = "クラウド連携設定済みです。管理者ログインが必要です。";
+  }
+}
+
+/** Supabase Authにメール・パスワードでログインする。 */
+async function remoteLogin() {
+  const config = getRemoteConfig();
+  if (!config.enabled) {
+    updateCloudStatus("sync-config.js の Supabase 設定が必要です。");
+    return;
+  }
+  const email = elements.cloudEmail.value.trim();
+  const password = elements.cloudPassword.value;
+  if (!email || !password) {
+    updateCloudStatus("管理者メールとパスワードを入力してください。");
+    return;
+  }
+
+  updateCloudStatus("ログインしています…");
+  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: config.publishableKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    updateCloudStatus("ログインできませんでした。メール・パスワードとSupabase設定を確認してください。");
+    return;
+  }
+
+  state.remoteAccessToken = data.access_token;
+  sessionStorage.setItem("parkingAdminRemoteToken", state.remoteAccessToken);
+  elements.cloudPassword.value = "";
+  updateCloudStatus("ログインしました。以後の編集は自動反映されます。");
+}
+
+/** 現在施設のレイアウトをクラウドへ保存する。 */
+async function syncCurrentLayout() {
+  const config = getRemoteConfig();
+  const layout = getCurrentLayout();
+  if (!config.enabled || !state.remoteAccessToken || !layout) {
+    return false;
+  }
+
+  const response = await fetch(`${config.url}/rest/v1/parking_layouts?on_conflict=facility_id`, {
+    method: "POST",
+    headers: {
+      apikey: config.publishableKey,
+      Authorization: `Bearer ${state.remoteAccessToken}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({
+      facility_id: layout.facilityId,
+      layout_data: layout,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+
+  if (response.ok) {
+    updateCloudStatus(`自動反映済み：${new Date().toLocaleTimeString("ja-JP")}`);
+    return true;
+  }
+
+  if (response.status === 401) {
+    state.remoteAccessToken = null;
+    sessionStorage.removeItem("parkingAdminRemoteToken");
+    updateCloudStatus("ログインの有効期限が切れました。もう一度ログインしてください。");
+  } else {
+    updateCloudStatus("クラウド保存に失敗しました。SupabaseのRLS設定を確認してください。");
+  }
+  return false;
+}
+
+/** 連続編集時の通信をまとめ、約1秒後に現在施設を保存する。 */
+function scheduleRemoteSync() {
+  if (!getRemoteConfig().enabled || !state.remoteAccessToken) {
+    return;
+  }
+  if (state.remoteSyncTimer !== null) {
+    clearTimeout(state.remoteSyncTimer);
+  }
+  state.remoteSyncTimer = setTimeout(() => {
+    state.remoteSyncTimer = null;
+    void syncCurrentLayout();
+  }, 1000);
+}
+
+/** クラウド上の全レイアウトを取得して端末内データへ反映する。 */
+async function loadRemoteLayouts() {
+  const config = getRemoteConfig();
+  if (!config.enabled || !state.remoteAccessToken) {
+    updateCloudStatus("クラウドから読むには管理者ログインが必要です。");
+    return;
+  }
+  updateCloudStatus("クラウドから読み込んでいます…");
+  const response = await fetch(`${config.url}/rest/v1/parking_layouts?select=facility_id,layout_data`, {
+    headers: {
+      apikey: config.publishableKey,
+      Authorization: `Bearer ${state.remoteAccessToken}`,
+    },
+  });
+  if (!response.ok) {
+    updateCloudStatus("クラウドから読み込めませんでした。");
+    return;
+  }
+  const rows = await response.json();
+  rows.forEach((row) => {
+    if (row?.facility_id && row.layout_data && Array.isArray(row.layout_data.objects)) {
+      state.layouts[row.facility_id] = row.layout_data;
+    }
+  });
+  localStorage.setItem("parkingAdminLayoutsV1", JSON.stringify(state.layouts));
+  ensureLayout(state.facilityId);
+  render();
+  updateCloudStatus(`クラウドから${rows.length}件読み込みました。`);
+}
+
+/** 保存済みセッションがあれば自動反映を再開する。 */
+function restoreRemoteSession() {
+  if (!getRemoteConfig().enabled) {
+    updateCloudStatus();
+    return;
+  }
+  state.remoteAccessToken = sessionStorage.getItem("parkingAdminRemoteToken");
+  updateCloudStatus();
+}
+
+/** 管理者ログアウト。端末内レイアウトは消さない。 */
+function remoteLogout() {
+  state.remoteAccessToken = null;
+  sessionStorage.removeItem("parkingAdminRemoteToken");
+  updateCloudStatus("クラウドからログアウトしました。端末内の編集データは残っています。");
+}
+
+
 /* =========================================================
    保存・入出力
    ========================================================= */
@@ -555,6 +729,7 @@ function saveLocal() {
   } catch {
     /* 保存できない環境でも編集は継続する。 */
   }
+  scheduleRemoteSync();
 }
 
 function restoreLocal() {
@@ -748,6 +923,10 @@ elements.canvas.addEventListener("pointermove", moveDrag);
 elements.canvas.addEventListener("pointerup", endDrag);
 elements.canvas.addEventListener("pointercancel", endDrag);
 
+document.querySelector("#cloud-login-button").addEventListener("click", () => void remoteLogin());
+document.querySelector("#cloud-sync-button").addEventListener("click", () => void syncCurrentLayout());
+document.querySelector("#cloud-load-button").addEventListener("click", () => void loadRemoteLayouts());
+document.querySelector("#cloud-logout-button").addEventListener("click", remoteLogout);
 document.querySelector("#apply-background-button").addEventListener("click", applyBackgroundSettings);
 document.querySelector("#current-location-background-button").addEventListener("click", useCurrentLocationForBackground);
 elements.backgroundOpacity.addEventListener("input", () => {
@@ -794,6 +973,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 restoreLocal();
+restoreRemoteSession();
 initializeTheme();
 initializeFacilities();
 render();
