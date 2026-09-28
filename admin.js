@@ -132,6 +132,16 @@ const POLYGON_OBJECT_TYPES = new Set([
   "publicRoad",
 ]);
 
+const BASE_LAYER_OBJECT_TYPES = new Set([
+  "parkingLot",
+  "nationalRoad",
+  "prefecturalRoad",
+  "publicRoad",
+  "road",
+  "sidewalk",
+  "crosswalk",
+]);
+
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
 const state = {
   facilities: window.ADMIN_FACILITY_CATALOG?.facilities ?? [],
@@ -175,6 +185,8 @@ const elements = {
   backgroundStatus: document.querySelector("#background-status"),
   backgroundEditButton: document.querySelector("#background-edit-button"),
   snapEnabled: document.querySelector("#snap-enabled"),
+  parkingSnapStrong: document.querySelector("#parking-snap-strong"),
+  baseLayerLock: document.querySelector("#base-layer-lock"),
   gridVisible: document.querySelector("#grid-visible"),
   gridSize: document.querySelector("#grid-size"),
   orthogonalSnap: document.querySelector("#orthogonal-snap"),
@@ -906,10 +918,72 @@ function snapToGrid(value) {
   return Math.round(value / grid) * grid;
 }
 
+/**
+ * 駐車枠専用の強吸着。
+ * 近い駐車枠と同じ向きの場合、行・列・隙間なしの隣接位置へ優先して揃える。
+ */
+function snapParkingSpacePosition(item, x, y) {
+  const layout = getCurrentLayout();
+  if (!layout || item.objectType !== "parkingSpace" || elements.parkingSnapStrong?.checked === false) {
+    return null;
+  }
+
+  const threshold = Math.max(10, getGridSize() * 1.6);
+  const itemRotation = ((Number(item.rotation) || 0) % 360 + 360) % 360;
+  let best = null;
+
+  layout.objects.forEach((other) => {
+    if (other.uid === item.uid || other.objectType !== "parkingSpace") return;
+
+    const otherRotation = ((Number(other.rotation) || 0) % 360 + 360) % 360;
+    const rotationDelta = Math.min(
+      Math.abs(itemRotation - otherRotation),
+      360 - Math.abs(itemRotation - otherRotation),
+    );
+    if (rotationDelta > 1) return;
+
+    const angle = otherRotation * Math.PI / 180;
+    const ux = Math.cos(angle);
+    const uy = Math.sin(angle);
+    const vx = -Math.sin(angle);
+    const vy = Math.cos(angle);
+    const iw = Number(item.width) || 25;
+    const ih = Number(item.height) || 50;
+    const ow = Number(other.width) || 25;
+    const oh = Number(other.height) || 50;
+
+    const candidates = [
+      { x: other.x + ow * ux, y: other.y + ow * uy, guideX: other.x + ow * ux, guideY: other.y + ow * uy },
+      { x: other.x - iw * ux, y: other.y - iw * uy, guideX: other.x, guideY: other.y },
+      { x: other.x + oh * vx, y: other.y + oh * vy, guideX: other.x + oh * vx, guideY: other.y + oh * vy },
+      { x: other.x - ih * vx, y: other.y - ih * vy, guideX: other.x, guideY: other.y },
+      { x: other.x, y: other.y, guideX: other.x, guideY: other.y },
+    ];
+
+    candidates.forEach((candidate) => {
+      const distance = Math.hypot(candidate.x - x, candidate.y - y);
+      if (distance <= threshold && (!best || distance < best.distance)) {
+        best = { ...candidate, distance };
+      }
+    });
+  });
+
+  return best;
+}
+
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
 function snapObjectPosition(item, x, y) {
   if (!elements.snapEnabled?.checked) {
     return { x, y, guideX: null, guideY: null };
+  }
+  const parkingSnap = snapParkingSpacePosition(item, x, y);
+  if (parkingSnap) {
+    return {
+      x: parkingSnap.x,
+      y: parkingSnap.y,
+      guideX: parkingSnap.guideX,
+      guideY: parkingSnap.guideY,
+    };
   }
   const threshold = Math.max(3, getGridSize() * 0.65);
   const layout = getCurrentLayout();
@@ -1372,6 +1446,13 @@ function render() {
     node.dataset.uid = item.uid;
     node.dataset.objectType = item.objectType;
 
+    if (BASE_LAYER_OBJECT_TYPES.has(item.objectType)) {
+      node.classList.add("base-layer-object");
+      if (elements.baseLayerLock?.checked !== false) {
+        node.classList.add("is-layer-locked");
+      }
+    }
+
     if (POLYGON_OBJECT_TYPES.has(item.objectType)) {
       node.classList.add("polygon-object");
       const points = getPolygonPoints(item);
@@ -1407,7 +1488,8 @@ function render() {
     label.title = item.name || item.uid;
     node.append(label);
 
-    if (item.uid === state.selectedUid) {
+    if (item.uid === state.selectedUid
+        && !(BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false)) {
       addResizeHandles(node, item);
       addPolygonHandles(node, item);
     }
@@ -1435,6 +1517,9 @@ function startDrag(event) {
   }
   const item = getCurrentLayout().objects.find((object) => object.uid === event.currentTarget.dataset.uid);
   if (!item) {
+    return;
+  }
+  if (BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false) {
     return;
   }
   state.selectedUid = item.uid;
@@ -2244,6 +2329,16 @@ elements.backgroundOpacity.addEventListener("input", () => {
     }
     saveLocal();
   }
+});
+elements.baseLayerLock?.addEventListener("change", () => {
+  const item = getSelectedObject();
+  if (elements.baseLayerLock.checked && item && BASE_LAYER_OBJECT_TYPES.has(item.objectType)) {
+    state.selectedUid = null;
+  }
+  render();
+});
+elements.parkingSnapStrong?.addEventListener("change", () => {
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
 });
 elements.gridVisible?.addEventListener("change", () => {
   updateGridAppearance();
