@@ -151,3 +151,64 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   background: #78350f;
   color: #f8fafc;
 }
+
+
+/* 航空写真を編集用の下敷きとして表示する。 */
+.background-panel {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.background-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.background-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(8rem, 1fr));
+  align-items: end;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+.background-controls label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.background-controls input,
+.background-controls select {
+  width: 100%;
+}
+.map-attribution {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.workspace-head--compact {
+  margin-bottom: 0.35rem;
+}
+.satellite-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #d6d3d1;
+}
+.satellite-layer img {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+.map-object {
+  z-index: 5;
+}
+@media (max-width: 900px) {
+  .background-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
