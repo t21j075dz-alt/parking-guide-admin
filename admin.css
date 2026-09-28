@@ -747,3 +747,20 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
 .map-object[data-object-type="parkingSpace"] {
   background: transparent;
 }
+
+
+/* 模式図の重なり順。敷地は最背面、駐車枠・入口ほど前面へ出す。 */
+.polygon-object[data-object-type="parkingLot"] { z-index: 1; }
+.polygon-object[data-object-type="nationalRoad"],
+.polygon-object[data-object-type="prefecturalRoad"],
+.polygon-object[data-object-type="publicRoad"] { z-index: 2; }
+.polygon-object[data-object-type="road"] { z-index: 3; }
+.polygon-object[data-object-type="building"] { z-index: 4; }
+.map-object[data-object-type="sidewalk"],
+.map-object[data-object-type="crosswalk"] { z-index: 5; }
+.map-object[data-object-type="parkingSpace"] { z-index: 10; }
+.map-object[data-object-type="buildingEntrance"],
+.map-object[data-object-type="parkingEntrance"],
+.map-object[data-object-type="noEntry"],
+.map-object[data-object-type="evCharger"] { z-index: 20; }
+.map-object.selected { z-index: 50 !important; }
