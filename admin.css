@@ -87,3 +87,67 @@ fieldset .check-row { display: flex; align-items: center; gap: 8px; }
 .danger { border-color: #b91c1c; color: var(--danger); }
 .footer { height: 46px; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--panel); color: var(--muted); font-size: 12px; }
 .footer p { margin: 0; }
+
+
+/* 追加した駐車場設備・交通規制。文字でも種類を識別できるようにする。 */
+.map-object[data-object-type="road"][data-traffic-direction="oneWay"]::after {
+  content: "→";
+  margin-left: 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.map-object[data-object-type="parkingEntrance"][data-access-type="entrance"]::before { content: "入口"; }
+.map-object[data-object-type="parkingEntrance"][data-access-type="exit"]::before { content: "出口"; }
+.map-object[data-object-type="parkingEntrance"][data-access-type="both"]::before { content: "出入口"; }
+.map-object[data-object-type="stopLine"] {
+  border: 0;
+  border-top: 6px solid #f8fafc;
+  background: transparent;
+}
+.map-object[data-object-type="speedBump"] {
+  border-color: #92400e;
+  background: repeating-linear-gradient(90deg,#fbbf24 0 12px,#78350f 12px 24px);
+  color: #111827;
+}
+.map-object[data-object-type="noEntry"],
+.map-object[data-object-type="evCharger"] {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50%;
+}
+.map-object[data-object-type="noEntry"] {
+  border-color: #991b1b;
+  background: #fff;
+  color: #991b1b;
+}
+.map-object[data-object-type="evCharger"] {
+  border-color: #166534;
+  background: #f0fdf4;
+  color: #14532d;
+}
+.map-object[data-object-type="cartCorral"] {
+  border: 2px dashed #475569;
+  background: #f8fafc;
+}
+.map-object[data-object-type="bicycleParking"],
+.map-object[data-object-type="motorcycleParking"] {
+  border-color: #0369a1;
+  background: #e0f2fe;
+}
+.map-object[data-object-type="loadingZone"] {
+  border: 2px dashed #b45309;
+  background: #fffbeb;
+}
+html[data-theme="dark"] .map-object[data-object-type="cartCorral"] {
+  background: #273244;
+  color: #f8fafc;
+}
+html[data-theme="dark"] .map-object[data-object-type="bicycleParking"],
+html[data-theme="dark"] .map-object[data-object-type="motorcycleParking"] {
+  background: #0c4a6e;
+  color: #f8fafc;
+}
+html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
+  background: #78350f;
+  color: #f8fafc;
+}
