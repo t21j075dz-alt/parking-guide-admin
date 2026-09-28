@@ -764,3 +764,63 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
 .map-object[data-object-type="noEntry"],
 .map-object[data-object-type="evCharger"] { z-index: 20; }
 .map-object.selected { z-index: 50 !important; }
+
+
+/* =========================================================
+   方眼・直線・直角作図グリッド
+   1m=10px / 初期グリッド0.5m=5px
+   ========================================================= */
+.map-canvas {
+  --grid-size: 5px;
+  --meter-grid-size: 10px;
+  --major-grid-size: 50px;
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(rgb(148 163 184 / 13%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 13%) 1px, transparent 1px),
+    linear-gradient(rgb(71 85 105 / 23%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(71 85 105 / 23%) 1px, transparent 1px),
+    linear-gradient(rgb(30 41 59 / 34%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(30 41 59 / 34%) 1px, transparent 1px);
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    var(--meter-grid-size) var(--meter-grid-size),
+    var(--meter-grid-size) var(--meter-grid-size),
+    var(--major-grid-size) var(--major-grid-size),
+    var(--major-grid-size) var(--major-grid-size);
+}
+.map-canvas.grid-hidden {
+  background-image: none !important;
+}
+html[data-theme="dark"] .map-canvas {
+  background-color: #111827;
+  background-image:
+    linear-gradient(rgb(148 163 184 / 10%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 10%) 1px, transparent 1px),
+    linear-gradient(rgb(203 213 225 / 18%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(203 213 225 / 18%) 1px, transparent 1px),
+    linear-gradient(rgb(226 232 240 / 28%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(226 232 240 / 28%) 1px, transparent 1px);
+}
+.grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.grid-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.grid-size-label select {
+  min-height: 30px;
+  padding: 2px 24px 2px 6px;
+}
+.grid-help {
+  max-width: 31rem;
+  font-size: 11px;
+  line-height: 1.35;
+}
