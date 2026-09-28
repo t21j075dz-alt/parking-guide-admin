@@ -878,10 +878,22 @@ function getGridSize() {
 function updateGridAppearance() {
   const size = getGridSize();
   const visible = elements.gridVisible?.checked !== false;
+  const layout = getCurrentLayout();
+  const parkingLot = layout?.objects?.find((item) => item.objectType === "parkingLot");
+
+  /*
+   * 方眼はキャンバス固定ではなく、駐車場敷地の左上を原点にする。
+   * 四角形の敷地を移動した場合も、その敷地に沿ってグリッドが揃う。
+   */
+  const originX = Number(parkingLot?.x) || 0;
+  const originY = Number(parkingLot?.y) || 0;
+
   elements.canvas.classList.toggle("grid-hidden", !visible);
   elements.canvas.style.setProperty("--grid-size", `${size}px`);
   elements.canvas.style.setProperty("--meter-grid-size", "10px");
   elements.canvas.style.setProperty("--major-grid-size", "50px");
+  elements.canvas.style.setProperty("--grid-origin-x", `${originX}px`);
+  elements.canvas.style.setProperty("--grid-origin-y", `${originY}px`);
 }
 
 /** 指定値を現在のグリッドへ丸める。 */
@@ -1467,6 +1479,9 @@ function moveDrag(event) {
   if (node) {
     node.style.left = `${item.x}px`;
     node.style.top = `${item.y}px`;
+  }
+  if (item.objectType === "parkingLot") {
+    updateGridAppearance();
   }
   elements.x.value = item.x;
   elements.y.value = item.y;
