@@ -28,6 +28,7 @@ window.ADMIN_FACILITY_CATALOG = {
     "note": "研究対象として指定された中国・九州地方の店舗一覧。住所・座標・駐車場レイアウトは管理用Webアプリから追加する。"
   },
   "facilities": [
+    // ----- 鳥取県 -----
     {
       "id": "target_001",
       "name": "スーパーセンタートライアル 鳥取千代水店",
@@ -158,6 +159,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 島根県 -----
     {
       "id": "target_011",
       "name": "トライアル 松江店",
@@ -288,6 +290,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 岡山県 -----
     {
       "id": "target_021",
       "name": "マルナカ 中井町店",
@@ -418,6 +421,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 広島県 -----
     {
       "id": "target_031",
       "name": "トライアル 大竹店",
@@ -548,6 +552,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 山口県 -----
     {
       "id": "target_041",
       "name": "トライアル 山口小郡店",
@@ -678,6 +683,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 福岡県 -----
     {
       "id": "target_051",
       "name": "マルキョウ 花見店",
@@ -808,6 +814,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 佐賀県 -----
     {
       "id": "target_061",
       "name": "トライアル 佐賀大和店",
@@ -938,6 +945,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 長崎県 -----
     {
       "id": "target_071",
       "name": "トライアル 佐々店",
@@ -1068,6 +1076,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 熊本県 -----
     {
       "id": "target_081",
       "name": "ハンズマン 画図店",
@@ -1198,6 +1207,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 大分県 -----
     {
       "id": "target_091",
       "name": "ハンズマン わさだ店",
@@ -1328,6 +1338,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 宮崎県 -----
     {
       "id": "target_101",
       "name": "ハンズマン 加納店",
@@ -1458,6 +1469,7 @@ window.ADMIN_FACILITY_CATALOG = {
       "targetBuildingId": null,
       "isDemo": false
     },
+    // ----- 鹿児島県 -----
     {
       "id": "target_111",
       "name": "ハンズマン 宇宿店",
