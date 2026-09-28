@@ -175,6 +175,9 @@ const elements = {
   backgroundStatus: document.querySelector("#background-status"),
   backgroundEditButton: document.querySelector("#background-edit-button"),
   snapEnabled: document.querySelector("#snap-enabled"),
+  gridVisible: document.querySelector("#grid-visible"),
+  gridSize: document.querySelector("#grid-size"),
+  orthogonalSnap: document.querySelector("#orthogonal-snap"),
   adjacentCount: document.querySelector("#adjacent-count"),
   cloudStatus: document.querySelector("#cloud-sync-status"),
   cloudEmail: document.querySelector("#cloud-email"),
@@ -865,9 +868,30 @@ function fitViewScale() {
   scroll.scrollTop = 0;
 }
 
-/** 指定値を1pxグリッドへ丸める。航空写真の白線へ細かく合わせる。 */
+/** 現在選択中の方眼グリッド間隔（論理px）を返す。1m=10px。 */
+function getGridSize() {
+  const value = Number(elements.gridSize?.value);
+  return Number.isFinite(value) && value > 0 ? value : 5;
+}
+
+/** 方眼グリッドの表示・間隔をCSS変数へ反映する。 */
+function updateGridAppearance() {
+  const size = getGridSize();
+  const visible = elements.gridVisible?.checked !== false;
+  elements.canvas.classList.toggle("grid-hidden", !visible);
+  elements.canvas.style.setProperty("--grid-size", `${size}px`);
+  elements.canvas.style.setProperty("--meter-grid-size", "10px");
+  elements.canvas.style.setProperty("--major-grid-size", "50px");
+}
+
+/** 指定値を現在のグリッドへ丸める。 */
+
 function snapToGrid(value) {
-  return elements.snapEnabled?.checked ? Math.round(value) : value;
+  if (!elements.snapEnabled?.checked) {
+    return value;
+  }
+  const grid = getGridSize();
+  return Math.round(value / grid) * grid;
 }
 
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
@@ -875,7 +899,7 @@ function snapObjectPosition(item, x, y) {
   if (!elements.snapEnabled?.checked) {
     return { x, y, guideX: null, guideY: null };
   }
-  const threshold = 2;
+  const threshold = Math.max(3, getGridSize() * 0.65);
   const layout = getCurrentLayout();
   const width = item.width ?? 34;
   const height = item.height ?? 34;
@@ -1042,29 +1066,105 @@ function moveVertexDrag(event) {
   if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return;
   const item = getSelectedObject();
   const points = getPolygonPoints(item);
-  if (!item || !points?.[state.vertexDrag.vertexIndex]) return;
+  const index = state.vertexDrag.vertexIndex;
+  if (!item || !points?.[index]) return;
 
   const dx = (event.clientX - state.vertexDrag.startClientX) / state.viewScale;
   const dy = (event.clientY - state.vertexDrag.startClientY) / state.viewScale;
   const radians = state.vertexDrag.rotation * Math.PI / 180;
   const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
   const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
-  const point = points[state.vertexDrag.vertexIndex];
 
-  point.x = Math.max(0, Math.min(item.width, Math.round(state.vertexDrag.startPoint.x + localDx)));
-  point.y = Math.max(0, Math.min(item.height, Math.round(state.vertexDrag.startPoint.y + localDy)));
+  let x = state.vertexDrag.startPoint.x + localDx;
+  let y = state.vertexDrag.startPoint.y + localDy;
+
+  /*
+   * Shiftを押しながら動かした場合は、開始点からの移動量が大きい軸だけを残し、
+   * 完全な水平または垂直移動に固定する。
+   */
+  if (event.shiftKey) {
+    if (Math.abs(localDx) >= Math.abs(localDy)) {
+      y = state.vertexDrag.startPoint.y;
+    } else {
+      x = state.vertexDrag.startPoint.x;
+    }
+  }
+
+  if (elements.snapEnabled?.checked) {
+    x = snapToGrid(x);
+    y = snapToGrid(y);
+  }
+
+  /*
+   * 直角・直線補正：
+   * 前後の頂点のX/Yへ近づいたとき、その座標へ吸着する。
+   * これにより隣接辺を水平・垂直にし、90°の角を作りやすくする。
+   */
+  let guideLocalX = null;
+  let guideLocalY = null;
+  if (elements.orthogonalSnap?.checked) {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const next = points[(index + 1) % points.length];
+    const threshold = Math.max(5, getGridSize());
+
+    const xCandidates = [previous.x, next.x];
+    const yCandidates = [previous.y, next.y];
+
+    let bestX = null;
+    let bestXDistance = Infinity;
+    xCandidates.forEach((candidate) => {
+      const distance = Math.abs(x - candidate);
+      if (distance < bestXDistance && distance <= threshold) {
+        bestX = candidate;
+        bestXDistance = distance;
+      }
+    });
+
+    let bestY = null;
+    let bestYDistance = Infinity;
+    yCandidates.forEach((candidate) => {
+      const distance = Math.abs(y - candidate);
+      if (distance < bestYDistance && distance <= threshold) {
+        bestY = candidate;
+        bestYDistance = distance;
+      }
+    });
+
+    if (bestX !== null) {
+      x = bestX;
+      guideLocalX = bestX;
+    }
+    if (bestY !== null) {
+      y = bestY;
+      guideLocalY = bestY;
+    }
+  }
+
+  const point = points[index];
+  point.x = Math.max(0, Math.min(item.width, Math.round(x)));
+  point.y = Math.max(0, Math.min(item.height, Math.round(y)));
 
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   updatePolygonSvg(node, item);
+
   if (state.vertexDrag.handle) {
     state.vertexDrag.handle.style.left = `${point.x}px`;
     state.vertexDrag.handle.style.top = `${point.y}px`;
+  }
+
+  /* 回転していない図形では、水平・垂直吸着位置をキャンバス全体へガイド表示する。 */
+  if ((Number(item.rotation) || 0) % 360 === 0) {
+    showSnapGuides(
+      guideLocalX === null ? null : item.x + guideLocalX,
+      guideLocalY === null ? null : item.y + guideLocalY,
+    );
   }
 }
 
 function endVertexDrag(event) {
   if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return false;
   state.vertexDrag = null;
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
   saveLocal();
   render();
   return true;
@@ -1249,6 +1349,7 @@ function render() {
   elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? SCHEMATIC_METERS_PER_PIXEL;
   updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
+  updateGridAppearance();
 
   /* 新仕様：航空写真などの下敷きは描画しない。 */
   applyViewScale(state.viewScale);
@@ -2128,6 +2229,15 @@ elements.backgroundOpacity.addEventListener("input", () => {
     }
     saveLocal();
   }
+});
+elements.gridVisible?.addEventListener("change", () => {
+  updateGridAppearance();
+});
+elements.gridSize?.addEventListener("change", () => {
+  updateGridAppearance();
+});
+elements.orthogonalSnap?.addEventListener("change", () => {
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
 });
 elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
