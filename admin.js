@@ -519,13 +519,13 @@ function snapObjectPosition(item, x, y) {
     ];
     xCandidates.forEach(([candidate, guide]) => {
       const distance = Math.abs(candidate - x);
-      if (distance <= threshold && distance < bestX.distance) {
+      if (distance <= threshold && (bestX.guide === null || distance < bestX.distance)) {
         bestX = { value: candidate, distance, guide };
       }
     });
     yCandidates.forEach(([candidate, guide]) => {
       const distance = Math.abs(candidate - y);
-      if (distance <= threshold && distance < bestY.distance) {
+      if (distance <= threshold && (bestY.guide === null || distance < bestY.distance)) {
         bestY = { value: candidate, distance, guide };
       }
     });
@@ -1298,6 +1298,11 @@ function initializeFacilities() {
 /** 都道府県変更時に施設候補とキャンバス表示を切り替える。 */
 function changePrefecture() {
   state.selectedUid = null;
+  state.backgroundEdit = false;
+  state.backgroundDrag = null;
+  elements.backgroundEditButton.setAttribute("aria-pressed", "false");
+  elements.backgroundEditButton.textContent = "写真を動かす";
+  elements.canvas.classList.remove("is-background-editing", "is-panning");
   renderFacilityOptions(elements.prefectureSelect.value);
   render();
 }
@@ -1307,6 +1312,10 @@ function changeFacility() {
   state.facilityId = elements.facilitySelect.value;
   state.selectedUid = null;
   state.backgroundEdit = false;
+  state.backgroundDrag = null;
+  elements.backgroundEditButton.setAttribute("aria-pressed", "false");
+  elements.backgroundEditButton.textContent = "写真を動かす";
+  elements.canvas.classList.remove("is-background-editing", "is-panning");
   ensureLayout(state.facilityId);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   render();
