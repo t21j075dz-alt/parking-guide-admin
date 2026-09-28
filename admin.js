@@ -134,6 +134,56 @@ function getCurrentLayout() {
   return state.layouts[state.facilityId] ?? null;
 }
 
+/**
+ * 店舗のID・名称・住所・revisionを結合し、レイアウトがどの実店舗用か識別する。
+ * 同じtarget IDの店舗を差し替えた場合に、旧店舗の配置を誤利用しないために使う。
+ */
+function getFacilityIdentityKey(facility) {
+  if (!facility) {
+    return null;
+  }
+  return [
+    facility.id,
+    facility.name,
+    facility.address ?? "",
+    facility.facilityRevision ?? 1,
+  ].join("|");
+}
+
+/**
+ * 選択施設と保存済みレイアウトの店舗識別情報を照合する。
+ * revision 2以上の置換店舗で旧レイアウトが残っている場合だけ、
+ * 背景・配置オブジェクトを新店舗用の空レイアウトへ初期化する。
+ */
+function ensureLayoutMatchesFacility(facility) {
+  if (!facility) {
+    return null;
+  }
+
+  const layout = ensureLayout(facility.id);
+  const identityKey = getFacilityIdentityKey(facility);
+
+  if (Number(facility.facilityRevision) >= 2
+      && layout.facilityIdentityKey !== identityKey) {
+    state.layouts[facility.id] = {
+      schemaVersion: 1,
+      facilityId: facility.id,
+      facilityIdentityKey: identityKey,
+      canvas: { width: 1000, height: 700, scaleMetersPerPixel: null },
+      background: null,
+      objects: [],
+    };
+    saveLocal();
+    return state.layouts[facility.id];
+  }
+
+  if (!layout.facilityIdentityKey) {
+    layout.facilityIdentityKey = identityKey;
+  }
+
+  return layout;
+}
+
 /** facilityId に対応する編集用レイアウトを取得し、未作成なら初期状態を生成する。 */
 function ensureLayout(facilityId) {
   if (!state.layouts[facilityId]) {
@@ -1605,10 +1655,10 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   state.facilityId = elements.facilitySelect.value || null;
 
   if (state.facilityId) {
-    const layout = ensureLayout(state.facilityId);
     const facility = state.facilityId === experiment.id
       ? experiment
       : state.facilities.find((item) => item.id === state.facilityId);
+    const layout = ensureLayoutMatchesFacility(facility);
     updateFacilityLocationSummary(facility);
     void locateFacilityForBackground(facility, layout);
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
@@ -1657,11 +1707,11 @@ function changeFacility() {
   elements.backgroundEditButton.setAttribute("aria-pressed", "false");
   elements.backgroundEditButton.textContent = "写真を動かす";
   elements.canvas.classList.remove("is-background-editing", "is-panning");
-  const layout = ensureLayout(state.facilityId);
   const experiment = getExperimentFacility();
   const facility = state.facilityId === experiment.id
     ? experiment
     : state.facilities.find((item) => item.id === state.facilityId);
+  const layout = ensureLayoutMatchesFacility(facility);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   updateFacilityLocationSummary(facility);
   render();
