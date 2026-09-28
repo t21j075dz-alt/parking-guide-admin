@@ -31,6 +31,7 @@ const state = {
 };
 
 const elements = {
+  prefectureSelect: document.querySelector("#prefecture-select"),
   facilitySelect: document.querySelector("#facility-select"),
   facilityId: document.querySelector("#facility-id"),
   canvas: document.querySelector("#map-canvas"),
@@ -416,23 +417,67 @@ function initializeTheme() {
   applyTheme(theme);
 }
 
-function initializeFacilities() {
-  elements.facilitySelect.replaceChildren();
-  state.facilities.forEach((facility) => {
-    const option = new Option(`${facility.prefecture}｜${facility.name}`, facility.id);
-    elements.facilitySelect.add(option);
-  });
-  const experiment = {
+function getExperimentFacility() {
+  return {
     id: "ous-main-gate-experiment",
     name: "実験用駐車場（岡山理科大学正門）",
     prefecture: "岡山県",
   };
-  if (!state.facilities.some((facility) => facility.id === experiment.id)) {
-    elements.facilitySelect.add(new Option(`${experiment.prefecture}｜${experiment.name}`, experiment.id), 0);
+}
+
+function renderFacilityOptions(prefecture, preferredFacilityId = null) {
+  const experiment = getExperimentFacility();
+  const facilities = state.facilities.filter((facility) => facility.prefecture === prefecture);
+
+  elements.facilitySelect.replaceChildren();
+
+  if (prefecture === experiment.prefecture) {
+    elements.facilitySelect.add(
+      new Option(`${experiment.name}`, experiment.id),
+    );
   }
-  state.facilityId = elements.facilitySelect.value;
-  ensureLayout(state.facilityId);
-  elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
+
+  facilities.forEach((facility) => {
+    elements.facilitySelect.add(new Option(facility.name, facility.id));
+  });
+
+  if (preferredFacilityId
+      && [...elements.facilitySelect.options].some((option) => option.value === preferredFacilityId)) {
+    elements.facilitySelect.value = preferredFacilityId;
+  }
+
+  state.facilityId = elements.facilitySelect.value || null;
+
+  if (state.facilityId) {
+    ensureLayout(state.facilityId);
+    elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
+  } else {
+    elements.facilityId.textContent = "該当する施設がありません。";
+  }
+}
+
+function initializeFacilities() {
+  const prefectures = [...new Set(state.facilities.map((facility) => facility.prefecture))];
+  const experiment = getExperimentFacility();
+
+  if (!prefectures.includes(experiment.prefecture)) {
+    prefectures.push(experiment.prefecture);
+  }
+
+  elements.prefectureSelect.replaceChildren();
+  prefectures.forEach((prefecture) => {
+    elements.prefectureSelect.add(new Option(prefecture, prefecture));
+  });
+
+  const initialPrefecture = prefectures.includes("岡山県") ? "岡山県" : prefectures[0];
+  elements.prefectureSelect.value = initialPrefecture;
+  renderFacilityOptions(initialPrefecture);
+}
+
+function changePrefecture() {
+  state.selectedUid = null;
+  renderFacilityOptions(elements.prefectureSelect.value);
+  render();
 }
 
 function changeFacility() {
@@ -472,6 +517,7 @@ elements.canvas.addEventListener("pointermove", moveDrag);
 elements.canvas.addEventListener("pointerup", endDrag);
 elements.canvas.addEventListener("pointercancel", endDrag);
 
+elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
 [elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height, elements.spaceType, elements.spaceStatus, elements.entranceType, elements.publicAccess, elements.wheelchairAccessible, elements.guideTarget, elements.buildingId].forEach((control) => {
   control.addEventListener("change", updateSelectedFromForm);
