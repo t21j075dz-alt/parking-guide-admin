@@ -58,6 +58,18 @@
           <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
         </section>
 
+        <!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
+        <section>
+          <h2>敷地・建物・外周道路</h2>
+          <div class="tool-list">
+            <button type="button" data-add-object="parkingLot">駐車場敷地</button>
+            <button type="button" data-add-object="nationalRoad">国道</button>
+            <button type="button" data-add-object="prefecturalRoad">県道</button>
+            <button type="button" data-add-object="publicRoad">公道</button>
+          </div>
+          <p class="tool-help">四角形で追加されます。青い頂点をドラッグして変形し、辺中央の「＋」をドラッグすると頂点を増やせます。頂点はダブルクリックで削除できます。</p>
+        </section>
+
         <!-- 駐車区画は空き判定・推奨区画選択に直接利用する。 -->
         <section>
           <h2>駐車区画</h2>
@@ -106,7 +118,7 @@
         <div class="workspace-head">
           <div>
             <h2 id="canvas-title">配置図</h2>
-            <p>オブジェクトをドラッグして移動できます。位置はキャンバス座標として保存されます。</p>
+            <p>航空写真を使わない白紙の模式図です。敷地・建物・道路は頂点を動かして自由な多角形にできます。</p>
           </div>
           <div class="canvas-settings">
             <label>幅 <input id="canvas-width" type="number" min="400" max="4000" step="10"></label>
@@ -115,7 +127,7 @@
           </div>
         </div>
         <!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
-        <details class="background-panel" open>
+        <details class="background-panel" hidden>
           <summary>航空写真を下敷きにする</summary>
           <div class="background-main-actions">
             <button id="background-enable-button" type="button">航空写真を表示</button>
@@ -150,7 +162,7 @@
         </details>
         <div class="editor-toolbar" aria-label="編集補助">
           <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 枠を吸着</label>
-          <span class="muted">近い枠の端・中心と2pxグリッドへ自動で揃えます。</span>
+          <span class="muted">近い枠の端・中心と1pxグリッドへ自動で揃えます。</span>
           <span class="toolbar-spacer"></span>
           <div class="editor-zoom" aria-label="編集倍率">
             <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
@@ -160,7 +172,7 @@
             <button id="editor-zoom-fit-button" type="button">全体表示</button>
           </div>
           <button id="rotate-left-button" type="button">↶ 90°</button>
-          <button id="rotate-right-button" type="button">↷ 90°</button>
+          <button id="rotate-right-button" type="button">↷ 90°</button><span class="polygon-help">青＝頂点／白＋＝頂点追加／頂点ダブルクリック＝削除</span>
         </div>
         <div id="canvas-scroll" class="canvas-scroll">
           <div id="canvas-stage" class="canvas-stage">
@@ -184,7 +196,7 @@
               <label>X<input id="object-x" type="number" step="1"></label>
               <label>Y<input id="object-y" type="number" step="1"></label>
               <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
-              <label id="width-field">幅<input id="object-width" type="number" min="8" step="1"></label>
+              <label id="width-field">幅<input id="object-width" type="number" min="3" step="1"></label>
               <label id="height-field">高さ<input id="object-height" type="number" min="8" step="1"></label>
             </div>
           </details>
@@ -199,7 +211,7 @@
               <label>区画線の形
                 <select id="space-marking-style">
                   <option value="full">四辺・一本線</option>
-                  <option value="uShape">コの字（足元側なし）</option>
+                  <option value="uShape">コの字（写真のような3辺線）</option>
                   <option value="sides">両側線のみ</option>
                   <option value="headOnly">頭側だけ</option>
                   <option value="headTicks">頭側の短い印</option>
