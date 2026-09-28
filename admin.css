@@ -84,7 +84,85 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 /* キャンバス上の全オブジェクトに共通する見た目とドラッグ操作用設定。 */
 .map-object { position: absolute; display: grid; place-items: center; min-width: 12px; min-height: 12px; border: 2px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: hidden; font-size: 12px; font-weight: 600; text-align: center; }
 .map-object.selected { outline: 3px solid #f59e0b; outline-offset: 2px; z-index: 20; }
-.map-object[data-object-type="parkingSpace"] { border-color: #047857; background: #ecfdf5; }
+.map-object[data-object-type="parkingSpace"] {
+  --space-line-color: #ffffff;
+  --space-line-width: 3px;
+  border: 0;
+  background: rgb(5 150 105 / 14%);
+  overflow: visible;
+}
+
+/*
+ * 区画の当たり判定・吸着・距離計算には長方形外形を使い、
+ * ::before だけで現地の路面標示を描画する。
+ */
+.map-object[data-object-type="parkingSpace"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.map-object[data-object-type="parkingSpace"] > span {
+  position: relative;
+  z-index: 2;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: rgb(15 23 42 / 64%);
+  color: #ffffff;
+}
+
+.map-object[data-object-type="parkingSpace"][data-marking-style="full"]::before {
+  border: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="uShape"]::before {
+  border-top: var(--space-line-width) solid var(--space-line-color);
+  border-right: var(--space-line-width) solid var(--space-line-color);
+  border-left: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="sides"]::before {
+  border-right: var(--space-line-width) solid var(--space-line-color);
+  border-left: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="headOnly"]::before {
+  border-top: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="headTicks"]::before {
+  background:
+    linear-gradient(var(--space-line-color) 0 0) left top / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right top / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) left top / var(--space-line-width) 22% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right top / var(--space-line-width) 22% no-repeat;
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="leftOnly"]::before {
+  border-left: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="rightOnly"]::before {
+  border-right: var(--space-line-width) solid var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="doubleFull"]::before {
+  border: calc(var(--space-line-width) * 2 + 1px) double var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="doubleSides"]::before {
+  border-right: calc(var(--space-line-width) * 2 + 1px) double var(--space-line-color);
+  border-left: calc(var(--space-line-width) * 2 + 1px) double var(--space-line-color);
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="cornerMarks"]::before {
+  background:
+    linear-gradient(var(--space-line-color) 0 0) left top / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) left top / var(--space-line-width) 22% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right top / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right top / var(--space-line-width) 22% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) left bottom / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) left bottom / var(--space-line-width) 22% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right bottom / 28% var(--space-line-width) no-repeat,
+    linear-gradient(var(--space-line-color) 0 0) right bottom / var(--space-line-width) 22% no-repeat;
+}
+.map-object[data-object-type="parkingSpace"][data-marking-style="none"]::before {
+  display: none;
+}
 .map-object[data-object-type="road"] { border-color: #57534e; background: var(--road); }
 .map-object[data-object-type="sidewalk"] { border-color: #78716c; background: var(--sidewalk); }
 .map-object[data-object-type="crosswalk"] { border-color: #475569; background: repeating-linear-gradient(90deg,#fff 0 8px,#64748b 8px 16px); }
@@ -422,4 +500,59 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 .satellite-layer {
   transform-origin: 0 0;
   will-change: transform;
+}
+
+
+/* 編集倍率。元写真の解像度とは別に、編集キャンバスを最大3200%まで拡大する。 */
+.canvas-stage {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.editor-zoom {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 220px) 4.2rem auto auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-zoom input {
+  min-height: auto;
+}
+
+.editor-zoom output {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.map-canvas {
+  transform-origin: top left;
+}
+
+
+/* 駐車区画の路面標示設定。 */
+.parking-marking-settings {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.marking-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+}
+.marking-inline input[type="color"] {
+  min-height: 38px;
+  padding: 3px;
+}
+.marking-width-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.marking-width-control output {
+  min-width: 2.8rem;
+  color: var(--muted);
+  text-align: right;
 }
