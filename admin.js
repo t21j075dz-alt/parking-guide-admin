@@ -73,6 +73,7 @@ const elements = {
   prefectureSelect: document.querySelector("#prefecture-select"),
   facilitySelect: document.querySelector("#facility-select"),
   facilityId: document.querySelector("#facility-id"),
+  facilityAddress: document.querySelector("#facility-address"),
   canvas: document.querySelector("#map-canvas"),
   canvasScroll: document.querySelector("#canvas-scroll"),
   canvasStage: document.querySelector("#canvas-stage"),
@@ -398,35 +399,25 @@ function renderBackground(layout) {
 /** 航空写真が未設定の場合、施設座標または入力済み座標を使って初期表示する。 */
 function enableBackground() {
   const layout = getCurrentLayout();
+  const facility = getCurrentFacilityRecord();
   if (!layout) {
     return;
   }
+
+  /*
+   * 背景未設定時は確認済み店舗所在地を使う。
+   * 手入力欄の偶然残っていた値を自動採用しない。
+   */
   if (!layout.background) {
-    const experiment = getExperimentFacility();
-    const facility = state.facilityId === experiment.id
-      ? experiment
-      : state.facilities.find((item) => item.id === state.facilityId);
-    const inputLat = Number(elements.backgroundLatitude.value);
-    const inputLng = Number(elements.backgroundLongitude.value);
-    const centerLat = Number.isFinite(facility?.latitude) ? facility.latitude : inputLat;
-    const centerLng = Number.isFinite(facility?.longitude) ? facility.longitude : inputLng;
-    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
-      elements.backgroundStatus.textContent = "この施設には座標がありません。現在地を使うか、詳細設定で緯度・経度を入力してください。";
-      return;
-    }
-    layout.background = {
-      type: "gsi-seamlessphoto",
-      centerLat,
-      centerLng,
-      zoom: 18,
-      opacity: Number(elements.backgroundOpacity.value) || 0.75,
-    };
-  } else {
-    layout.background.type = "gsi-seamlessphoto";
+    void locateFacilityForBackground(facility, layout);
+    return;
   }
+
+  layout.background.type = "gsi-seamlessphoto";
   saveLocal();
   render();
-  elements.backgroundStatus.textContent = "航空写真を表示しました。「写真を動かす」で位置合わせできます。";
+  elements.backgroundStatus.textContent =
+    "航空写真を表示しました。「写真を動かす」で位置合わせできます。";
 }
 
 /** 写真調整モードを切り替える。調整中はオブジェクトより背景操作を優先する。 */
@@ -511,6 +502,13 @@ function endBackgroundDrag(event) {
   const next = fromWorldPixel(center.x - dx, center.y - dy, state.backgroundDrag.zoom);
   layout.background.centerLat = next.latitude;
   layout.background.centerLng = next.longitude;
+
+  /*
+   * 店舗住所から自動設定した後に管理者が写真を動かした場合は、
+   * その調整を明示して次回の通常表示で勝手に上書きしない。
+   */
+  layout.background.manuallyAdjusted = true;
+  layout.background.locatedBy = "manual-adjustment";
   state.backgroundDrag = null;
   elements.canvas.classList.remove("is-panning");
   saveLocal();
@@ -549,6 +547,8 @@ function applyBackgroundSettings() {
     centerLng,
     zoom: Math.max(14, Math.min(18, Math.round(zoom || 18))),
     opacity: Math.max(0.15, Math.min(1, opacity || 0.75)),
+    locatedBy: "manual-coordinate",
+    manuallyAdjusted: true,
   };
   elements.backgroundStatus.textContent = "航空写真を更新しました。背景を合わせてからオブジェクトを配置してください。";
   saveLocal();
@@ -569,6 +569,12 @@ function useCurrentLocationForBackground() {
       elements.backgroundLongitude.value = position.coords.longitude.toFixed(6);
       elements.backgroundZoom.value = 18;
       applyBackgroundSettings();
+      const layout = getCurrentLayout();
+      if (layout?.background) {
+        layout.background.locatedBy = "current-location";
+        layout.background.manuallyAdjusted = true;
+        saveLocal();
+      }
     },
     () => {
       elements.backgroundStatus.textContent = "現在地を取得できませんでした。緯度・経度を直接入力してください。";
@@ -589,7 +595,7 @@ function applyViewScale(scale, preserveCenter = false) {
     return;
   }
 
-  const nextScale = Math.max(0.25, Math.min(32, Number(scale) || 1));
+  const nextScale = Math.max(0.25, Math.min(128, Number(scale) || 1));
   const scroll = elements.canvasScroll;
   let centerX = null;
   let centerY = null;
@@ -1404,6 +1410,11 @@ function getExperimentFacility() {
     prefecture: "岡山県",
     latitude: 34.6998,
     longitude: 133.9280,
+    locationVerified: true,
+    locationVerificationDate: "2026-09-28",
+    locationSource: "岡山理科大学所在地",
+    coordinateSource: "研究用固定座標",
+    operatingStatus: "experiment",
   };
 }
 
@@ -1413,11 +1424,41 @@ function getExperimentFacility() {
  *
  * 店舗名検索で必ず一致する保証はないため、既存の手動位置調整も残す。
  */
-async function locateFacilityForBackground(facility, layout) {
-  if (!facility || !layout || layout.background) {
+async function locateFacilityForBackground(facility, layout, options = {}) {
+  const { force = false } = options;
+  if (!facility || !layout) {
     return;
   }
 
+  /*
+   * 旧版では「都道府県＋店舗名」の検索結果1件目を自動採用していた。
+   * その方式で保存された背景は誤店舗の可能性があるため、
+   * 2026-09-28の所在地監査後は確認済み住所へ自動補正する。
+   *
+   * 管理者が手動調整した背景は manuallyAdjusted=true になるため、
+   * 通常の施設切替では上書きしない。「店舗位置へ戻す」のときだけ force=true。
+   */
+  const isLegacyNameSearch =
+    layout.background?.locatedBy === "gsi-search" &&
+    layout.background?.manuallyAdjusted !== true;
+
+  if (layout.background && !force && !isLegacyNameSearch) {
+    return;
+  }
+
+  if (facility.locationVerified !== true) {
+    elements.backgroundStatus.textContent =
+      `「${facility.name}」は所在地未確認のため、自動で航空写真を設定しません。`;
+    return;
+  }
+
+  elements.backgroundStatus.textContent =
+    `「${facility.name}」の確認済み所在地へ移動しています…`;
+
+  /*
+   * 公式MAP等から直接座標を確認できた店舗は、その固定座標を最優先する。
+   * 住所検索による町丁目代表点へのずれを避けるため。
+   */
   if (Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude)) {
     layout.background = {
       type: "gsi-seamlessphoto",
@@ -1425,25 +1466,39 @@ async function locateFacilityForBackground(facility, layout) {
       centerLng: facility.longitude,
       zoom: 18,
       opacity: 0.75,
+      locatedBy: "verified-coordinate",
+      locationQuery: facility.address || facility.name,
+      locationSource: facility.locationSource ?? "",
+      coordinateSource: facility.coordinateSource ?? "確認済み座標",
+      manuallyAdjusted: false,
     };
     saveLocal();
     render();
+    elements.backgroundStatus.textContent =
+      `確認済み座標で「${facility.name}」を表示しました。必要なら写真を微調整してください。`;
     return;
   }
 
-  const query = [facility.prefecture, facility.municipality, facility.name]
-    .filter(Boolean)
-    .join(" ");
-  elements.backgroundStatus.textContent = `「${facility.name}」の位置を検索しています…`;
+  /*
+   * 固定座標がない店舗は、店舗名ではなく監査済みの「完全な住所」を
+   * 国土地理院の住所検索へ渡す。これにより同名店舗・別地域への誤移動を防ぐ。
+   */
+  const query = String(facility.address ?? "").trim();
+  if (!query) {
+    elements.backgroundStatus.textContent =
+      `「${facility.name}」には確認済み住所がありません。自動位置設定を中止しました。`;
+    return;
+  }
 
   try {
     const response = await fetch(
       `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`,
-      { cache: "force-cache" },
+      { cache: "no-store" },
     );
     if (!response.ok) {
-      throw new Error("location search failed");
+      throw new Error("address search failed");
     }
+
     const data = await response.json();
     const candidates = Array.isArray(data) ? data : (data.features ?? []);
     const feature = candidates[0];
@@ -1452,7 +1507,7 @@ async function locateFacilityForBackground(facility, layout) {
     const latitude = Number(coordinates?.[1]);
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      throw new Error("location not found");
+      throw new Error("verified address not found");
     }
 
     layout.background = {
@@ -1461,17 +1516,62 @@ async function locateFacilityForBackground(facility, layout) {
       centerLng: longitude,
       zoom: 18,
       opacity: 0.75,
-      locatedBy: "gsi-search",
+      locatedBy: "verified-address",
       locationQuery: query,
+      resolvedAddressTitle: feature?.properties?.title ?? "",
+      locationSource: facility.locationSource ?? "",
+      coordinateSource: "確認済み住所から国土地理院住所検索",
+      manuallyAdjusted: false,
     };
     saveLocal();
     render();
     elements.backgroundStatus.textContent =
-      `「${facility.name}」の検索位置を中心に表示しました。航空写真を見て、必要なら「写真を動かす」で微調整してください。`;
+      `確認済み住所「${query}」を基準に表示しました。航空写真で敷地を確認し、必要なら微調整してください。`;
   } catch {
     elements.backgroundStatus.textContent =
-      `「${facility.name}」の位置を自動取得できませんでした。現在地を使うか、緯度・経度を直接指定してください。`;
+      `確認済み住所「${query}」を位置検索できませんでした。緯度・経度を直接指定してください。`;
   }
+}
+
+/** 現在選択中の施設データを返す。 */
+function getCurrentFacilityRecord() {
+  const experiment = getExperimentFacility();
+  return state.facilityId === experiment.id
+    ? experiment
+    : state.facilities.find((item) => item.id === state.facilityId) ?? null;
+}
+
+/**
+ * 背景位置を店舗マスターの確認済み所在地へ戻す。
+ * 手動調整をやり直したい場合や、旧版で別店舗を表示していた場合に使用する。
+ */
+async function resetBackgroundToFacilityLocation() {
+  const layout = getCurrentLayout();
+  const facility = getCurrentFacilityRecord();
+  if (!layout || !facility) {
+    return;
+  }
+  await locateFacilityForBackground(facility, layout, { force: true });
+}
+
+/** 左側に、位置監査済み住所と店舗状態を表示する。 */
+function updateFacilityLocationSummary(facility) {
+  if (!facility) {
+    elements.facilityAddress.textContent = "";
+    return;
+  }
+
+  const parts = [];
+  if (facility.address) {
+    parts.push(`確認済み住所：${facility.address}`);
+  }
+  if (facility.locationVerificationDate) {
+    parts.push(`確認日：${facility.locationVerificationDate}`);
+  }
+  if (facility.statusNote) {
+    parts.push(facility.statusNote);
+  }
+  elements.facilityAddress.textContent = parts.join(" / ");
 }
 
 /** 選択した都道府県に属する施設だけを施設プルダウンへ表示する。 */
@@ -1503,9 +1603,8 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
     const facility = state.facilityId === experiment.id
       ? experiment
       : state.facilities.find((item) => item.id === state.facilityId);
-    if (!layout.background) {
-      void locateFacilityForBackground(facility, layout);
-    }
+    updateFacilityLocationSummary(facility);
+    void locateFacilityForBackground(facility, layout);
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   } else {
     elements.facilityId.textContent = "該当する施設がありません。";
@@ -1558,10 +1657,9 @@ function changeFacility() {
     ? experiment
     : state.facilities.find((item) => item.id === state.facilityId);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
+  updateFacilityLocationSummary(facility);
   render();
-  if (!layout.background) {
-    void locateFacilityForBackground(facility, layout);
-  }
+  void locateFacilityForBackground(facility, layout);
 }
 
 /** キャンバス寸法とメートル換算係数を現在施設のレイアウトへ保存する。 */
@@ -1643,6 +1741,10 @@ document.querySelector("#background-zoom-in-button").addEventListener("click", (
 document.querySelector("#background-zoom-out-button").addEventListener("click", () => changeBackgroundZoom(-1));
 document.querySelector("#apply-background-button").addEventListener("click", applyBackgroundSettings);
 document.querySelector("#current-location-background-button").addEventListener("click", useCurrentLocationForBackground);
+document.querySelector("#reset-facility-location-button").addEventListener(
+  "click",
+  () => void resetBackgroundToFacilityLocation(),
+);
 elements.backgroundOpacity.addEventListener("input", () => {
   const layout = getCurrentLayout();
   if (layout?.background?.type === "gsi-seamlessphoto") {
@@ -1677,10 +1779,16 @@ elements.editorZoomRange.addEventListener("input", () => {
   applyViewScale(Number(elements.editorZoomRange.value) / 100, true);
 });
 document.querySelector("#editor-zoom-in-button").addEventListener("click", () => changeViewScale(
-  state.viewScale < 2 ? 0.25 : state.viewScale < 8 ? 0.5 : 1,
+  state.viewScale < 2 ? 0.25
+    : state.viewScale < 8 ? 0.5
+      : state.viewScale < 32 ? 2
+        : 8,
 ));
 document.querySelector("#editor-zoom-out-button").addEventListener("click", () => changeViewScale(
-  -(state.viewScale <= 2 ? 0.25 : state.viewScale <= 8 ? 0.5 : 1),
+  -(state.viewScale <= 2 ? 0.25
+    : state.viewScale <= 8 ? 0.5
+      : state.viewScale <= 32 ? 2
+        : 8),
 ));
 document.querySelector("#editor-zoom-fit-button").addEventListener("click", fitViewScale);
 
