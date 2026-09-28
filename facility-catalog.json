@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 79
+    "fixedCoordinateCount": 89
   },
   "facilities": [
     {
@@ -1539,8 +1539,8 @@
       "municipality": "熊本市",
       "address": "熊本県熊本市東区画図町大字重富1014-8",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.75810295,
+      "longitude": 130.73367972,
       "layoutId": "target_081",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1548,7 +1548,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1556,10 +1556,10 @@
       "name": "ハンズマン 菊陽店",
       "prefecture": "熊本県",
       "municipality": "菊池郡菊陽町",
-      "address": "熊本県菊池郡菊陽町大字津久礼字久保2697番地2",
+      "address": "熊本県菊池郡菊陽町大字津久礼字久保2750-5",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.86370072,
+      "longitude": 130.81171166,
       "layoutId": "target_082",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1567,7 +1567,8 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（ハンズマン会社概要住所照合）",
+    "addressNote": "ハンズマン公式内で住所表記に差異あり。店舗ページは2697-2、2026年6月末時点会社概要は2750-5。実店舗地点は2750-5側を採用。",
       "operatingStatus": "active"
     },
     {
@@ -1577,8 +1578,8 @@
       "municipality": "菊池郡大津町",
       "address": "熊本県菊池郡大津町室1399",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.8868288,
+      "longitude": 130.8525509,
       "layoutId": "target_083",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1586,7 +1587,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1596,8 +1597,8 @@
       "municipality": "荒尾市",
       "address": "熊本県荒尾市海陽町二丁目1番地1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.99297159,
+      "longitude": 130.42965609,
       "layoutId": "target_084",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1605,7 +1606,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1615,8 +1616,8 @@
       "municipality": "宇土市",
       "address": "熊本県宇土市善道寺町綾織22-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.6792476,
+      "longitude": 130.6744343,
       "layoutId": "target_085",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1624,7 +1625,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1634,8 +1635,8 @@
       "municipality": "八代市",
       "address": "熊本県八代市新開町3-15",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.50798123,
+      "longitude": 130.57900833,
       "layoutId": "target_086",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1643,7 +1644,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1653,8 +1654,8 @@
       "municipality": "宇土市",
       "address": "熊本県宇土市三拾町171",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.6950313,
+      "longitude": 130.6698989,
       "layoutId": "target_087",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1662,7 +1663,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "カインズ公式店舗情報",
       "locationSourceUrl": "https://map.cainz.com/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（カインズ公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1672,8 +1673,8 @@
       "municipality": "熊本市",
       "address": "熊本県熊本市北区植木町岩野266-5",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.9021716,
+      "longitude": 130.693191,
       "layoutId": "target_088",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1681,7 +1682,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（マルキョウ公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1691,8 +1692,8 @@
       "municipality": "合志市",
       "address": "熊本県合志市幾久富1909-48",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.86424345,
+      "longitude": 130.768771,
       "layoutId": "target_089",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1700,7 +1701,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（マルキョウ公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1710,8 +1711,8 @@
       "municipality": "玉名市",
       "address": "熊本県玉名市岱明町野口197",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.92848108,
+      "longitude": 130.53966553,
       "layoutId": "target_090",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1719,7 +1720,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（マルキョウ公式住所照合）",
       "operatingStatus": "active"
     },
     {
