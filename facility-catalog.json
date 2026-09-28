@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 42
+    "fixedCoordinateCount": 57
   },
   "facilities": [
     {
@@ -605,8 +605,8 @@
       "municipality": "福山市",
       "address": "広島県福山市今津町7丁目15番38号",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.4465714,
+      "longitude": 133.2428882,
       "layoutId": "target_032",
       "targetBuildingId": null,
       "isDemo": false,
@@ -614,7 +614,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "大黒天物産公式店舗情報・公的資料",
       "locationSourceUrl": "https://www.dkt-s.com/brand.html",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -624,8 +624,8 @@
       "municipality": "広島市",
       "address": "広島県広島市安芸区中野東7丁目28番1号",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.4063086,
+      "longitude": 132.582858,
       "layoutId": "target_033",
       "targetBuildingId": null,
       "isDemo": false,
@@ -633,7 +633,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "大黒天物産公式店舗情報・公的資料",
       "locationSourceUrl": "https://www.dkt-s.com/brand.html",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -643,8 +643,8 @@
       "municipality": "東広島市",
       "address": "広島県東広島市八本松西一丁目12番23号",
       "category": "discount-store",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.44521283,
+      "longitude": 132.68203949,
       "layoutId": "target_034",
       "targetBuildingId": null,
       "isDemo": false,
@@ -652,7 +652,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "MrMax公式店舗情報",
       "locationSourceUrl": "https://www.mrmax.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -662,8 +662,8 @@
       "municipality": "東広島市",
       "address": "広島県東広島市西条下見7-4-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.4066789,
+      "longitude": 132.7098017,
       "layoutId": "target_035",
       "targetBuildingId": null,
       "isDemo": false,
@@ -671,7 +671,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -681,8 +681,8 @@
       "municipality": "三次市",
       "address": "広島県三次市東酒屋町380-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.7814769,
+      "longitude": 132.8767107,
       "layoutId": "target_036",
       "targetBuildingId": null,
       "isDemo": false,
@@ -690,7 +690,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -700,8 +700,8 @@
       "municipality": "尾道市",
       "address": "広島県尾道市東尾道9-5",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.4205662,
+      "longitude": 133.2332519,
       "layoutId": "target_037",
       "targetBuildingId": null,
       "isDemo": false,
@@ -709,7 +709,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -719,8 +719,8 @@
       "municipality": "東広島市",
       "address": "広島県東広島市黒瀬春日野1-132-4",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.3312556,
+      "longitude": 132.6578446,
       "layoutId": "target_038",
       "targetBuildingId": null,
       "isDemo": false,
@@ -728,7 +728,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -738,8 +738,8 @@
       "municipality": "庄原市",
       "address": "広島県庄原市板橋町278-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.84795905,
+      "longitude": 133.01995694,
       "layoutId": "target_039",
       "targetBuildingId": null,
       "isDemo": false,
@@ -747,7 +747,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -757,8 +757,8 @@
       "municipality": "安芸高田市",
       "address": "広島県安芸高田市吉田町常友618-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.6550388,
+      "longitude": 132.6915307,
       "layoutId": "target_040",
       "targetBuildingId": null,
       "isDemo": false,
@@ -766,7 +766,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -787,6 +787,8 @@
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
       "coordinateSource": "確認済み住所から地理院住所検索",
       "operatingStatus": "opening-scheduled",
+    "plannedOpen": "2026-11",
+    "statusNote": "2026年11月開業予定。航空写真には建設中または完成前の状態が写る場合があります。",
       "statusNote": "2026年11月中オープン予定（2026年9月28日時点）"
     },
     {
@@ -853,8 +855,8 @@
       "municipality": "山口市",
       "address": "山口県山口市黒川82番1",
       "category": "discount-store",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.13617603,
+      "longitude": 131.43420518,
       "layoutId": "target_045",
       "targetBuildingId": null,
       "isDemo": false,
@@ -862,7 +864,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "MrMax公式店舗情報",
       "locationSourceUrl": "https://www.mrmax.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -872,8 +874,8 @@
       "municipality": "下松市",
       "address": "山口県下松市美里町2丁目7番1号",
       "category": "discount-store",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.02716699,
+      "longitude": 131.86337845,
       "layoutId": "target_046",
       "targetBuildingId": null,
       "isDemo": false,
@@ -881,7 +883,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "MrMax公式店舗情報",
       "locationSourceUrl": "https://www.mrmax.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -891,8 +893,8 @@
       "municipality": "山口市",
       "address": "山口県山口市朝田780-3",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.1478279,
+      "longitude": 131.4328661,
       "layoutId": "target_047",
       "targetBuildingId": null,
       "isDemo": false,
@@ -900,7 +902,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -910,8 +912,8 @@
       "municipality": "周南市",
       "address": "山口県周南市久米1503-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.0388377,
+      "longitude": 131.8462437,
       "layoutId": "target_048",
       "targetBuildingId": null,
       "isDemo": false,
@@ -919,7 +921,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -929,8 +931,8 @@
       "municipality": "防府市",
       "address": "山口県防府市西仁井令1-7-1",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.0515648,
+      "longitude": 131.549874,
       "layoutId": "target_049",
       "targetBuildingId": null,
       "isDemo": false,
@@ -938,7 +940,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -948,8 +950,8 @@
       "municipality": "岩国市",
       "address": "山口県岩国市南岩国町3-32-2",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 34.1355368,
+      "longitude": 132.1953691,
       "layoutId": "target_050",
       "targetBuildingId": null,
       "isDemo": false,
@@ -957,7 +959,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
