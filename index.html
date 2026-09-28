@@ -49,18 +49,29 @@
         <section>
           <h2>通路・道路</h2>
           <div class="tool-list">
-            <button type="button" data-add-object="road">車道</button>
+            <button type="button" data-add-object="road" data-traffic-direction="twoWay">車道（双方向）</button>
+            <button type="button" data-add-object="road" data-traffic-direction="oneWay">一方通行</button>
             <button type="button" data-add-object="sidewalk">歩道</button>
             <button type="button" data-add-object="crosswalk">横断歩道</button>
+            <button type="button" data-add-object="stopLine">停止線</button>
+            <button type="button" data-add-object="speedBump">速度抑制ハンプ</button>
+            <button type="button" data-add-object="noEntry">進入禁止</button>
           </div>
         </section>
 
         <section>
-          <h2>施設</h2>
+          <h2>施設・設備</h2>
           <div class="tool-list">
             <button type="button" data-add-object="building">建物</button>
             <button type="button" data-add-object="buildingEntrance">建物出入口</button>
-            <button type="button" data-add-object="parkingEntrance">駐車場出入口</button>
+            <button type="button" data-add-object="parkingEntrance" data-access-type="entrance">駐車場入口</button>
+            <button type="button" data-add-object="parkingEntrance" data-access-type="exit">駐車場出口</button>
+            <button type="button" data-add-object="parkingEntrance" data-access-type="both">駐車場出入口</button>
+            <button type="button" data-add-object="cartCorral">カート置き場</button>
+            <button type="button" data-add-object="bicycleParking">駐輪場</button>
+            <button type="button" data-add-object="motorcycleParking">二輪車置場</button>
+            <button type="button" data-add-object="loadingZone">荷捌きスペース</button>
+            <button type="button" data-add-object="evCharger">EV充電器</button>
           </div>
         </section>
       </aside>
@@ -101,6 +112,18 @@
             <legend>駐車区画</legend>
             <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
             <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
+          </fieldset>
+
+          <fieldset id="road-settings" hidden>
+            <legend>車道</legend>
+            <label>通行方向<select id="road-direction"><option value="twoWay">双方向</option><option value="oneWay">一方通行（矢印方向）</option></select></label>
+            <p class="muted">一方通行の向きは「回転」で調整します。0°では右向きです。</p>
+          </fieldset>
+
+          <fieldset id="parking-entrance-settings" hidden>
+            <legend>駐車場出入口</legend>
+            <label>用途<select id="parking-access-type"><option value="both">出入口</option><option value="entrance">入口専用</option><option value="exit">出口専用</option></select></label>
+            <p class="muted">入口と出口を別々に配置する場合は、それぞれ専用として設定してください。</p>
           </fieldset>
 
           <fieldset id="building-entrance-settings" hidden>
