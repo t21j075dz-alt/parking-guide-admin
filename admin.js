@@ -117,14 +117,16 @@ const V4_OBJECT_DEFAULTS = Object.freeze({
 const SCHEMATIC_METERS_PER_PIXEL = 0.1;
 
 const PARKING_SPACE_PRESETS = Object.freeze({
+  /* 見た目の枠サイズは全種類25×50pxへ統一する。実寸情報は属性として保持する。 */
   standard: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
-  compact: { width: 20, height: 36, widthMeters: 2.0, lengthMeters: 3.6 },
-  accessible: { width: 35, height: 60, widthMeters: 3.5, lengthMeters: 6.0 },
+  compact: { width: 25, height: 50, widthMeters: 2.0, lengthMeters: 3.6 },
+  accessible: { width: 25, height: 50, widthMeters: 3.5, lengthMeters: 6.0 },
   ev: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
 });
 
 const OBJECT_DEFAULTS = {
   parkingLot: { width: 520, height: 360, name: "駐車場敷地" },
+  excludedParkingLot: { width: 300, height: 200, name: "対象外駐車場" },
   nationalRoad: { width: 760, height: 90, name: "国道" },
   prefecturalRoad: { width: 680, height: 74, name: "県道" },
   publicRoad: { width: 560, height: 60, name: "公道" },
@@ -147,6 +149,7 @@ const OBJECT_DEFAULTS = {
 
 const POLYGON_OBJECT_TYPES = new Set([
   "parkingLot",
+  "excludedParkingLot",
   "building",
   "road",
   "nationalRoad",
@@ -156,6 +159,7 @@ const POLYGON_OBJECT_TYPES = new Set([
 
 const BASE_LAYER_OBJECT_TYPES = new Set([
   "parkingLot",
+  "excludedParkingLot",
   "nationalRoad",
   "prefecturalRoad",
   "publicRoad",
@@ -213,6 +217,7 @@ const elements = {
   gridSize: document.querySelector("#grid-size"),
   orthogonalSnap: document.querySelector("#orthogonal-snap"),
   adjacentCount: document.querySelector("#adjacent-count"),
+  newParkingSpaceType: document.querySelector("#new-parking-space-type"),
   cloudStatus: document.querySelector("#cloud-sync-status"),
   cloudEmail: document.querySelector("#cloud-email"),
   cloudPassword: document.querySelector("#cloud-password"),
@@ -405,6 +410,25 @@ function ensureLayout(facilityId) {
   if (!Number.isFinite(layout.canvas?.scaleMetersPerPixel) || layout.canvas.scaleMetersPerPixel <= 0) {
     layout.canvas.scaleMetersPerPixel = SCHEMATIC_METERS_PER_PIXEL;
   }
+
+  /*
+   * 軽・車いす用は種類の意味だけを残し、管理画面上の外形は普通車と統一する。
+   * 既存の中井町店レイアウトも中心位置を保ったまま25×50pxへ合わせる。
+   */
+  (layout.objects ?? []).forEach((item) => {
+    if (item.objectType !== "parkingSpace"
+        || !["compact", "accessible"].includes(item.spaceType)
+        || (Number(item.width) === 25 && Number(item.height) === 50)) {
+      return;
+    }
+    const centerX = Number(item.x || 0) + Number(item.width || 25) / 2;
+    const centerY = Number(item.y || 0) + Number(item.height || 50) / 2;
+    item.width = 25;
+    item.height = 50;
+    item.x = Math.round(centerX - 12.5);
+    item.y = Math.round(centerY - 25);
+  });
+
   return layout;
 }
 
@@ -417,6 +441,7 @@ function getSelectedObject() {
 function createUid(type) {
   const prefix = {
     parkingLot: "parking_lot",
+    excludedParkingLot: "excluded_parking_lot",
     nationalRoad: "national_road",
     prefecturalRoad: "prefectural_road",
     publicRoad: "public_road",
@@ -1654,9 +1679,28 @@ function render() {
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "parkingSpace") {
+      node.dataset.spaceType = item.spaceType ?? "standard";
       node.dataset.markingStyle = item.markingStyle ?? "uShape";
       node.style.setProperty("--space-line-color", item.markingColor ?? "#ffffff");
       node.style.setProperty("--space-line-width", `${Math.max(1, Number(item.markingWidth) || 2)}px`);
+
+      const typeMark = document.createElement("span");
+      typeMark.className = "space-type-mark";
+      typeMark.setAttribute("aria-hidden", "true");
+      if (item.spaceType === "compact") typeMark.textContent = "軽";
+      if (item.spaceType === "accessible") typeMark.textContent = "♿";
+      if (item.spaceType === "ev") typeMark.textContent = "EV";
+      if (typeMark.textContent) node.append(typeMark);
+
+      const displayNumber = item.spaceNumber
+        ?? String(item.name ?? "").match(/(\d{1,4})$/)?.[1]
+        ?? "";
+      if (displayNumber) {
+        const numberMark = document.createElement("span");
+        numberMark.className = "space-number-mark";
+        numberMark.textContent = String(displayNumber).padStart(3, "0");
+        node.append(numberMark);
+      }
     }
 
     node.style.left = `${item.x}px`;
@@ -2483,6 +2527,12 @@ document.querySelectorAll("[data-add-object]").forEach((button) => {
     trafficDirection: button.dataset.trafficDirection,
     accessType: button.dataset.accessType,
   }));
+});
+
+document.querySelector("#add-parking-space-button")?.addEventListener("click", () => {
+  addObject("parkingSpace", {
+    spaceType: elements.newParkingSpaceType?.value ?? "standard",
+  });
 });
 
 elements.canvas.addEventListener("click", (event) => {
