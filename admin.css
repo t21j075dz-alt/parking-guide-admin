@@ -824,3 +824,29 @@ html[data-theme="dark"] .map-canvas {
   font-size: 11px;
   line-height: 1.35;
 }
+
+
+/* 駐車場敷地は濃いアスファルト色で表示する。 */
+.polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: #4b5055;
+  stroke: #2f3439;
+  stroke-width: 3;
+  stroke-dasharray: none;
+}
+html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: #3f4448;
+  stroke: #8b949e;
+}
+
+/* 方眼の原点を駐車場敷地の左上へ合わせる。 */
+.map-canvas {
+  --grid-origin-x: 0px;
+  --grid-origin-y: 0px;
+  background-position:
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y);
+}
