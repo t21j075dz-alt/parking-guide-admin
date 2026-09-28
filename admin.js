@@ -168,6 +168,38 @@ const BASE_LAYER_OBJECT_TYPES = new Set([
   "crosswalk",
 ]);
 
+/*
+ * 外周道路・敷地・建物などは、実際の配置に合わせてキャンバス端をまたげる。
+ * 完全に見失わないよう、最低20pxだけはキャンバス内へ残す。
+ */
+const EDGE_OVERFLOW_OBJECT_TYPES = new Set([
+  ...BASE_LAYER_OBJECT_TYPES,
+  "building",
+]);
+const EDGE_OVERFLOW_VISIBLE_MARGIN = 20;
+
+/** オブジェクト種別に応じた移動可能範囲へ座標を収める。 */
+function clampObjectPosition(item, x, y, layout) {
+  const width = Math.max(3, Number(item.width) || 34);
+  const height = Math.max(3, Number(item.height) || 34);
+  const canvasWidth = Math.max(1, Number(layout?.canvas?.width) || 1000);
+  const canvasHeight = Math.max(1, Number(layout?.canvas?.height) || 700);
+
+  if (EDGE_OVERFLOW_OBJECT_TYPES.has(item.objectType)) {
+    const visibleX = Math.min(EDGE_OVERFLOW_VISIBLE_MARGIN, width);
+    const visibleY = Math.min(EDGE_OVERFLOW_VISIBLE_MARGIN, height);
+    return {
+      x: Math.max(-width + visibleX, Math.min(canvasWidth - visibleX, Number(x) || 0)),
+      y: Math.max(-height + visibleY, Math.min(canvasHeight - visibleY, Number(y) || 0)),
+    };
+  }
+
+  return {
+    x: Math.max(0, Math.min(Math.max(0, canvasWidth - width), Number(x) || 0)),
+    y: Math.max(0, Math.min(Math.max(0, canvasHeight - height), Number(y) || 0)),
+  };
+}
+
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
 const state = {
   facilities: window.ADMIN_FACILITY_CATALOG?.facilities ?? [],
@@ -1778,17 +1810,15 @@ function moveDrag(event) {
   if (!item || !layout) {
     return;
   }
-  const proposedX = Math.max(0, Math.min(
-    layout.canvas.width - (item.width ?? 34),
-    state.drag.startX + (event.clientX - state.drag.startClientX) / state.viewScale,
-  ));
-  const proposedY = Math.max(0, Math.min(
-    layout.canvas.height - (item.height ?? 34),
-    state.drag.startY + (event.clientY - state.drag.startClientY) / state.viewScale,
-  ));
-  const snapped = snapObjectPosition(item, proposedX, proposedY);
-  item.x = Math.round(snapped.x);
-  item.y = Math.round(snapped.y);
+  const rawX = state.drag.startX
+    + (event.clientX - state.drag.startClientX) / state.viewScale;
+  const rawY = state.drag.startY
+    + (event.clientY - state.drag.startClientY) / state.viewScale;
+  const initialPosition = clampObjectPosition(item, rawX, rawY, layout);
+  const snapped = snapObjectPosition(item, initialPosition.x, initialPosition.y);
+  const finalPosition = clampObjectPosition(item, snapped.x, snapped.y, layout);
+  item.x = Math.round(finalPosition.x);
+  item.y = Math.round(finalPosition.y);
   showSnapGuides(snapped.guideX, snapped.guideY);
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   if (node) {
@@ -1874,8 +1904,16 @@ function updateSelectedFromForm() {
     return;
   }
   item.name = elements.name.value.trim() || item.uid;
-  item.x = Math.max(0, Number(elements.x.value) || 0);
-  item.y = Math.max(0, Number(elements.y.value) || 0);
+  const requestedPosition = clampObjectPosition(
+    item,
+    Number(elements.x.value) || 0,
+    Number(elements.y.value) || 0,
+    layout,
+  );
+  item.x = Math.round(requestedPosition.x);
+  item.y = Math.round(requestedPosition.y);
+  elements.x.value = item.x;
+  elements.y.value = item.y;
   item.rotation = Number(elements.rotation.value) || 0;
   if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
     item.width = Math.max(3, Number(elements.width.value) || 3);
