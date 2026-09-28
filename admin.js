@@ -7,7 +7,7 @@
    主な責務：
    1. facilityId 単位でレイアウトを作成・切替
    2. 駐車区画・道路・建物・各種設備の追加／移動／編集
-   3. 国土地理院の航空写真を編集用の下敷きとして描画
+   3. 白紙キャンバス上で敷地・建物・道路を多角形として自由作図
    4. localStorage への端末内保存
    5. Supabase設定時は編集内容をクラウドへ自動反映
    6. JSON・parking-layouts.js の入出力によるバックアップ
@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 3;
+const OBJECT_DEFAULTS_VERSION = 4;
 
 /* 航空写真上で白線へ合わせやすいよう、従来の約1/2を初期寸法にする。 */
 const V2_OBJECT_DEFAULTS = Object.freeze({
@@ -69,27 +69,68 @@ const V2_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 22, height: 22 },
 });
 
+const V3_OBJECT_DEFAULTS = Object.freeze({
+  parkingSpace: { width: 6, height: 12 },
+  road: { width: 64, height: 18 },
+  sidewalk: { width: 64, height: 8 },
+  crosswalk: { width: 24, height: 10 },
+  building: { width: 70, height: 44 },
+  buildingEntrance: { width: 10, height: 10 },
+  parkingEntrance: { width: 12, height: 12 },
+  stopLine: { width: 24, height: 4 },
+  speedBump: { width: 24, height: 5 },
+  noEntry: { width: 12, height: 12 },
+  cartCorral: { width: 28, height: 18 },
+  bicycleParking: { width: 34, height: 18 },
+  motorcycleParking: { width: 26, height: 18 },
+  loadingZone: { width: 44, height: 24 },
+  evCharger: { width: 10, height: 10 },
+});
+
 /*
- * ZL18の航空写真では一般的な駐車枠（約2.5m×5m）が数px～十数px程度になる。
- * そのため、初期配置も写真上の白線へ合わせやすい実寸寄りの小型寸法にする。
+ * 白紙の模式図では 1m = 10px（0.1m/px）を基本縮尺とする。
+ * 駐車ますの初期寸法は国土交通省資料を参考にし、普通車は一般的な
+ * 2.5m×5.0mを研究用標準値として扱う。
  */
+const SCHEMATIC_METERS_PER_PIXEL = 0.1;
+
+const PARKING_SPACE_PRESETS = Object.freeze({
+  standard: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
+  compact: { width: 20, height: 36, widthMeters: 2.0, lengthMeters: 3.6 },
+  accessible: { width: 35, height: 60, widthMeters: 3.5, lengthMeters: 6.0 },
+  ev: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
+});
+
 const OBJECT_DEFAULTS = {
-  parkingSpace: { width: 6, height: 12, name: "駐車区画" },
-  road: { width: 64, height: 18, name: "車道" },
-  sidewalk: { width: 64, height: 8, name: "歩道" },
-  crosswalk: { width: 24, height: 10, name: "横断歩道" },
-  building: { width: 70, height: 44, name: "建物" },
-  buildingEntrance: { width: 10, height: 10, name: "店舗入口" },
-  parkingEntrance: { width: 12, height: 12, name: "駐車場出入口" },
-  stopLine: { width: 24, height: 4, name: "停止線" },
-  speedBump: { width: 24, height: 5, name: "速度抑制ハンプ" },
-  noEntry: { width: 12, height: 12, name: "進入禁止" },
-  cartCorral: { width: 28, height: 18, name: "カート置き場" },
-  bicycleParking: { width: 34, height: 18, name: "駐輪場" },
-  motorcycleParking: { width: 26, height: 18, name: "二輪車置場" },
-  loadingZone: { width: 44, height: 24, name: "荷捌きスペース" },
-  evCharger: { width: 10, height: 10, name: "EV充電器" },
+  parkingLot: { width: 620, height: 440, name: "駐車場敷地" },
+  nationalRoad: { width: 760, height: 90, name: "国道" },
+  prefecturalRoad: { width: 680, height: 74, name: "県道" },
+  publicRoad: { width: 560, height: 60, name: "公道" },
+  parkingSpace: { width: 25, height: 50, name: "駐車区画" },
+  road: { width: 280, height: 58, name: "場内車道" },
+  sidewalk: { width: 240, height: 24, name: "歩道" },
+  crosswalk: { width: 86, height: 32, name: "横断歩道" },
+  building: { width: 240, height: 150, name: "建物" },
+  buildingEntrance: { width: 22, height: 22, name: "店舗入口" },
+  parkingEntrance: { width: 26, height: 26, name: "駐車場出入口" },
+  stopLine: { width: 86, height: 8, name: "停止線" },
+  speedBump: { width: 86, height: 12, name: "速度抑制ハンプ" },
+  noEntry: { width: 26, height: 26, name: "進入禁止" },
+  cartCorral: { width: 72, height: 44, name: "カート置き場" },
+  bicycleParking: { width: 110, height: 48, name: "駐輪場" },
+  motorcycleParking: { width: 84, height: 48, name: "二輪車置場" },
+  loadingZone: { width: 150, height: 78, name: "荷捌きスペース" },
+  evCharger: { width: 22, height: 22, name: "EV充電器" },
 };
+
+const POLYGON_OBJECT_TYPES = new Set([
+  "parkingLot",
+  "building",
+  "road",
+  "nationalRoad",
+  "prefecturalRoad",
+  "publicRoad",
+]);
 
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
 const state = {
@@ -99,6 +140,7 @@ const state = {
   selectedUid: null,
   drag: null,
   resize: null,
+  vertexDrag: null,
   backgroundEdit: false,
   backgroundDrag: null,
 
@@ -212,7 +254,8 @@ function ensureLayoutMatchesFacility(facility) {
       schemaVersion: 1,
       facilityId: facility.id,
       facilityIdentityKey: identityKey,
-      canvas: { width: 1000, height: 700, scaleMetersPerPixel: null },
+      canvas: { width: 1000, height: 700, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      mapMode: "schematic",
       background: null,
       objects: [],
     };
@@ -234,7 +277,7 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
+  const previousDefaults = previousVersion >= 3 ? V3_OBJECT_DEFAULTS : previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
 
   (layout.objects ?? []).forEach((item) => {
@@ -273,13 +316,19 @@ function ensureLayout(facilityId) {
     state.layouts[facilityId] = {
       schemaVersion: 1,
       facilityId,
-      canvas: { width: 1000, height: 700, scaleMetersPerPixel: null },
+      canvas: { width: 1000, height: 700, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      mapMode: "schematic",
       background: null,
       objects: [],
     };
   }
   const layout = state.layouts[facilityId];
   migrateLegacyObjectDefaults(layout);
+  layout.mapMode = "schematic";
+  layout.background = null;
+  if (!Number.isFinite(layout.canvas?.scaleMetersPerPixel) || layout.canvas.scaleMetersPerPixel <= 0) {
+    layout.canvas.scaleMetersPerPixel = SCHEMATIC_METERS_PER_PIXEL;
+  }
   return layout;
 }
 
@@ -291,6 +340,10 @@ function getSelectedObject() {
 /** オブジェクト種別ごとに重複しない内部IDを生成する。 */
 function createUid(type) {
   const prefix = {
+    parkingLot: "parking_lot",
+    nationalRoad: "national_road",
+    prefecturalRoad: "prefectural_road",
+    publicRoad: "public_road",
     parkingSpace: "space",
     road: "road",
     sidewalk: "sidewalk",
@@ -322,25 +375,42 @@ function addObject(type, options = {}) {
   if (!defaults) {
     return;
   }
+  const selectedSpaceType = options.spaceType ?? "standard";
+  const parkingPreset = type === "parkingSpace"
+    ? (PARKING_SPACE_PRESETS[selectedSpaceType] ?? PARKING_SPACE_PRESETS.standard)
+    : null;
+  const initialWidth = parkingPreset?.width ?? defaults.width;
+  const initialHeight = parkingPreset?.height ?? defaults.height;
   const uid = createUid(type);
   const item = {
     uid,
     objectType: type,
     name: defaults.name,
-    x: Math.round(layout.canvas.width / 2 - defaults.width / 2),
-    y: Math.round(layout.canvas.height / 2 - defaults.height / 2),
-    width: defaults.width,
-    height: defaults.height,
+    x: Math.round(layout.canvas.width / 2 - initialWidth / 2),
+    y: Math.round(layout.canvas.height / 2 - initialHeight / 2),
+    width: initialWidth,
+    height: initialHeight,
     rotation: 0,
   };
-  if (type === "parkingSpace") {
-    item.spaceType = options.spaceType ?? "standard";
-    item.status = "available";
 
-    /* 区画の論理外形と路面標示を分離する。 */
-    item.markingStyle = "full";
+  if (POLYGON_OBJECT_TYPES.has(type)) {
+    item.polygonPoints = [
+      { x: 0, y: 0 },
+      { x: initialWidth, y: 0 },
+      { x: initialWidth, y: initialHeight },
+      { x: 0, y: initialHeight },
+    ];
+  }
+  if (type === "parkingSpace") {
+    item.spaceType = selectedSpaceType;
+    item.status = "available";
+    item.physicalWidthMeters = parkingPreset.widthMeters;
+    item.physicalLengthMeters = parkingPreset.lengthMeters;
+
+    /* 写真例のような、進入側が開いた3辺線を標準にする。 */
+    item.markingStyle = "uShape";
     item.markingColor = "#ffffff";
-    item.markingWidth = 1;
+    item.markingWidth = 2;
 
     item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
   }
@@ -561,7 +631,7 @@ function enableBackground() {
    * 手入力欄の偶然残っていた値を自動採用しない。
    */
   if (!layout.background) {
-    void locateFacilityForBackground(facility, layout);
+    if (layout) layout.background = null;
     return;
   }
 
@@ -866,6 +936,140 @@ function showSnapGuides(guideX, guideY) {
   }
 }
 
+/** 多角形オブジェクトの頂点配列を保証する。旧データは四角形として扱う。 */
+function getPolygonPoints(item) {
+  if (!POLYGON_OBJECT_TYPES.has(item?.objectType)) {
+    return null;
+  }
+  if (!Array.isArray(item.polygonPoints) || item.polygonPoints.length < 3) {
+    const width = Number(item.width) || OBJECT_DEFAULTS[item.objectType]?.width || 100;
+    const height = Number(item.height) || OBJECT_DEFAULTS[item.objectType]?.height || 70;
+    item.polygonPoints = [
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height },
+    ];
+  }
+  return item.polygonPoints;
+}
+
+function updatePolygonSvg(node, item) {
+  const points = getPolygonPoints(item);
+  const polygon = node?.querySelector(".polygon-fill");
+  if (!polygon || !points) return;
+  polygon.setAttribute("points", points.map((point) => `${point.x},${point.y}`).join(" "));
+}
+
+/** 青＝既存頂点、白＋＝新しい頂点を追加するハンドル。 */
+function addPolygonHandles(node, item) {
+  const points = getPolygonPoints(item);
+  if (!points) return;
+
+  points.forEach((point, index) => {
+    const vertex = document.createElement("button");
+    vertex.type = "button";
+    vertex.className = "polygon-handle polygon-handle--vertex";
+    vertex.style.left = `${point.x}px`;
+    vertex.style.top = `${point.y}px`;
+    vertex.dataset.vertexIndex = String(index);
+    vertex.setAttribute("aria-label", `頂点${index + 1}を移動`);
+    vertex.addEventListener("pointerdown", startVertexDrag);
+    vertex.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      const selected = getSelectedObject();
+      const selectedPoints = getPolygonPoints(selected);
+      const vertexIndex = Number(event.currentTarget.dataset.vertexIndex);
+      if (!selectedPoints || selectedPoints.length <= 3 || !Number.isInteger(vertexIndex)) return;
+      selectedPoints.splice(vertexIndex, 1);
+      saveLocal();
+      render();
+    });
+    node.append(vertex);
+
+    const next = points[(index + 1) % points.length];
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "polygon-handle polygon-handle--add";
+    add.style.left = `${(point.x + next.x) / 2}px`;
+    add.style.top = `${(point.y + next.y) / 2}px`;
+    add.dataset.edgeIndex = String(index);
+    add.textContent = "+";
+    add.setAttribute("aria-label", `辺${index + 1}に頂点を追加`);
+    add.addEventListener("pointerdown", startVertexDrag);
+    node.append(add);
+  });
+}
+
+function startVertexDrag(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  if (event.button !== 0) return;
+
+  const node = event.currentTarget.closest(".map-object");
+  const item = getCurrentLayout()?.objects.find((object) => object.uid === node?.dataset.uid);
+  const points = getPolygonPoints(item);
+  if (!item || !points) return;
+
+  let vertexIndex = Number(event.currentTarget.dataset.vertexIndex);
+  if (!Number.isInteger(vertexIndex)) {
+    const edgeIndex = Number(event.currentTarget.dataset.edgeIndex);
+    if (!Number.isInteger(edgeIndex)) return;
+    const next = points[(edgeIndex + 1) % points.length];
+    const point = points[edgeIndex];
+    vertexIndex = edgeIndex + 1;
+    points.splice(vertexIndex, 0, {
+      x: (point.x + next.x) / 2,
+      y: (point.y + next.y) / 2,
+    });
+  }
+
+  state.selectedUid = item.uid;
+  state.vertexDrag = {
+    pointerId: event.pointerId,
+    vertexIndex,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startPoint: { ...points[vertexIndex] },
+    rotation: Number(item.rotation) || 0,
+    handle: event.currentTarget,
+  };
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+function moveVertexDrag(event) {
+  if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return;
+  const item = getSelectedObject();
+  const points = getPolygonPoints(item);
+  if (!item || !points?.[state.vertexDrag.vertexIndex]) return;
+
+  const dx = (event.clientX - state.vertexDrag.startClientX) / state.viewScale;
+  const dy = (event.clientY - state.vertexDrag.startClientY) / state.viewScale;
+  const radians = state.vertexDrag.rotation * Math.PI / 180;
+  const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
+  const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
+  const point = points[state.vertexDrag.vertexIndex];
+
+  point.x = Math.max(0, Math.min(item.width, Math.round(state.vertexDrag.startPoint.x + localDx)));
+  point.y = Math.max(0, Math.min(item.height, Math.round(state.vertexDrag.startPoint.y + localDy)));
+
+  const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
+  updatePolygonSvg(node, item);
+  if (state.vertexDrag.handle) {
+    state.vertexDrag.handle.style.left = `${point.x}px`;
+    state.vertexDrag.handle.style.top = `${point.y}px`;
+  }
+}
+
+function endVertexDrag(event) {
+  if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return false;
+  state.vertexDrag = null;
+  saveLocal();
+  render();
+  return true;
+}
+
 /** 選択枠の周囲にPowerPoint風の8個のリサイズハンドルを付ける。 */
 function addResizeHandles(node, item) {
   if (["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
@@ -902,6 +1106,7 @@ function startResize(event) {
     width: item.width ?? 34,
     height: item.height ?? 34,
     rotation: Number(item.rotation) || 0,
+    polygonPoints: getPolygonPoints(item) ? structuredClone(item.polygonPoints) : null,
   };
   event.currentTarget.setPointerCapture(event.pointerId);
 }
@@ -939,6 +1144,14 @@ function moveResize(event) {
 
   item.width = newWidth;
   item.height = newHeight;
+  if (state.resize.polygonPoints) {
+    const scaleX = state.resize.width > 0 ? newWidth / state.resize.width : 1;
+    const scaleY = state.resize.height > 0 ? newHeight / state.resize.height : 1;
+    item.polygonPoints = state.resize.polygonPoints.map((point) => ({
+      x: Math.max(0, Math.min(newWidth, point.x * scaleX)),
+      y: Math.max(0, Math.min(newHeight, point.y * scaleY)),
+    }));
+  }
   item.x = Math.max(0, Math.min(layout.canvas.width - newWidth, oldCenterX + globalShiftX - newWidth / 2));
   item.y = Math.max(0, Math.min(layout.canvas.height - newHeight, oldCenterY + globalShiftY - newHeight / 2));
 
@@ -1033,11 +1246,11 @@ function render() {
   elements.canvas.style.height = `${layout.canvas.height}px`;
   elements.canvasWidth.value = layout.canvas.width;
   elements.canvasHeight.value = layout.canvas.height;
-  elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? "";
+  elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? SCHEMATIC_METERS_PER_PIXEL;
   updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
-  renderBackground(layout);
 
+  /* 新仕様：航空写真などの下敷きは描画しない。 */
   applyViewScale(state.viewScale);
 
   layout.objects.forEach((item) => {
@@ -1045,31 +1258,47 @@ function render() {
     node.className = "map-object";
     node.dataset.uid = item.uid;
     node.dataset.objectType = item.objectType;
-    if (item.objectType === "road") {
-      node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
+
+    if (POLYGON_OBJECT_TYPES.has(item.objectType)) {
+      node.classList.add("polygon-object");
+      const points = getPolygonPoints(item);
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.classList.add("polygon-shape");
+      svg.setAttribute("viewBox", `0 0 ${item.width} ${item.height}`);
+      svg.setAttribute("preserveAspectRatio", "none");
+      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      polygon.classList.add("polygon-fill");
+      polygon.setAttribute("points", points.map((point) => `${point.x},${point.y}`).join(" "));
+      svg.append(polygon);
+      node.append(svg);
     }
-    if (item.objectType === "parkingEntrance") {
-      node.dataset.accessType = item.accessType ?? "both";
-    }
+
+    if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
+    if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "parkingSpace") {
-      /* CSSが路面標示を描画できるよう、保存値をdata属性とCSS変数へ渡す。 */
-      node.dataset.markingStyle = item.markingStyle ?? "full";
+      node.dataset.markingStyle = item.markingStyle ?? "uShape";
       node.style.setProperty("--space-line-color", item.markingColor ?? "#ffffff");
-      node.style.setProperty("--space-line-width", `${Math.max(1, Number(item.markingWidth) || 3)}px`);
+      node.style.setProperty("--space-line-width", `${Math.max(1, Number(item.markingWidth) || 2)}px`);
     }
+
     node.style.left = `${item.x}px`;
     node.style.top = `${item.y}px`;
     node.style.width = `${item.width ?? 34}px`;
     node.style.height = `${item.height ?? 34}px`;
     node.style.transform = `rotate(${item.rotation ?? 0}deg)`;
     node.classList.toggle("selected", item.uid === state.selectedUid);
+
     const label = document.createElement("span");
+    label.className = "object-label";
     label.textContent = item.name || item.uid;
     label.title = item.name || item.uid;
     node.append(label);
+
     if (item.uid === state.selectedUid) {
       addResizeHandles(node, item);
+      addPolygonHandles(node, item);
     }
+
     node.addEventListener("pointerdown", startDrag);
     node.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1088,7 +1317,7 @@ function selectObject(uid) {
 
 /** ポインター操作開始時の座標を記録し、ドラッグ移動を開始する。 */
 function startDrag(event) {
-  if (state.backgroundEdit || event.target.closest(".resize-handle") || event.button !== 0) {
+  if (event.target.closest(".resize-handle, .polygon-handle") || event.button !== 0) {
     return;
   }
   const item = getCurrentLayout().objects.find((object) => object.uid === event.currentTarget.dataset.uid);
@@ -1218,8 +1447,8 @@ function updateSelectedFromForm() {
   item.y = Math.max(0, Number(elements.y.value) || 0);
   item.rotation = Number(elements.rotation.value) || 0;
   if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
-    item.width = Math.max(8, Number(elements.width.value) || 8);
-    item.height = Math.max(8, Number(elements.height.value) || 8);
+    item.width = Math.max(3, Number(elements.width.value) || 3);
+    item.height = Math.max(3, Number(elements.height.value) || 3);
   }
   if (item.objectType === "road") {
     const previousDirection = item.trafficDirection ?? "twoWay";
@@ -1244,13 +1473,21 @@ function updateSelectedFromForm() {
     }
   }
   if (item.objectType === "parkingSpace") {
+    const previousType = item.spaceType ?? "standard";
     item.spaceType = elements.spaceType.value;
     item.status = elements.spaceStatus.value;
 
-    /* 見た目の線形状は検索・距離計算へ影響させず、表示情報として保存する。 */
+    if (item.spaceType !== previousType) {
+      const preset = PARKING_SPACE_PRESETS[item.spaceType] ?? PARKING_SPACE_PRESETS.standard;
+      item.width = preset.width;
+      item.height = preset.height;
+      item.physicalWidthMeters = preset.widthMeters;
+      item.physicalLengthMeters = preset.lengthMeters;
+    }
+
     item.markingStyle = elements.spaceMarkingStyle.value;
     item.markingColor = elements.spaceMarkingColor.value;
-    item.markingWidth = Math.max(1, Number(elements.spaceMarkingWidth.value) || 3);
+    item.markingWidth = Math.max(1, Number(elements.spaceMarkingWidth.value) || 2);
   }
   if (item.objectType === "buildingEntrance") {
     item.entranceType = elements.entranceType.value;
@@ -1763,7 +2000,7 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
       : state.facilities.find((item) => item.id === state.facilityId);
     const layout = ensureLayoutMatchesFacility(facility);
     updateFacilityLocationSummary(facility);
-    void locateFacilityForBackground(facility, layout);
+    if (layout) layout.background = null;
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   } else {
     elements.facilityId.textContent = "該当する施設がありません。";
@@ -1818,7 +2055,7 @@ function changeFacility() {
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   updateFacilityLocationSummary(facility);
   render();
-  void locateFacilityForBackground(facility, layout);
+  if (layout) layout.background = null;
 }
 
 /** キャンバス寸法とメートル換算係数を現在施設のレイアウトへ保存する。 */
@@ -1854,56 +2091,33 @@ elements.canvas.addEventListener("click", (event) => {
   state.selectedUid = null;
   render();
 });
-elements.canvas.addEventListener("pointerdown", (event) => {
-  if (event.target === elements.canvas || event.target.closest(".satellite-layer")) {
-    startBackgroundDrag(event);
-  }
-});
 elements.canvas.addEventListener("pointermove", (event) => {
-  moveBackgroundDrag(event);
+  moveVertexDrag(event);
   moveResize(event);
   moveDrag(event);
 });
 elements.canvas.addEventListener("pointerup", (event) => {
-  if (endBackgroundDrag(event)) {
-    return;
-  }
-  if (endResize(event)) {
-    return;
-  }
+  if (endVertexDrag(event)) return;
+  if (endResize(event)) return;
   endDrag(event);
 });
 elements.canvas.addEventListener("pointercancel", (event) => {
-  if (endBackgroundDrag(event)) {
-    return;
-  }
-  if (endResize(event)) {
-    return;
-  }
+  if (endVertexDrag(event)) return;
+  if (endResize(event)) return;
   endDrag(event);
 });
-elements.canvas.addEventListener("wheel", (event) => {
-  if (!state.backgroundEdit) {
-    return;
-  }
-  event.preventDefault();
-  changeBackgroundZoom(event.deltaY < 0 ? 1 : -1);
-}, { passive: false });
 
 document.querySelector("#cloud-login-button").addEventListener("click", () => void remoteLogin());
 document.querySelector("#cloud-sync-button").addEventListener("click", () => void syncCurrentLayout());
 document.querySelector("#cloud-load-button").addEventListener("click", () => void loadRemoteLayouts());
 document.querySelector("#cloud-logout-button").addEventListener("click", remoteLogout);
-document.querySelector("#background-enable-button").addEventListener("click", enableBackground);
-document.querySelector("#background-edit-button").addEventListener("click", toggleBackgroundEdit);
-document.querySelector("#background-zoom-in-button").addEventListener("click", () => changeBackgroundZoom(1));
-document.querySelector("#background-zoom-out-button").addEventListener("click", () => changeBackgroundZoom(-1));
-document.querySelector("#apply-background-button").addEventListener("click", applyBackgroundSettings);
-document.querySelector("#current-location-background-button").addEventListener("click", useCurrentLocationForBackground);
-document.querySelector("#reset-facility-location-button").addEventListener(
-  "click",
-  () => void resetBackgroundToFacilityLocation(),
-);
+document.querySelector("#background-enable-button")?.addEventListener("click", () => {});
+document.querySelector("#background-edit-button")?.addEventListener("click", () => {});
+document.querySelector("#background-zoom-in-button")?.addEventListener("click", () => {});
+document.querySelector("#background-zoom-out-button")?.addEventListener("click", () => {});
+document.querySelector("#apply-background-button")?.addEventListener("click", () => {});
+document.querySelector("#current-location-background-button")?.addEventListener("click", () => {});
+document.querySelector("#reset-facility-location-button")?.addEventListener("click", () => {});
 elements.backgroundOpacity.addEventListener("input", () => {
   const layout = getCurrentLayout();
   if (layout?.background && GSI_PHOTO_SOURCES[layout.background.type]) {
@@ -1972,10 +2186,6 @@ elements.themeButton.addEventListener("click", () => applyTheme(document.documen
 
 document.addEventListener("keydown", (event) => {
   if (event.target.matches("input, select, textarea")) {
-    return;
-  }
-  if (event.key === "Escape" && state.backgroundEdit) {
-    toggleBackgroundEdit();
     return;
   }
   if (event.key === "Delete" || event.key === "Backspace") {
