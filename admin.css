@@ -162,7 +162,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .map-object[data-object-type="sidewalk"] { border-color: #78716c; background: var(--sidewalk); }
 .map-object[data-object-type="crosswalk"] { border-color: #475569; background: repeating-linear-gradient(90deg,#fff 0 8px,#64748b 8px 16px); }
 .map-object[data-object-type="building"] { border-color: #1e40af; background: var(--building); }
-.map-object[data-object-type="buildingEntrance"],.map-object[data-object-type="parkingEntrance"] { width: 34px !important; height: 34px !important; border-radius: 50%; border-color: #7c3aed; background: #f5f3ff; }
+.map-object[data-object-type="buildingEntrance"],.map-object[data-object-type="parkingEntrance"] { border-radius: 50%; border-color: #7c3aed; background: #f5f3ff; }
 .map-object[data-object-type="buildingEntrance"]::before { content: "入口"; font-size: 9px; }
 .map-object[data-object-type="parkingEntrance"]::before { content: "P出入口"; font-size: 8px; }
 .map-object[data-object-type="buildingEntrance"] span,.map-object[data-object-type="parkingEntrance"] span { display: none; }
@@ -204,8 +204,6 @@ fieldset .check-row { display: flex; align-items: center; gap: 8px; }
 }
 .map-object[data-object-type="noEntry"],
 .map-object[data-object-type="evCharger"] {
-  width: 42px !important;
-  height: 42px !important;
   border-radius: 50%;
 }
 .map-object[data-object-type="noEntry"] {
