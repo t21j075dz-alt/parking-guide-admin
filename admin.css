@@ -88,7 +88,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
   --space-line-color: #ffffff;
   --space-line-width: 3px;
   border: 0;
-  background: rgb(5 150 105 / 14%);
+  background: transparent;
   overflow: visible;
 }
 
@@ -620,4 +620,130 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   inset: 0;
   pointer-events: none;
   box-shadow: inset 0 0 0 1px rgb(245 158 11 / 18%);
+}
+
+
+/* =========================================================
+   白紙模式図・自由多角形編集
+   ========================================================= */
+.map-canvas {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(rgb(148 163 184 / 18%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 18%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+html[data-theme="dark"] .map-canvas { background-color: #111827; }
+
+.polygon-object {
+  overflow: visible !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.polygon-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.polygon-fill {
+  vector-effect: non-scaling-stroke;
+  stroke: #475569;
+  stroke-width: 2;
+  fill: rgb(226 232 240 / 78%);
+}
+.polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: rgb(203 213 225 / 28%);
+  stroke: #2563eb;
+  stroke-width: 3;
+  stroke-dasharray: 8 5;
+}
+.polygon-object[data-object-type="building"] .polygon-fill {
+  fill: #dbe4ea;
+  stroke: #334155;
+}
+.polygon-object[data-object-type="road"] .polygon-fill {
+  fill: #64748b;
+  stroke: #334155;
+}
+.polygon-object[data-object-type="nationalRoad"] .polygon-fill {
+  fill: #dbeafe;
+  stroke: #1d4ed8;
+  stroke-width: 4;
+}
+.polygon-object[data-object-type="prefecturalRoad"] .polygon-fill {
+  fill: #fef3c7;
+  stroke: #b45309;
+  stroke-width: 3;
+}
+.polygon-object[data-object-type="publicRoad"] .polygon-fill {
+  fill: #e5e7eb;
+  stroke: #4b5563;
+}
+
+.polygon-object > .object-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block !important;
+  z-index: 12;
+  max-width: 80%;
+  padding: 2px 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 82%);
+  color: #111827;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.polygon-handle {
+  position: absolute;
+  z-index: 60;
+  width: 12px !important;
+  min-width: 12px;
+  height: 12px !important;
+  min-height: 12px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  touch-action: none;
+}
+.polygon-handle--vertex {
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 1px #1e3a8a;
+}
+.polygon-handle--add {
+  display: grid;
+  place-items: center;
+  border: 1px solid #64748b;
+  border-radius: 50%;
+  background: #fff;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+.polygon-help {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tool-help {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* 写真例のように、通常の駐車枠は塗り潰さず白線だけを見せる。 */
+.map-object[data-object-type="parkingSpace"] {
+  background: transparent;
 }
