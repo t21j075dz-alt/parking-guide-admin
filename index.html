@@ -63,6 +63,7 @@
           <h2>敷地・建物・外周道路</h2>
           <div class="tool-list">
             <button type="button" data-add-object="parkingLot">駐車場敷地</button>
+            <button type="button" data-add-object="excludedParkingLot">対象外駐車場敷地</button>
             <button type="button" data-add-object="building">建物</button>
             <button type="button" data-add-object="nationalRoad">国道</button>
             <button type="button" data-add-object="prefecturalRoad">県道</button>
@@ -71,15 +72,20 @@
           <p class="tool-help">四角形で追加されます。青い頂点をドラッグして変形し、辺中央の「＋」をドラッグすると頂点を増やせます。頂点はダブルクリックで削除できます。</p>
         </section>
 
-        <!-- 駐車区画は空き判定・推奨区画選択に直接利用する。 -->
+        <!-- 駐車区画は種類を選んでから1つの追加ボタンで配置する。 -->
         <section>
           <h2>駐車区画</h2>
-          <div class="tool-list">
-            <button type="button" data-add-object="parkingSpace" data-space-type="standard">普通車枠（2.5×5.0m）</button>
-            <button type="button" data-add-object="parkingSpace" data-space-type="compact">軽自動車枠（2.0×3.6m）</button>
-            <button type="button" data-add-object="parkingSpace" data-space-type="accessible">車椅子使用者用枠（3.5×6.0m）</button>
-            <button type="button" data-add-object="parkingSpace" data-space-type="ev">EV枠（2.5×5.0m）</button>
+          <label class="field-label" for="new-parking-space-type">区画種類</label>
+          <select id="new-parking-space-type">
+            <option value="standard">普通車</option>
+            <option value="compact">軽自動車</option>
+            <option value="accessible">車いす使用者用</option>
+            <option value="ev">EV</option>
+          </select>
+          <div class="tool-list parking-add-actions">
+            <button id="add-parking-space-button" type="button">駐車枠を追加</button>
           </div>
+          <p class="tool-help">枠の表示サイズは統一しています。軽は「軽」、車いす用は「♿」、EVは「EV」を枠内に表示します。</p>
         </section>
 
         <!-- 道路系オブジェクト。一方通行などは将来の経路探索にも利用できる形で保存する。 -->
