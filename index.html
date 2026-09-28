@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f5f4">
+    <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
+    <title>駐車場マップ管理｜卒業研究</title>
+    <link rel="stylesheet" href="./admin.css">
+    <script src="./facility-catalog.js" defer></script>
+    <script src="./admin.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="app-kicker">卒業研究・管理用</p>
+        <h1>駐車場マップ管理</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="theme-button" type="button">ダークモード</button>
+        <button id="save-button" type="button">端末に保存</button>
+        <button id="export-json-button" type="button">JSON出力</button>
+        <button id="export-js-button" type="button">ユーザー用JS出力</button>
+        <label class="file-button">JSON読込<input id="import-file" type="file" accept="application/json,.json"></label>
+      </div>
+    </header>
+
+    <main class="admin-layout">
+      <aside class="left-panel" aria-label="オブジェクト追加">
+        <section>
+          <h2>編集する施設</h2>
+          <label class="field-label" for="facility-select">施設</label>
+          <select id="facility-select"></select>
+          <p id="facility-id" class="muted"></p>
+        </section>
+
+        <section>
+          <h2>駐車区画</h2>
+          <div class="tool-list">
+            <button type="button" data-add-object="parkingSpace" data-space-type="standard">普通車枠</button>
+            <button type="button" data-add-object="parkingSpace" data-space-type="compact">軽自動車枠</button>
+            <button type="button" data-add-object="parkingSpace" data-space-type="accessible">車椅子使用者用枠</button>
+            <button type="button" data-add-object="parkingSpace" data-space-type="ev">EV枠</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>通路・道路</h2>
+          <div class="tool-list">
+            <button type="button" data-add-object="road">車道</button>
+            <button type="button" data-add-object="sidewalk">歩道</button>
+            <button type="button" data-add-object="crosswalk">横断歩道</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>施設</h2>
+          <div class="tool-list">
+            <button type="button" data-add-object="building">建物</button>
+            <button type="button" data-add-object="buildingEntrance">建物出入口</button>
+            <button type="button" data-add-object="parkingEntrance">駐車場出入口</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-labelledby="canvas-title">
+        <div class="workspace-head">
+          <div>
+            <h2 id="canvas-title">配置図</h2>
+            <p>オブジェクトをドラッグして移動できます。位置はキャンバス座標として保存されます。</p>
+          </div>
+          <div class="canvas-settings">
+            <label>幅 <input id="canvas-width" type="number" min="400" max="4000" step="10"></label>
+            <label>高さ <input id="canvas-height" type="number" min="300" max="4000" step="10"></label>
+            <label>m/px <input id="canvas-scale" type="number" min="0" step="0.001" placeholder="未設定"></label>
+          </div>
+        </div>
+        <div id="canvas-scroll" class="canvas-scroll">
+          <div id="map-canvas" class="map-canvas" tabindex="0" aria-label="駐車場配置編集キャンバス"></div>
+        </div>
+      </section>
+
+      <aside class="right-panel" aria-label="選択オブジェクト設定">
+        <h2>設定</h2>
+        <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
+        <form id="object-form" hidden>
+          <div class="settings-grid">
+            <label>内部ID<input id="object-uid" type="text" readonly></label>
+            <label>種類<input id="object-type" type="text" readonly></label>
+            <label>名称<input id="object-name" type="text"></label>
+            <label>X<input id="object-x" type="number" step="1"></label>
+            <label>Y<input id="object-y" type="number" step="1"></label>
+            <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
+            <label id="width-field">幅<input id="object-width" type="number" min="8" step="1"></label>
+            <label id="height-field">高さ<input id="object-height" type="number" min="8" step="1"></label>
+          </div>
+
+          <fieldset id="parking-space-settings" hidden>
+            <legend>駐車区画</legend>
+            <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
+            <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
+          </fieldset>
+
+          <fieldset id="building-entrance-settings" hidden>
+            <legend>建物出入口</legend>
+            <label>入口種類<select id="entrance-type"><option value="main">正面入口</option><option value="sub">その他の一般入口</option><option value="accessible">バリアフリー入口</option><option value="staff">従業員入口</option><option value="other">その他</option></select></label>
+            <label class="check-row"><input id="public-access" type="checkbox"> 利用者が使用可能</label>
+            <label class="check-row"><input id="wheelchair-accessible" type="checkbox"> 車椅子で利用可能</label>
+            <label class="check-row"><input id="guide-target" type="checkbox"> 案内基準として使用</label>
+            <label>関連建物ID<input id="building-id" type="text" placeholder="building_001"></label>
+          </fieldset>
+
+          <div class="object-actions">
+            <button id="duplicate-button" type="button">複製</button>
+            <button id="delete-button" class="danger" type="button">削除</button>
+          </div>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <p>管理用アプリです。利用者向け画面とは別に運用し、出力したレイアウトデータだけをユーザー用アプリへ反映します。</p>
+    </footer>
+  </body>
+</html>

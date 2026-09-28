@@ -1,0 +1,89 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f5f4;
+  --panel: #ffffff;
+  --panel-2: #fafaf9;
+  --text: #1c1917;
+  --muted: #57534e;
+  --border: #d6d3d1;
+  --strong-border: #a8a29e;
+  --accent: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --danger: #b91c1c;
+  --canvas: #f8fafc;
+  --road: #d6d3d1;
+  --sidewalk: #e7e5e4;
+  --building: #dbeafe;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111827;
+  --panel: #1f2937;
+  --panel-2: #18212f;
+  --text: #f3f4f6;
+  --muted: #cbd5e1;
+  --border: #475569;
+  --strong-border: #64748b;
+  --accent: #93c5fd;
+  --accent-soft: #172554;
+  --danger: #fca5a5;
+  --canvas: #0f172a;
+  --road: #475569;
+  --sidewalk: #334155;
+  --building: #1e3a5f;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1100px; background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; font-size: 14px; line-height: 1.5; }
+button,input,select { font: inherit; color: inherit; }
+button,.file-button,select,input { border: 1px solid var(--border); border-radius: 4px; background: var(--panel); }
+button,.file-button { min-height: 34px; padding: 6px 10px; cursor: pointer; }
+button:hover,.file-button:hover { border-color: var(--strong-border); background: var(--panel-2); }
+input,select { width: 100%; min-height: 34px; padding: 5px 7px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
+.topbar h1 { margin: 0; font-size: 20px; }
+.app-kicker { margin: 0 0 2px; color: var(--muted); font-size: 12px; }
+.topbar-actions { display: flex; gap: 6px; }
+.file-button { display: inline-flex; align-items: center; }
+.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.admin-layout { display: grid; grid-template-columns: 220px minmax(660px,1fr) 280px; height: calc(100vh - 118px); min-height: 620px; }
+.left-panel,.right-panel { overflow: auto; padding: 14px; background: var(--panel); }
+.left-panel { border-right: 1px solid var(--border); }
+.right-panel { border-left: 1px solid var(--border); }
+.left-panel section + section { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+h2 { margin: 0 0 10px; font-size: 15px; }
+.field-label { display: block; margin: 0 0 5px; font-weight: 600; }
+.muted { color: var(--muted); font-size: 12px; }
+.tool-list { display: grid; gap: 6px; }
+.tool-list button { width: 100%; text-align: left; }
+.workspace { min-width: 0; overflow: hidden; background: var(--bg); }
+.workspace-head { display: flex; justify-content: space-between; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
+.workspace-head h2,.workspace-head p { margin: 0; }
+.workspace-head p { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.canvas-settings { display: flex; gap: 8px; }
+.canvas-settings label { display: grid; grid-template-columns: auto 74px; align-items: center; gap: 5px; white-space: nowrap; }
+.canvas-scroll { height: calc(100% - 66px); overflow: auto; padding: 24px; }
+.map-canvas { position: relative; width: 1000px; height: 700px; background-color: var(--canvas); background-image: linear-gradient(var(--border) 1px, transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 25px 25px; border: 1px solid var(--strong-border); transform-origin: top left; }
+.map-object { position: absolute; display: grid; place-items: center; min-width: 12px; min-height: 12px; border: 2px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: hidden; font-size: 12px; font-weight: 600; text-align: center; }
+.map-object.selected { outline: 3px solid #f59e0b; outline-offset: 2px; z-index: 20; }
+.map-object[data-object-type="parkingSpace"] { border-color: #047857; background: #ecfdf5; }
+.map-object[data-object-type="road"] { border-color: #57534e; background: var(--road); }
+.map-object[data-object-type="sidewalk"] { border-color: #78716c; background: var(--sidewalk); }
+.map-object[data-object-type="crosswalk"] { border-color: #475569; background: repeating-linear-gradient(90deg,#fff 0 8px,#64748b 8px 16px); }
+.map-object[data-object-type="building"] { border-color: #1e40af; background: var(--building); }
+.map-object[data-object-type="buildingEntrance"],.map-object[data-object-type="parkingEntrance"] { width: 34px !important; height: 34px !important; border-radius: 50%; border-color: #7c3aed; background: #f5f3ff; }
+.map-object[data-object-type="buildingEntrance"]::before { content: "入口"; font-size: 9px; }
+.map-object[data-object-type="parkingEntrance"]::before { content: "P出入口"; font-size: 8px; }
+.map-object[data-object-type="buildingEntrance"] span,.map-object[data-object-type="parkingEntrance"] span { display: none; }
+.empty-settings { padding: 16px 0; color: var(--muted); }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.settings-grid label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.settings-grid label:nth-child(-n+3) { grid-column: 1 / -1; }
+fieldset { margin: 14px 0 0; padding: 10px; border: 1px solid var(--border); }
+legend { padding: 0 5px; font-weight: 700; }
+fieldset label { display: grid; gap: 4px; margin-top: 8px; }
+fieldset .check-row { display: flex; align-items: center; gap: 8px; }
+.check-row input { width: 18px; min-height: 18px; }
+.object-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.danger { border-color: #b91c1c; color: var(--danger); }
+.footer { height: 46px; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--panel); color: var(--muted); font-size: 12px; }
+.footer p { margin: 0; }
