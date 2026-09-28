@@ -48,25 +48,47 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 2;
+const OBJECT_DEFAULTS_VERSION = 3;
 
 /* 航空写真上で白線へ合わせやすいよう、従来の約1/2を初期寸法にする。 */
+const V2_OBJECT_DEFAULTS = Object.freeze({
+  parkingSpace: { width: 32, height: 58 },
+  road: { width: 130, height: 44 },
+  sidewalk: { width: 130, height: 22 },
+  crosswalk: { width: 54, height: 22 },
+  building: { width: 140, height: 90 },
+  buildingEntrance: { width: 20, height: 20 },
+  parkingEntrance: { width: 24, height: 24 },
+  stopLine: { width: 54, height: 8 },
+  speedBump: { width: 54, height: 10 },
+  noEntry: { width: 24, height: 24 },
+  cartCorral: { width: 60, height: 40 },
+  bicycleParking: { width: 74, height: 40 },
+  motorcycleParking: { width: 54, height: 40 },
+  loadingZone: { width: 90, height: 50 },
+  evCharger: { width: 22, height: 22 },
+});
+
+/*
+ * ZL18の航空写真では一般的な駐車枠（約2.5m×5m）が数px～十数px程度になる。
+ * そのため、初期配置も写真上の白線へ合わせやすい実寸寄りの小型寸法にする。
+ */
 const OBJECT_DEFAULTS = {
-  parkingSpace: { width: 32, height: 58, name: "駐車区画" },
-  road: { width: 130, height: 44, name: "車道" },
-  sidewalk: { width: 130, height: 22, name: "歩道" },
-  crosswalk: { width: 54, height: 22, name: "横断歩道" },
-  building: { width: 140, height: 90, name: "建物" },
-  buildingEntrance: { width: 20, height: 20, name: "店舗入口" },
-  parkingEntrance: { width: 24, height: 24, name: "駐車場出入口" },
-  stopLine: { width: 54, height: 8, name: "停止線" },
-  speedBump: { width: 54, height: 10, name: "速度抑制ハンプ" },
-  noEntry: { width: 24, height: 24, name: "進入禁止" },
-  cartCorral: { width: 60, height: 40, name: "カート置き場" },
-  bicycleParking: { width: 74, height: 40, name: "駐輪場" },
-  motorcycleParking: { width: 54, height: 40, name: "二輪車置場" },
-  loadingZone: { width: 90, height: 50, name: "荷捌きスペース" },
-  evCharger: { width: 22, height: 22, name: "EV充電器" },
+  parkingSpace: { width: 6, height: 12, name: "駐車区画" },
+  road: { width: 64, height: 18, name: "車道" },
+  sidewalk: { width: 64, height: 8, name: "歩道" },
+  crosswalk: { width: 24, height: 10, name: "横断歩道" },
+  building: { width: 70, height: 44, name: "建物" },
+  buildingEntrance: { width: 10, height: 10, name: "店舗入口" },
+  parkingEntrance: { width: 12, height: 12, name: "駐車場出入口" },
+  stopLine: { width: 24, height: 4, name: "停止線" },
+  speedBump: { width: 24, height: 5, name: "速度抑制ハンプ" },
+  noEntry: { width: 12, height: 12, name: "進入禁止" },
+  cartCorral: { width: 28, height: 18, name: "カート置き場" },
+  bicycleParking: { width: 34, height: 18, name: "駐輪場" },
+  motorcycleParking: { width: 26, height: 18, name: "二輪車置場" },
+  loadingZone: { width: 44, height: 24, name: "荷捌きスペース" },
+  evCharger: { width: 10, height: 10, name: "EV充電器" },
 };
 
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
@@ -211,27 +233,31 @@ function migrateLegacyObjectDefaults(layout) {
     return false;
   }
 
+  const previousVersion = Number(layout.objectDefaultsVersion) || 1;
+  const previousDefaults = previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
+
   (layout.objects ?? []).forEach((item) => {
-    const legacy = LEGACY_OBJECT_DEFAULTS[item.objectType];
+    const previous = previousDefaults[item.objectType];
     const current = OBJECT_DEFAULTS[item.objectType];
-    if (!legacy || !current) {
+    if (!previous || !current) {
       return;
     }
 
     /*
-     * 手動でサイズ変更済みのオブジェクトは触らない。
-     * 旧初期寸法と完全一致するものだけ中心位置を保ったまま縮小する。
+     * 旧版の初期寸法と完全一致するものだけ自動縮小する。
+     * 利用者が手動で寸法を変更したオブジェクトはそのまま残す。
      */
-    if (Number(item.width) === legacy.width && Number(item.height) === legacy.height) {
-      const centerX = Number(item.x || 0) + legacy.width / 2;
-      const centerY = Number(item.y || 0) + legacy.height / 2;
+    if (Number(item.width) === previous.width && Number(item.height) === previous.height) {
+      const centerX = Number(item.x || 0) + previous.width / 2;
+      const centerY = Number(item.y || 0) + previous.height / 2;
       item.width = current.width;
       item.height = current.height;
       item.x = Math.round(centerX - current.width / 2);
       item.y = Math.round(centerY - current.height / 2);
-      if (item.objectType === "parkingSpace" && Number(item.markingWidth) === 3) {
-        item.markingWidth = 2;
+
+      if (item.objectType === "parkingSpace") {
+        item.markingWidth = 1;
       }
       changed = true;
     }
@@ -314,7 +340,7 @@ function addObject(type, options = {}) {
     /* 区画の論理外形と路面標示を分離する。 */
     item.markingStyle = "full";
     item.markingColor = "#ffffff";
-    item.markingWidth = 2;
+    item.markingWidth = 1;
 
     item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
   }
@@ -769,9 +795,9 @@ function fitViewScale() {
   scroll.scrollTop = 0;
 }
 
-/** 指定値を2pxグリッドへ丸める。小さい駐車枠でも位置合わせしやすくする。 */
+/** 指定値を1pxグリッドへ丸める。航空写真の白線へ細かく合わせる。 */
 function snapToGrid(value) {
-  return elements.snapEnabled?.checked ? Math.round(value / 2) * 2 : value;
+  return elements.snapEnabled?.checked ? Math.round(value) : value;
 }
 
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
@@ -779,7 +805,7 @@ function snapObjectPosition(item, x, y) {
   if (!elements.snapEnabled?.checked) {
     return { x, y, guideX: null, guideY: null };
   }
-  const threshold = 4;
+  const threshold = 2;
   const layout = getCurrentLayout();
   const width = item.width ?? 34;
   const height = item.height ?? 34;
@@ -898,7 +924,7 @@ function moveResize(event) {
   const direction = state.resize.direction;
   const sx = direction.includes("e") ? 1 : direction.includes("w") ? -1 : 0;
   const sy = direction.includes("s") ? 1 : direction.includes("n") ? -1 : 0;
-  const minSize = 6;
+  const minSize = 3;
   const requestedWidth = sx === 0 ? state.resize.width : state.resize.width + sx * localDx;
   const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
   const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
