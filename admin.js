@@ -1,9 +1,26 @@
 "use strict";
 
 /* =========================================================
+   【このファイルの役割】
+   管理者が駐車場レイアウトを作成・編集するための画面制御を担当する。
+
+   主な責務：
+   1. facilityId 単位でレイアウトを作成・切替
+   2. 駐車区画・道路・建物・各種設備の追加／移動／編集
+   3. 国土地理院の航空写真を編集用の下敷きとして描画
+   4. localStorage への端末内保存
+   5. Supabase設定時は編集内容をクラウドへ自動反映
+   6. JSON・parking-layouts.js の入出力によるバックアップ
+
+   座標 x / y は画面表示用CSS座標ではなく、各施設のキャンバス上の
+   論理座標として保存する。ユーザーアプリはこの座標を百分率へ変換して表示する。
+   ========================================================= */
+
+/* =========================================================
    駐車場マップ管理：状態と定義
    ========================================================= */
 
+/* 建物出入口の内部値と画面表示の対応。保存値は英字で固定し、表示文言と分離する。 */
 const ENTRANCE_LABELS = {
   main: "正面入口",
   sub: "その他の一般入口",
@@ -12,6 +29,7 @@ const ENTRANCE_LABELS = {
   other: "その他",
 };
 
+/* オブジェクト追加時の初期寸法と名称。寸法はキャンバス上の論理ピクセル。 */
 const OBJECT_DEFAULTS = {
   parkingSpace: { width: 70, height: 130, name: "駐車区画" },
   road: { width: 260, height: 90, name: "車道" },
@@ -30,6 +48,7 @@ const OBJECT_DEFAULTS = {
   evCharger: { width: 42, height: 42, name: "EV充電器" },
 };
 
+/* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
 const state = {
   facilities: window.ADMIN_FACILITY_CATALOG?.facilities ?? [],
   layouts: {},
@@ -40,6 +59,7 @@ const state = {
   remoteSyncTimer: null,
 };
 
+/* 頻繁に参照するDOM要素を初期化時にまとめて保持する。 */
 const elements = {
   prefectureSelect: document.querySelector("#prefecture-select"),
   facilitySelect: document.querySelector("#facility-select"),
@@ -93,6 +113,7 @@ function getCurrentLayout() {
   return state.layouts[state.facilityId] ?? null;
 }
 
+/** facilityId に対応する編集用レイアウトを取得し、未作成なら初期状態を生成する。 */
 function ensureLayout(facilityId) {
   if (!state.layouts[facilityId]) {
     state.layouts[facilityId] = {
@@ -106,10 +127,12 @@ function ensureLayout(facilityId) {
   return state.layouts[facilityId];
 }
 
+/** キャンバス上で現在選択されているオブジェクトを取得する。 */
 function getSelectedObject() {
   return getCurrentLayout()?.objects.find((item) => item.uid === state.selectedUid) ?? null;
 }
 
+/** オブジェクト種別ごとに重複しない内部IDを生成する。 */
 function createUid(type) {
   const prefix = {
     parkingSpace: "space",
@@ -136,6 +159,7 @@ function createUid(type) {
   return `${prefix}_${String(number).padStart(3, "0")}`;
 }
 
+/** 左側ツールから指定された種類のオブジェクトをキャンバス中央へ追加する。 */
 function addObject(type, options = {}) {
   const layout = ensureLayout(state.facilityId);
   const defaults = OBJECT_DEFAULTS[type];
@@ -364,11 +388,13 @@ function render() {
   updateSettings();
 }
 
+/** 指定UIDのオブジェクトを選択状態にする。 */
 function selectObject(uid) {
   state.selectedUid = uid;
   render();
 }
 
+/** ポインター操作開始時の座標を記録し、ドラッグ移動を開始する。 */
 function startDrag(event) {
   if (event.button !== 0) {
     return;
@@ -393,6 +419,7 @@ function startDrag(event) {
   updateSettings();
 }
 
+/** ドラッグ中のポインター移動量からオブジェクト座標を更新する。 */
 function moveDrag(event) {
   if (!state.drag || event.pointerId !== state.drag.pointerId) {
     return;
@@ -413,6 +440,7 @@ function moveDrag(event) {
   elements.y.value = item.y;
 }
 
+/** ドラッグ操作を終了し、更新後の位置を端末内とクラウド同期対象へ保存する。 */
 function endDrag(event) {
   if (!state.drag || event.pointerId !== state.drag.pointerId) {
     return;
@@ -470,6 +498,7 @@ function updateSettings() {
   }
 }
 
+/** 右側設定フォームの変更内容を選択オブジェクトへ反映する。 */
 function updateSelectedFromForm() {
   const item = getSelectedObject();
   const layout = getCurrentLayout();
@@ -523,6 +552,7 @@ function updateSelectedFromForm() {
   render();
 }
 
+/** 選択オブジェクトを新しいUIDで複製し、少しずらした位置へ配置する。 */
 function duplicateSelected() {
   const item = getSelectedObject();
   if (!item) {
@@ -539,6 +569,7 @@ function duplicateSelected() {
   render();
 }
 
+/** 選択オブジェクトを現在施設のレイアウトから削除する。 */
 function deleteSelected() {
   const layout = getCurrentLayout();
   if (!layout || !state.selectedUid) {
@@ -732,6 +763,7 @@ function saveLocal() {
   scheduleRemoteSync();
 }
 
+/** localStorageに保存された編集データを起動時に復元する。 */
 function restoreLocal() {
   try {
     const saved = JSON.parse(localStorage.getItem("parkingAdminLayoutsV1") ?? "null");
@@ -743,6 +775,7 @@ function restoreLocal() {
   }
 }
 
+/** 文字列をBlob化し、指定ファイル名でブラウザーへダウンロードさせる。 */
 function downloadText(filename, text, type) {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
@@ -753,15 +786,18 @@ function downloadText(filename, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+/** 全レイアウトをバックアップ・再読込用JSONとして出力する。 */
 function exportJson() {
   downloadText("parking-layouts.json", `${JSON.stringify(state.layouts, null, 2)}\n`, "application/json");
 }
 
+/** クラウド未使用時の互換手段としてユーザー用 parking-layouts.js を出力する。 */
 function exportUserJs() {
   const text = `"use strict";\n\nwindow.PARKING_LAYOUT_SCHEMA_VERSION = 1;\nwindow.PARKING_LAYOUTS = Object.freeze(${JSON.stringify(state.layouts, null, 2)});\n`;
   downloadText("parking-layouts.js", text, "text/javascript");
 }
 
+/** 管理画面から選択したレイアウトJSONを検証して読み込む。 */
 async function importJson(file) {
   if (!file) {
     return;
@@ -794,6 +830,7 @@ function applyTheme(theme) {
   } catch {}
 }
 
+/** 保存済みテーマを復元し、未設定ならOSの配色設定を初期値にする。 */
 function initializeTheme() {
   let theme = null;
   try {
@@ -805,6 +842,7 @@ function initializeTheme() {
   applyTheme(theme);
 }
 
+/** 岡山理科大学正門の実験用駐車場情報を管理画面向けに返す。 */
 function getExperimentFacility() {
   return {
     id: "ous-main-gate-experiment",
@@ -815,6 +853,7 @@ function getExperimentFacility() {
   };
 }
 
+/** 選択した都道府県に属する施設だけを施設プルダウンへ表示する。 */
 function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   const experiment = getExperimentFacility();
   const facilities = state.facilities.filter((facility) => facility.prefecture === prefecture);
@@ -858,6 +897,7 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   }
 }
 
+/** 都道府県・施設選択を初期化し、研究上よく使う岡山県を初期表示する。 */
 function initializeFacilities() {
   const prefectures = [...new Set(state.facilities.map((facility) => facility.prefecture))];
   const experiment = getExperimentFacility();
@@ -876,12 +916,14 @@ function initializeFacilities() {
   renderFacilityOptions(initialPrefecture);
 }
 
+/** 都道府県変更時に施設候補とキャンバス表示を切り替える。 */
 function changePrefecture() {
   state.selectedUid = null;
   renderFacilityOptions(elements.prefectureSelect.value);
   render();
 }
 
+/** 施設変更時に対応するレイアウトへ編集対象を切り替える。 */
 function changeFacility() {
   state.facilityId = elements.facilitySelect.value;
   state.selectedUid = null;
@@ -890,6 +932,7 @@ function changeFacility() {
   render();
 }
 
+/** キャンバス寸法とメートル換算係数を現在施設のレイアウトへ保存する。 */
 function updateCanvasSettings() {
   const layout = getCurrentLayout();
   if (!layout) {
