@@ -1,5 +1,26 @@
 "use strict";
 
+/* =========================================================
+   管理画面用施設カタログ
+
+   このファイルは管理画面で施設を選択するための静的マスターデータ。
+   駐車場レイアウト本体はここへ直接書かず、facilityId をキーとして
+   admin.js の layouts / Supabase の parking_layouts に保存する。
+
+   各施設オブジェクトの主な項目：
+   - id: アプリ間で共有する固定ID。原則として後から変更しない。
+   - name: 画面表示用の施設名。
+   - prefecture / municipality / address: 所在地情報。
+   - category: supermarket / home-center / discount-store。
+   - latitude / longitude: 確認できた場合のみ登録し、不明値は null。
+   - layoutId: レイアウト参照キー。通常は id と同一。
+   - targetBuildingId: 複数建物がある場合の案内対象建物ID。
+   - isDemo: 実験用データかどうか。
+
+   JSON版 facility-catalog.json は同内容の機械可読データであり、
+   JSON仕様上コメントを記載できないため説明は本ファイルとREADMEに集約する。
+   ========================================================= */
+
 window.ADMIN_FACILITY_CATALOG = {
   "metadata": {
     "total": 120,
