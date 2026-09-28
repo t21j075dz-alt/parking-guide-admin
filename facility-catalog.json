@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 89
+    "fixedCoordinateCount": 99
   },
   "facilities": [
     {
@@ -1730,8 +1730,8 @@
       "municipality": "大分市",
       "address": "大分県大分市市字池田1070番地",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.1863516,
+      "longitude": 131.5719926,
       "layoutId": "target_091",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1739,7 +1739,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ハンズマン公式店舗情報",
       "locationSourceUrl": "https://www.handsman.co.jp/shop/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（ハンズマン公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1749,8 +1749,8 @@
       "municipality": "大分市",
       "address": "大分県大分市上宗方南2丁目1-7",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.1944688,
+      "longitude": 131.5775222,
       "layoutId": "target_092",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1758,7 +1758,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1768,8 +1768,8 @@
       "municipality": "大分市",
       "address": "大分県大分市皆春502番地",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.233591,
+      "longitude": 131.6800814,
       "layoutId": "target_093",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1777,7 +1777,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1787,8 +1787,8 @@
       "municipality": "大分市",
       "address": "大分県大分市敷戸台1丁目1-8",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.188955,
+      "longitude": 131.616469,
       "layoutId": "target_094",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1796,7 +1796,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1806,8 +1806,8 @@
       "municipality": "日田市",
       "address": "大分県日田市北友田3丁目2530-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.3237611514,
+      "longitude": 130.9021504576,
       "layoutId": "target_095",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1815,7 +1815,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1825,8 +1825,8 @@
       "municipality": "別府市",
       "address": "大分県別府市竹の内町49番69号",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.30339922,
+      "longitude": 131.46193597,
       "layoutId": "target_096",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1834,7 +1834,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1844,8 +1844,8 @@
       "municipality": "中津市",
       "address": "大分県中津市大字下池永字熊本153-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.5870785255,
+      "longitude": 131.2138321491,
       "layoutId": "target_097",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1853,7 +1853,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1863,8 +1863,8 @@
       "municipality": "大分市",
       "address": "大分県大分市大字皆春字美操318番地の1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.2337216,
+      "longitude": 131.6739132,
       "layoutId": "target_098",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1872,7 +1872,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（マルキョウ公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1882,8 +1882,8 @@
       "municipality": "中津市",
       "address": "大分県中津市下池永115-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.5896254,
+      "longitude": 131.2131837,
       "layoutId": "target_099",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1891,7 +1891,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（マルキョウ公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1901,8 +1901,8 @@
       "municipality": "宇佐市",
       "address": "大分県宇佐市大字法鏡寺500",
       "category": "discount-store",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.5262354,
+      "longitude": 131.3499422,
       "layoutId": "target_100",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1910,7 +1910,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "MrMax公式店舗情報",
       "locationSourceUrl": "https://www.mrmax.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（MrMax公式住所照合）",
       "operatingStatus": "active"
     },
     {
