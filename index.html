@@ -6,12 +6,15 @@
     <meta name="theme-color" content="#f5f5f4">
     <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
     <title>駐車場マップ管理｜卒業研究</title>
+    <!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
     <link rel="stylesheet" href="./admin.css">
+    <!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
     <script src="./sync-config.js" defer></script>
     <script src="./facility-catalog.js" defer></script>
     <script src="./admin.js" defer></script>
   </head>
   <body>
+    <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
     <header class="topbar">
       <div>
         <p class="app-kicker">卒業研究・管理用</p>
@@ -27,6 +30,7 @@
     </header>
 
     <main class="admin-layout">
+      <!-- 左ペイン：編集対象施設の選択と、新しいオブジェクトの追加を行う。 -->
       <aside class="left-panel" aria-label="オブジェクト追加">
         <section>
           <h2>編集する施設</h2>
@@ -53,6 +57,7 @@
           <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
         </section>
 
+        <!-- 駐車区画は空き判定・推奨区画選択に直接利用する。 -->
         <section>
           <h2>駐車区画</h2>
           <div class="tool-list">
@@ -63,6 +68,7 @@
           </div>
         </section>
 
+        <!-- 道路系オブジェクト。一方通行などは将来の経路探索にも利用できる形で保存する。 -->
         <section>
           <h2>通路・道路</h2>
           <div class="tool-list">
@@ -76,6 +82,7 @@
           </div>
         </section>
 
+        <!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
         <section>
           <h2>施設・設備</h2>
           <div class="tool-list">
@@ -93,6 +100,7 @@
         </section>
       </aside>
 
+      <!-- 中央ワークスペース：航空写真を下敷きにし、自由配置でレイアウトを作成する。 -->
       <section class="workspace" aria-labelledby="canvas-title">
         <div class="workspace-head">
           <div>
@@ -105,6 +113,7 @@
             <label>m/px <input id="canvas-scale" type="number" min="0" step="0.001" placeholder="未設定"></label>
           </div>
         </div>
+        <!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
         <details class="background-panel" open>
           <summary>航空写真を下敷きにする</summary>
           <div class="background-controls">
@@ -132,6 +141,7 @@
         </div>
       </section>
 
+      <!-- 右ペイン：選択中オブジェクトの共通属性・種類別属性を編集する。 -->
       <aside class="right-panel" aria-label="選択オブジェクト設定">
         <h2>設定</h2>
         <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
@@ -182,6 +192,7 @@
       </aside>
     </main>
 
+    <!-- 管理画面と利用者画面を分離して運用することを明記する。 -->
     <footer class="footer">
       <p>管理用アプリです。利用者向け画面とは別に運用し、出力したレイアウトデータだけをユーザー用アプリへ反映します。</p>
     </footer>
