@@ -19,7 +19,15 @@ const OBJECT_DEFAULTS = {
   crosswalk: { width: 110, height: 45, name: "横断歩道" },
   building: { width: 260, height: 160, name: "建物" },
   buildingEntrance: { width: 34, height: 34, name: "店舗入口" },
-  parkingEntrance: { width: 34, height: 34, name: "駐車場出入口" },
+  parkingEntrance: { width: 42, height: 42, name: "駐車場出入口" },
+  stopLine: { width: 110, height: 14, name: "停止線" },
+  speedBump: { width: 110, height: 22, name: "速度抑制ハンプ" },
+  noEntry: { width: 42, height: 42, name: "進入禁止" },
+  cartCorral: { width: 120, height: 80, name: "カート置き場" },
+  bicycleParking: { width: 150, height: 80, name: "駐輪場" },
+  motorcycleParking: { width: 110, height: 80, name: "二輪車置場" },
+  loadingZone: { width: 180, height: 100, name: "荷捌きスペース" },
+  evCharger: { width: 42, height: 42, name: "EV充電器" },
 };
 
 const state = {
@@ -53,6 +61,10 @@ const elements = {
   parkingSpaceSettings: document.querySelector("#parking-space-settings"),
   spaceType: document.querySelector("#space-type"),
   spaceStatus: document.querySelector("#space-status"),
+  roadSettings: document.querySelector("#road-settings"),
+  roadDirection: document.querySelector("#road-direction"),
+  parkingEntranceSettings: document.querySelector("#parking-entrance-settings"),
+  parkingAccessType: document.querySelector("#parking-access-type"),
   buildingEntranceSettings: document.querySelector("#building-entrance-settings"),
   entranceType: document.querySelector("#entrance-type"),
   publicAccess: document.querySelector("#public-access"),
@@ -94,7 +106,15 @@ function createUid(type) {
     crosswalk: "crosswalk",
     building: "building",
     buildingEntrance: "entrance",
-    parkingEntrance: "parking_entrance",
+      parkingEntrance: "parking_entrance",
+    stopLine: "stop_line",
+    speedBump: "speed_bump",
+    noEntry: "no_entry",
+    cartCorral: "cart",
+    bicycleParking: "bicycle",
+    motorcycleParking: "motorcycle",
+    loadingZone: "loading",
+    evCharger: "ev_charger",
   }[type] ?? "object";
   const used = new Set(getCurrentLayout()?.objects.map((item) => item.uid) ?? []);
   let number = 1;
@@ -125,6 +145,18 @@ function addObject(type, options = {}) {
     item.spaceType = options.spaceType ?? "standard";
     item.status = "available";
     item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
+  }
+  if (type === "road") {
+    item.trafficDirection = options.trafficDirection ?? "twoWay";
+    item.name = item.trafficDirection === "oneWay" ? "一方通行" : "車道";
+  }
+  if (type === "parkingEntrance") {
+    item.accessType = options.accessType ?? "both";
+    item.name = item.accessType === "entrance"
+      ? "駐車場入口"
+      : item.accessType === "exit"
+        ? "駐車場出口"
+        : "駐車場出入口";
   }
   if (type === "buildingEntrance") {
     Object.assign(item, {
@@ -159,6 +191,12 @@ function render() {
     node.className = "map-object";
     node.dataset.uid = item.uid;
     node.dataset.objectType = item.objectType;
+    if (item.objectType === "road") {
+      node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
+    }
+    if (item.objectType === "parkingEntrance") {
+      node.dataset.accessType = item.accessType ?? "both";
+    }
     node.style.left = `${item.x}px`;
     node.style.top = `${item.y}px`;
     node.style.width = `${item.width ?? 34}px`;
@@ -254,9 +292,19 @@ function updateSettings() {
   elements.rotation.value = item.rotation ?? 0;
   elements.width.value = item.width ?? 34;
   elements.height.value = item.height ?? 34;
-  const fixedMarker = ["buildingEntrance", "parkingEntrance"].includes(item.objectType);
+  const fixedMarker = ["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType);
   elements.widthField.hidden = fixedMarker;
   elements.heightField.hidden = fixedMarker;
+
+  elements.roadSettings.hidden = item.objectType !== "road";
+  if (item.objectType === "road") {
+    elements.roadDirection.value = item.trafficDirection ?? "twoWay";
+  }
+
+  elements.parkingEntranceSettings.hidden = item.objectType !== "parkingEntrance";
+  if (item.objectType === "parkingEntrance") {
+    elements.parkingAccessType.value = item.accessType ?? "both";
+  }
 
   elements.parkingSpaceSettings.hidden = item.objectType !== "parkingSpace";
   if (item.objectType === "parkingSpace") {
@@ -284,9 +332,15 @@ function updateSelectedFromForm() {
   item.x = Math.max(0, Number(elements.x.value) || 0);
   item.y = Math.max(0, Number(elements.y.value) || 0);
   item.rotation = Number(elements.rotation.value) || 0;
-  if (!["buildingEntrance", "parkingEntrance"].includes(item.objectType)) {
+  if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
     item.width = Math.max(8, Number(elements.width.value) || 8);
     item.height = Math.max(8, Number(elements.height.value) || 8);
+  }
+  if (item.objectType === "road") {
+    item.trafficDirection = elements.roadDirection.value;
+  }
+  if (item.objectType === "parkingEntrance") {
+    item.accessType = elements.parkingAccessType.value;
   }
   if (item.objectType === "parkingSpace") {
     item.spaceType = elements.spaceType.value;
@@ -506,7 +560,11 @@ function updateCanvasSettings() {
    ========================================================= */
 
 document.querySelectorAll("[data-add-object]").forEach((button) => {
-  button.addEventListener("click", () => addObject(button.dataset.addObject, { spaceType: button.dataset.spaceType }));
+  button.addEventListener("click", () => addObject(button.dataset.addObject, {
+    spaceType: button.dataset.spaceType,
+    trafficDirection: button.dataset.trafficDirection,
+    accessType: button.dataset.accessType,
+  }));
 });
 
 elements.canvas.addEventListener("click", () => {
@@ -519,7 +577,10 @@ elements.canvas.addEventListener("pointercancel", endDrag);
 
 elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
-[elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height, elements.spaceType, elements.spaceStatus, elements.entranceType, elements.publicAccess, elements.wheelchairAccessible, elements.guideTarget, elements.buildingId].forEach((control) => {
+[elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height,
+  elements.roadDirection, elements.parkingAccessType,
+  elements.spaceType, elements.spaceStatus, elements.entranceType, elements.publicAccess,
+  elements.wheelchairAccessible, elements.guideTarget, elements.buildingId].forEach((control) => {
   control.addEventListener("change", updateSelectedFromForm);
 });
 
