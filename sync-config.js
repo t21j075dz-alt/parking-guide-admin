@@ -14,11 +14,11 @@
 
 window.PARKING_REMOTE_CONFIG = Object.freeze({
   /* false の間は端末保存・parking-layouts.jsだけで動作する。 */
-  enabled: false,
+  enabled: true,
 
   /* 例：https://xxxxxxxxxxxxxxxx.supabase.co */
-  supabaseUrl: "",
+  supabaseUrl: "https://gahoqlpuufqjqpyaaykt.supabase.co",
 
   /* Supabase Dashboardで確認できる公開用 publishable key / anon key。 */
-  publishableKey: "",
+  publishableKey: "sb_publishable_ZAlP-6MLZUx0-aQ_jw1btA_SxhBsPVN",
 });
