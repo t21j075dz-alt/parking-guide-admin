@@ -409,8 +409,12 @@ function moveBackgroundDrag(event) {
   if (!state.backgroundDrag || event.pointerId !== state.backgroundDrag.pointerId) {
     return;
   }
-  const dx = event.clientX - state.backgroundDrag.startClientX;
-  const dy = event.clientY - state.backgroundDrag.startClientY;
+  /*
+   * キャンバス全体がviewScaleで拡大されているため、画面上の移動量を
+   * 論理キャンバス座標へ戻してから背景レイヤーへ適用する。
+   */
+  const dx = (event.clientX - state.backgroundDrag.startClientX) / state.viewScale;
+  const dy = (event.clientY - state.backgroundDrag.startClientY) / state.viewScale;
   const layer = elements.canvas.querySelector(".satellite-layer");
   if (layer) {
     layer.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -423,8 +427,9 @@ function endBackgroundDrag(event) {
     return false;
   }
   const layout = getCurrentLayout();
-  const dx = event.clientX - state.backgroundDrag.startClientX;
-  const dy = event.clientY - state.backgroundDrag.startClientY;
+  /* 高倍率編集でもカーソル移動量と地図移動量が一致するよう倍率で補正する。 */
+  const dx = (event.clientX - state.backgroundDrag.startClientX) / state.viewScale;
+  const dy = (event.clientY - state.backgroundDrag.startClientY) / state.viewScale;
   const center = state.backgroundDrag.centerWorld;
   const next = fromWorldPixel(center.x - dx, center.y - dy, state.backgroundDrag.zoom);
   layout.background.centerLat = next.latitude;
