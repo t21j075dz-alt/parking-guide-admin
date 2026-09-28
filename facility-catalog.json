@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 35
+    "fixedCoordinateCount": 42
   },
   "facilities": [
     {
@@ -129,8 +129,8 @@
       "municipality": "鳥取市",
       "address": "鳥取県鳥取市安長217番地1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.5107217,
+      "longitude": 134.2035329,
       "layoutId": "target_007",
       "targetBuildingId": null,
       "isDemo": false,
@@ -138,7 +138,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "大黒天物産公式店舗情報・公的資料",
       "locationSourceUrl": "https://www.dkt-s.com/brand.html",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -148,8 +148,8 @@
       "municipality": "倉吉市",
       "address": "鳥取県倉吉市河北町125-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.4666609,
+      "longitude": 133.8436615,
       "layoutId": "target_008",
       "targetBuildingId": null,
       "isDemo": false,
@@ -157,7 +157,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "大黒天物産公式店舗情報・公的資料",
       "locationSourceUrl": "https://www.dkt-s.com/brand.html",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -167,8 +167,8 @@
       "municipality": "鳥取市",
       "address": "鳥取県鳥取市国府町新通り4-408-16",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.4826455,
+      "longitude": 134.2540126,
       "layoutId": "target_009",
       "targetBuildingId": null,
       "isDemo": false,
@@ -176,7 +176,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -186,8 +186,8 @@
       "municipality": "鳥取市",
       "address": "鳥取県鳥取市古海字西加路田590",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.49624303,
+      "longitude": 134.20397782,
       "layoutId": "target_010",
       "targetBuildingId": null,
       "isDemo": false,
@@ -195,7 +195,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "カインズ公式店舗情報",
       "locationSourceUrl": "https://map.cainz.com/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active",
       "officialName": "カインズ 鳥取店"
     },
@@ -339,8 +339,8 @@
       "municipality": "安来市",
       "address": "島根県安来市飯島町396番地",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.4343251,
+      "longitude": 133.2400764,
       "layoutId": "target_018",
       "targetBuildingId": null,
       "isDemo": false,
@@ -348,7 +348,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "大黒天物産公式店舗情報・公的資料",
       "locationSourceUrl": "https://www.dkt-s.com/brand.html",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -358,8 +358,8 @@
       "municipality": "松江市",
       "address": "島根県松江市竹矢町1850-15",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.4393287,
+      "longitude": 133.119498,
       "layoutId": "target_019",
       "targetBuildingId": null,
       "isDemo": false,
@@ -367,7 +367,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -377,8 +377,8 @@
       "municipality": "出雲市",
       "address": "島根県出雲市江田町47-4",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 35.3846515,
+      "longitude": 132.7345767,
       "layoutId": "target_020",
       "targetBuildingId": null,
       "isDemo": false,
@@ -386,7 +386,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Yahoo!マップ地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
