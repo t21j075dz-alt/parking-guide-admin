@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 4;
+const OBJECT_DEFAULTS_VERSION = 5;
 
 /* 航空写真上で白線へ合わせやすいよう、従来の約1/2を初期寸法にする。 */
 const V2_OBJECT_DEFAULTS = Object.freeze({
@@ -87,6 +87,28 @@ const V3_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 10, height: 10 },
 });
 
+const V4_OBJECT_DEFAULTS = Object.freeze({
+  parkingLot: { width: 620, height: 440 },
+  nationalRoad: { width: 760, height: 90 },
+  prefecturalRoad: { width: 680, height: 74 },
+  publicRoad: { width: 560, height: 60 },
+  parkingSpace: { width: 25, height: 50 },
+  road: { width: 280, height: 58 },
+  sidewalk: { width: 240, height: 24 },
+  crosswalk: { width: 86, height: 32 },
+  building: { width: 240, height: 150 },
+  buildingEntrance: { width: 22, height: 22 },
+  parkingEntrance: { width: 26, height: 26 },
+  stopLine: { width: 86, height: 8 },
+  speedBump: { width: 86, height: 12 },
+  noEntry: { width: 26, height: 26 },
+  cartCorral: { width: 72, height: 44 },
+  bicycleParking: { width: 110, height: 48 },
+  motorcycleParking: { width: 84, height: 48 },
+  loadingZone: { width: 150, height: 78 },
+  evCharger: { width: 22, height: 22 },
+});
+
 /*
  * 白紙の模式図では 1m = 10px（0.1m/px）を基本縮尺とする。
  * 駐車ますの初期寸法は国土交通省資料を参考にし、普通車は一般的な
@@ -102,7 +124,7 @@ const PARKING_SPACE_PRESETS = Object.freeze({
 });
 
 const OBJECT_DEFAULTS = {
-  parkingLot: { width: 620, height: 440, name: "駐車場敷地" },
+  parkingLot: { width: 520, height: 360, name: "駐車場敷地" },
   nationalRoad: { width: 760, height: 90, name: "国道" },
   prefecturalRoad: { width: 680, height: 74, name: "県道" },
   publicRoad: { width: 560, height: 60, name: "公道" },
@@ -292,7 +314,7 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 3 ? V3_OBJECT_DEFAULTS : previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
+  const previousDefaults = previousVersion >= 4 ? V4_OBJECT_DEFAULTS : previousVersion >= 3 ? V3_OBJECT_DEFAULTS : previousVersion >= 2 ? V2_OBJECT_DEFAULTS : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
 
   (layout.objects ?? []).forEach((item) => {
@@ -383,6 +405,51 @@ function createUid(type) {
   return `${prefix}_${String(number).padStart(3, "0")}`;
 }
 
+/** 駐車枠の種類に応じた表示名の接頭辞を返す。 */
+function getParkingSpaceLabel(spaceType) {
+  return spaceType === "compact" ? "軽"
+    : spaceType === "accessible" ? "車椅子"
+      : spaceType === "ev" ? "EV" : "普通車";
+}
+
+/**
+ * 現在レイアウトで未使用の最小の駐車枠番号を返す。
+ * 内部UIDとは分離し、削除後の作り直しで001から再利用できるようにする。
+ */
+function getNextParkingSpaceNumber(layout) {
+  const used = new Set();
+
+  (layout?.objects ?? []).forEach((object) => {
+    if (object.objectType !== "parkingSpace") return;
+
+    const explicit = Number.parseInt(String(object.spaceNumber ?? ""), 10);
+    if (Number.isInteger(explicit) && explicit > 0) {
+      used.add(explicit);
+      return;
+    }
+
+    /* 旧データは標準名末尾の番号を読み取って互換利用する。 */
+    const match = String(object.name ?? "").match(/(?:普通車|軽|車椅子|EV)\s+(\d{1,4})$/);
+    if (match) {
+      const legacyNumber = Number.parseInt(match[1], 10);
+      if (legacyNumber > 0) used.add(legacyNumber);
+    }
+  });
+
+  let number = 1;
+  while (used.has(number)) number += 1;
+  return number;
+}
+
+/** 駐車枠へ表示番号を付与し、標準名称を更新する。 */
+function assignParkingSpaceNumber(item, layout) {
+  const number = getNextParkingSpaceNumber(layout);
+  item.spaceNumber = String(number).padStart(3, "0");
+  item.name = `${getParkingSpaceLabel(item.spaceType)} ${item.spaceNumber}`;
+}
+
+
+
 /** 左側ツールから指定された種類のオブジェクトをキャンバス中央へ追加する。 */
 function addObject(type, options = {}) {
   const layout = ensureLayout(state.facilityId);
@@ -427,7 +494,7 @@ function addObject(type, options = {}) {
     item.markingColor = "#ffffff";
     item.markingWidth = 2;
 
-    item.name = `${item.spaceType === "compact" ? "軽" : item.spaceType === "accessible" ? "車椅子" : item.spaceType === "ev" ? "EV" : "普通車"} ${uid.replace("space_", "")}`;
+    assignParkingSpaceNumber(item, layout);
   }
   if (type === "road") {
     item.trafficDirection = options.trafficDirection ?? "twoWay";
@@ -1390,10 +1457,8 @@ function createAdjacentSpaces(direction) {
   for (let index = 1; index <= count; index += 1) {
     const copy = structuredClone(source);
     copy.uid = createUid("parkingSpace");
-    const label = copy.spaceType === "compact" ? "軽"
-      : copy.spaceType === "accessible" ? "車椅子"
-        : copy.spaceType === "ev" ? "EV" : "普通車";
-    copy.name = `${label} ${copy.uid.replace("space_", "")}`;
+    delete copy.spaceNumber;
+    assignParkingSpaceNumber(copy, layout);
     copy.x = Math.round(source.x + stepX * index);
     copy.y = Math.round(source.y + stepY * index);
     if (copy.x < 0 || copy.y < 0
@@ -1684,6 +1749,15 @@ function updateSelectedFromForm() {
       item.height = preset.height;
       item.physicalWidthMeters = preset.widthMeters;
       item.physicalLengthMeters = preset.lengthMeters;
+
+      if (!item.spaceNumber) {
+        const legacyMatch = String(item.name ?? "").match(/(\d{1,4})$/);
+        item.spaceNumber = legacyMatch ? String(Number(legacyMatch[1])).padStart(3, "0") : null;
+      }
+      if (item.spaceNumber) {
+        item.name = `${getParkingSpaceLabel(item.spaceType)} ${item.spaceNumber}`;
+        elements.name.value = item.name;
+      }
     }
 
     item.markingStyle = elements.spaceMarkingStyle.value;
@@ -1711,7 +1785,12 @@ function duplicateSelected() {
   }
   const copy = structuredClone(item);
   copy.uid = createUid(item.objectType);
-  copy.name = `${item.name} コピー`;
+  if (item.objectType === "parkingSpace") {
+    delete copy.spaceNumber;
+    assignParkingSpaceNumber(copy, getCurrentLayout());
+  } else {
+    copy.name = `${item.name} コピー`;
+  }
   copy.x += 20;
   copy.y += 20;
   getCurrentLayout().objects.push(copy);
