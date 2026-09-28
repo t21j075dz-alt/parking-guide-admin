@@ -148,11 +148,20 @@
           <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 枠を吸着</label>
           <span class="muted">近い枠の端・中心と5pxグリッドへ自動で揃えます。</span>
           <span class="toolbar-spacer"></span>
+          <div class="editor-zoom" aria-label="編集倍率">
+            <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
+            <input id="editor-zoom-range" type="range" min="25" max="3200" step="25" value="100" aria-label="編集倍率">
+            <output id="editor-zoom-output" for="editor-zoom-range">100%</output>
+            <button id="editor-zoom-in-button" type="button" aria-label="編集画面を拡大">＋</button>
+            <button id="editor-zoom-fit-button" type="button">全体表示</button>
+          </div>
           <button id="rotate-left-button" type="button">↶ 90°</button>
           <button id="rotate-right-button" type="button">↷ 90°</button>
         </div>
         <div id="canvas-scroll" class="canvas-scroll">
-          <div id="map-canvas" class="map-canvas" tabindex="0" aria-label="駐車場配置編集キャンバス"></div>
+          <div id="canvas-stage" class="canvas-stage">
+            <div id="map-canvas" class="map-canvas" tabindex="0" aria-label="駐車場配置編集キャンバス"></div>
+          </div>
         </div>
       </section>
 
@@ -180,6 +189,36 @@
             <legend>駐車区画</legend>
             <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
             <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
+
+            <!-- 区画の大きさとは別に、現地の路面標示の形を保存する。 -->
+            <div class="parking-marking-settings">
+              <label>区画線の形
+                <select id="space-marking-style">
+                  <option value="full">四辺・一本線</option>
+                  <option value="uShape">コの字（足元側なし）</option>
+                  <option value="sides">両側線のみ</option>
+                  <option value="headOnly">頭側だけ</option>
+                  <option value="headTicks">頭側の短い印</option>
+                  <option value="leftOnly">左側一本線</option>
+                  <option value="rightOnly">右側一本線</option>
+                  <option value="doubleFull">四辺・二重線</option>
+                  <option value="doubleSides">両側・二重線</option>
+                  <option value="cornerMarks">四隅L字</option>
+                  <option value="none">区画線なし</option>
+                </select>
+              </label>
+              <div class="marking-inline">
+                <label>線色<input id="space-marking-color" type="color" value="#ffffff"></label>
+                <label>太さ
+                  <span class="marking-width-control">
+                    <input id="space-marking-width" type="range" min="1" max="8" step="1" value="3">
+                    <output id="space-marking-width-output">3px</output>
+                  </span>
+                </label>
+              </div>
+              <p class="muted">「頭側」は区画の上辺です。区画を回転すると線の向きも一緒に回転します。</p>
+            </div>
+
             <div class="adjacent-generator">
               <label>連続数<input id="adjacent-count" type="number" min="1" max="50" value="1"></label>
               <p class="muted">選択中の枠と同じ大きさ・向きで、隙間なく追加します。</p>
