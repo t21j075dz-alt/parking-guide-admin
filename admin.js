@@ -55,6 +55,9 @@ const state = {
   facilityId: null,
   selectedUid: null,
   drag: null,
+  resize: null,
+  backgroundEdit: false,
+  backgroundDrag: null,
   remoteAccessToken: null,
   remoteSyncTimer: null,
 };
@@ -74,6 +77,9 @@ const elements = {
   backgroundZoom: document.querySelector("#background-zoom"),
   backgroundOpacity: document.querySelector("#background-opacity"),
   backgroundStatus: document.querySelector("#background-status"),
+  backgroundEditButton: document.querySelector("#background-edit-button"),
+  snapEnabled: document.querySelector("#snap-enabled"),
+  adjacentCount: document.querySelector("#adjacent-count"),
   cloudStatus: document.querySelector("#cloud-sync-status"),
   cloudEmail: document.querySelector("#cloud-email"),
   cloudPassword: document.querySelector("#cloud-password"),
@@ -230,6 +236,15 @@ function toWorldPixel(latitude, longitude, zoom) {
   };
 }
 
+/** 世界ピクセル座標を緯度経度へ戻す。航空写真をドラッグした後の中心座標更新に使用する。 */
+function fromWorldPixel(x, y, zoom) {
+  const size = 256 * (2 ** zoom);
+  const longitude = x / size * 360 - 180;
+  const n = Math.PI - 2 * Math.PI * y / size;
+  const latitude = 180 / Math.PI * Math.atan(Math.sinh(n));
+  return { latitude, longitude };
+}
+
 /** 現在の背景設定を入力欄へ反映する。 */
 function updateBackgroundControls(layout) {
   const background = layout.background;
@@ -281,6 +296,124 @@ function renderBackground(layout) {
   }
 
   elements.canvas.append(layer);
+}
+
+/** 航空写真が未設定の場合、施設座標または入力済み座標を使って初期表示する。 */
+function enableBackground() {
+  const layout = getCurrentLayout();
+  if (!layout) {
+    return;
+  }
+  if (!layout.background) {
+    const experiment = getExperimentFacility();
+    const facility = state.facilityId === experiment.id
+      ? experiment
+      : state.facilities.find((item) => item.id === state.facilityId);
+    const inputLat = Number(elements.backgroundLatitude.value);
+    const inputLng = Number(elements.backgroundLongitude.value);
+    const centerLat = Number.isFinite(facility?.latitude) ? facility.latitude : inputLat;
+    const centerLng = Number.isFinite(facility?.longitude) ? facility.longitude : inputLng;
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
+      elements.backgroundStatus.textContent = "この施設には座標がありません。現在地を使うか、詳細設定で緯度・経度を入力してください。";
+      return;
+    }
+    layout.background = {
+      type: "gsi-seamlessphoto",
+      centerLat,
+      centerLng,
+      zoom: 18,
+      opacity: Number(elements.backgroundOpacity.value) || 0.75,
+    };
+  } else {
+    layout.background.type = "gsi-seamlessphoto";
+  }
+  saveLocal();
+  render();
+  elements.backgroundStatus.textContent = "航空写真を表示しました。「写真を動かす」で位置合わせできます。";
+}
+
+/** 写真調整モードを切り替える。調整中はオブジェクトより背景操作を優先する。 */
+function toggleBackgroundEdit() {
+  const layout = getCurrentLayout();
+  if (!layout?.background) {
+    enableBackground();
+  }
+  if (!getCurrentLayout()?.background) {
+    return;
+  }
+  state.backgroundEdit = !state.backgroundEdit;
+  elements.backgroundEditButton.setAttribute("aria-pressed", String(state.backgroundEdit));
+  elements.backgroundEditButton.textContent = state.backgroundEdit ? "写真調整を終了" : "写真を動かす";
+  elements.canvas.classList.toggle("is-background-editing", state.backgroundEdit);
+  elements.backgroundStatus.textContent = state.backgroundEdit
+    ? "写真調整中：航空写真をドラッグ、ホイールまたは＋/－で拡大縮小できます。"
+    : "オブジェクト編集に戻りました。";
+}
+
+/** 航空写真のズーム値を1段階変更する。 */
+function changeBackgroundZoom(delta) {
+  const layout = getCurrentLayout();
+  if (!layout?.background) {
+    enableBackground();
+  }
+  if (!layout?.background) {
+    return;
+  }
+  layout.background.zoom = Math.max(14, Math.min(18, Math.round((layout.background.zoom ?? 18) + delta)));
+  saveLocal();
+  render();
+}
+
+/** 写真調整モードで背景のドラッグを開始する。 */
+function startBackgroundDrag(event) {
+  const layout = getCurrentLayout();
+  if (!state.backgroundEdit || !layout?.background || event.button !== 0) {
+    return false;
+  }
+  const zoom = layout.background.zoom ?? 18;
+  state.backgroundDrag = {
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    centerWorld: toWorldPixel(layout.background.centerLat, layout.background.centerLng, zoom),
+    zoom,
+  };
+  elements.canvas.setPointerCapture(event.pointerId);
+  elements.canvas.classList.add("is-panning");
+  event.preventDefault();
+  return true;
+}
+
+/** 背景ドラッグ中は画像レイヤーだけを追従させ、軽い操作感を保つ。 */
+function moveBackgroundDrag(event) {
+  if (!state.backgroundDrag || event.pointerId !== state.backgroundDrag.pointerId) {
+    return;
+  }
+  const dx = event.clientX - state.backgroundDrag.startClientX;
+  const dy = event.clientY - state.backgroundDrag.startClientY;
+  const layer = elements.canvas.querySelector(".satellite-layer");
+  if (layer) {
+    layer.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+}
+
+/** 背景ドラッグ終了時に移動量を緯度経度へ変換して保存する。 */
+function endBackgroundDrag(event) {
+  if (!state.backgroundDrag || event.pointerId !== state.backgroundDrag.pointerId) {
+    return false;
+  }
+  const layout = getCurrentLayout();
+  const dx = event.clientX - state.backgroundDrag.startClientX;
+  const dy = event.clientY - state.backgroundDrag.startClientY;
+  const center = state.backgroundDrag.centerWorld;
+  const next = fromWorldPixel(center.x - dx, center.y - dy, state.backgroundDrag.zoom);
+  layout.background.centerLat = next.latitude;
+  layout.background.centerLng = next.longitude;
+  state.backgroundDrag = null;
+  elements.canvas.classList.remove("is-panning");
+  saveLocal();
+  render();
+  return true;
 }
 
 /** 背景設定を保存して再描画する。 */
@@ -344,9 +477,241 @@ function useCurrentLocationForBackground() {
 
 
 /* =========================================================
+   オブジェクトの直接操作・吸着・連続生成
+   ========================================================= */
+
+/** 指定値を5pxグリッドへ丸める。吸着OFFの場合は元の値を返す。 */
+function snapToGrid(value) {
+  return elements.snapEnabled?.checked ? Math.round(value / 5) * 5 : value;
+}
+
+/** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
+function snapObjectPosition(item, x, y) {
+  if (!elements.snapEnabled?.checked) {
+    return { x, y, guideX: null, guideY: null };
+  }
+  const threshold = 8;
+  const layout = getCurrentLayout();
+  const width = item.width ?? 34;
+  const height = item.height ?? 34;
+  let bestX = { value: snapToGrid(x), distance: Math.abs(snapToGrid(x) - x), guide: null };
+  let bestY = { value: snapToGrid(y), distance: Math.abs(snapToGrid(y) - y), guide: null };
+
+  layout.objects.forEach((other) => {
+    if (other.uid === item.uid) {
+      return;
+    }
+    const ow = other.width ?? 34;
+    const oh = other.height ?? 34;
+    const xCandidates = [
+      [other.x, other.x],
+      [other.x + ow, other.x + ow],
+      [other.x - width, other.x],
+      [other.x + ow - width, other.x + ow],
+      [other.x + ow / 2 - width / 2, other.x + ow / 2],
+    ];
+    const yCandidates = [
+      [other.y, other.y],
+      [other.y + oh, other.y + oh],
+      [other.y - height, other.y],
+      [other.y + oh - height, other.y + oh],
+      [other.y + oh / 2 - height / 2, other.y + oh / 2],
+    ];
+    xCandidates.forEach(([candidate, guide]) => {
+      const distance = Math.abs(candidate - x);
+      if (distance <= threshold && distance < bestX.distance) {
+        bestX = { value: candidate, distance, guide };
+      }
+    });
+    yCandidates.forEach(([candidate, guide]) => {
+      const distance = Math.abs(candidate - y);
+      if (distance <= threshold && distance < bestY.distance) {
+        bestY = { value: candidate, distance, guide };
+      }
+    });
+  });
+
+  return { x: bestX.value, y: bestY.value, guideX: bestX.guide, guideY: bestY.guide };
+}
+
+/** 吸着位置を示す補助線をキャンバス上へ表示する。 */
+function showSnapGuides(guideX, guideY) {
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
+  if (Number.isFinite(guideX)) {
+    const line = document.createElement("div");
+    line.className = "snap-guide snap-guide--vertical";
+    line.style.left = `${guideX}px`;
+    elements.canvas.append(line);
+  }
+  if (Number.isFinite(guideY)) {
+    const line = document.createElement("div");
+    line.className = "snap-guide snap-guide--horizontal";
+    line.style.top = `${guideY}px`;
+    elements.canvas.append(line);
+  }
+}
+
+/** 選択枠の周囲にPowerPoint風の8個のリサイズハンドルを付ける。 */
+function addResizeHandles(node, item) {
+  if (["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
+    return;
+  }
+  ["nw", "n", "ne", "e", "se", "s", "sw", "w"].forEach((direction) => {
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = `resize-handle resize-handle--${direction}`;
+    handle.dataset.resizeDirection = direction;
+    handle.setAttribute("aria-label", "サイズ変更");
+    handle.addEventListener("pointerdown", startResize);
+    node.append(handle);
+  });
+}
+
+/** リサイズハンドルのドラッグを開始する。 */
+function startResize(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  const node = event.currentTarget.closest(".map-object");
+  const item = getCurrentLayout()?.objects.find((object) => object.uid === node?.dataset.uid);
+  if (!item) {
+    return;
+  }
+  state.selectedUid = item.uid;
+  state.resize = {
+    pointerId: event.pointerId,
+    direction: event.currentTarget.dataset.resizeDirection,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    x: item.x,
+    y: item.y,
+    width: item.width ?? 34,
+    height: item.height ?? 34,
+    rotation: Number(item.rotation) || 0,
+  };
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+/** ハンドル移動量を選択枠のローカル方向へ変換して幅・高さを更新する。 */
+function moveResize(event) {
+  if (!state.resize || event.pointerId !== state.resize.pointerId) {
+    return;
+  }
+  const item = getSelectedObject();
+  const layout = getCurrentLayout();
+  if (!item || !layout) {
+    return;
+  }
+  const dx = event.clientX - state.resize.startClientX;
+  const dy = event.clientY - state.resize.startClientY;
+  const radians = state.resize.rotation * Math.PI / 180;
+  const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
+  const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
+  const direction = state.resize.direction;
+  const sx = direction.includes("e") ? 1 : direction.includes("w") ? -1 : 0;
+  const sy = direction.includes("s") ? 1 : direction.includes("n") ? -1 : 0;
+  const minSize = 12;
+  const requestedWidth = sx === 0 ? state.resize.width : state.resize.width + sx * localDx;
+  const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
+  const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
+  const newHeight = Math.max(minSize, snapToGrid(requestedHeight));
+
+  const actualLocalShiftX = sx === 0 ? 0 : sx * (newWidth - state.resize.width) / 2;
+  const actualLocalShiftY = sy === 0 ? 0 : sy * (newHeight - state.resize.height) / 2;
+  const globalShiftX = actualLocalShiftX * Math.cos(radians) - actualLocalShiftY * Math.sin(radians);
+  const globalShiftY = actualLocalShiftX * Math.sin(radians) + actualLocalShiftY * Math.cos(radians);
+  const oldCenterX = state.resize.x + state.resize.width / 2;
+  const oldCenterY = state.resize.y + state.resize.height / 2;
+
+  item.width = newWidth;
+  item.height = newHeight;
+  item.x = Math.max(0, Math.min(layout.canvas.width - newWidth, oldCenterX + globalShiftX - newWidth / 2));
+  item.y = Math.max(0, Math.min(layout.canvas.height - newHeight, oldCenterY + globalShiftY - newHeight / 2));
+
+  const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
+  if (node) {
+    node.style.left = `${item.x}px`;
+    node.style.top = `${item.y}px`;
+    node.style.width = `${item.width}px`;
+    node.style.height = `${item.height}px`;
+  }
+  elements.x.value = Math.round(item.x);
+  elements.y.value = Math.round(item.y);
+  elements.width.value = Math.round(item.width);
+  elements.height.value = Math.round(item.height);
+}
+
+/** リサイズ終了時に変更結果を保存する。 */
+function endResize(event) {
+  if (!state.resize || event.pointerId !== state.resize.pointerId) {
+    return false;
+  }
+  state.resize = null;
+  saveLocal();
+  render();
+  return true;
+}
+
+/** 選択中の駐車枠と同じ枠を指定方向へ隙間なく連続生成する。 */
+function createAdjacentSpaces(direction) {
+  const source = getSelectedObject();
+  const layout = getCurrentLayout();
+  if (!source || source.objectType !== "parkingSpace" || !layout) {
+    return;
+  }
+  const count = Math.max(1, Math.min(50, Number(elements.adjacentCount?.value) || 1));
+  const radians = (Number(source.rotation) || 0) * Math.PI / 180;
+  const local = {
+    right: [source.width, 0],
+    left: [-source.width, 0],
+    down: [0, source.height],
+    up: [0, -source.height],
+  }[direction];
+  if (!local) {
+    return;
+  }
+  const stepX = local[0] * Math.cos(radians) - local[1] * Math.sin(radians);
+  const stepY = local[0] * Math.sin(radians) + local[1] * Math.cos(radians);
+  let lastUid = source.uid;
+
+  for (let index = 1; index <= count; index += 1) {
+    const copy = structuredClone(source);
+    copy.uid = createUid("parkingSpace");
+    const label = copy.spaceType === "compact" ? "軽"
+      : copy.spaceType === "accessible" ? "車椅子"
+        : copy.spaceType === "ev" ? "EV" : "普通車";
+    copy.name = `${label} ${copy.uid.replace("space_", "")}`;
+    copy.x = Math.round(source.x + stepX * index);
+    copy.y = Math.round(source.y + stepY * index);
+    if (copy.x < 0 || copy.y < 0
+        || copy.x + copy.width > layout.canvas.width
+        || copy.y + copy.height > layout.canvas.height) {
+      break;
+    }
+    layout.objects.push(copy);
+    lastUid = copy.uid;
+  }
+
+  state.selectedUid = lastUid;
+  saveLocal();
+  render();
+}
+
+/** 選択オブジェクトを90度単位で回転する。 */
+function rotateSelected(delta) {
+  const item = getSelectedObject();
+  if (!item) {
+    return;
+  }
+  item.rotation = ((Number(item.rotation) || 0) + delta + 360) % 360;
+  saveLocal();
+  render();
+}
+
+/* =========================================================
    描画・選択・ドラッグ
    ========================================================= */
 
+/** 背景と全オブジェクトを現在の編集状態から描画する。 */
 function render() {
   const layout = ensureLayout(state.facilityId);
   elements.canvas.style.width = `${layout.canvas.width}px`;
@@ -378,6 +743,9 @@ function render() {
     const label = document.createElement("span");
     label.textContent = item.name || item.uid;
     node.append(label);
+    if (item.uid === state.selectedUid) {
+      addResizeHandles(node, item);
+    }
     node.addEventListener("pointerdown", startDrag);
     node.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -396,7 +764,7 @@ function selectObject(uid) {
 
 /** ポインター操作開始時の座標を記録し、ドラッグ移動を開始する。 */
 function startDrag(event) {
-  if (event.button !== 0) {
+  if (state.backgroundEdit || event.target.closest(".resize-handle") || event.button !== 0) {
     return;
   }
   const item = getCurrentLayout().objects.find((object) => object.uid === event.currentTarget.dataset.uid);
@@ -429,8 +797,18 @@ function moveDrag(event) {
   if (!item || !layout) {
     return;
   }
-  item.x = Math.round(Math.max(0, Math.min(layout.canvas.width - (item.width ?? 34), state.drag.startX + event.clientX - state.drag.startClientX)));
-  item.y = Math.round(Math.max(0, Math.min(layout.canvas.height - (item.height ?? 34), state.drag.startY + event.clientY - state.drag.startClientY)));
+  const proposedX = Math.max(0, Math.min(
+    layout.canvas.width - (item.width ?? 34),
+    state.drag.startX + event.clientX - state.drag.startClientX,
+  ));
+  const proposedY = Math.max(0, Math.min(
+    layout.canvas.height - (item.height ?? 34),
+    state.drag.startY + event.clientY - state.drag.startClientY,
+  ));
+  const snapped = snapObjectPosition(item, proposedX, proposedY);
+  item.x = Math.round(snapped.x);
+  item.y = Math.round(snapped.y);
+  showSnapGuides(snapped.guideX, snapped.guideY);
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   if (node) {
     node.style.left = `${item.x}px`;
@@ -446,6 +824,7 @@ function endDrag(event) {
     return;
   }
   state.drag = null;
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
   saveLocal();
 }
 
@@ -927,6 +1306,7 @@ function changePrefecture() {
 function changeFacility() {
   state.facilityId = elements.facilitySelect.value;
   state.selectedUid = null;
+  state.backgroundEdit = false;
   ensureLayout(state.facilityId);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   render();
@@ -958,18 +1338,57 @@ document.querySelectorAll("[data-add-object]").forEach((button) => {
   }));
 });
 
-elements.canvas.addEventListener("click", () => {
+elements.canvas.addEventListener("click", (event) => {
+  if (state.backgroundEdit || event.target.closest(".map-object")) {
+    return;
+  }
   state.selectedUid = null;
   render();
 });
-elements.canvas.addEventListener("pointermove", moveDrag);
-elements.canvas.addEventListener("pointerup", endDrag);
-elements.canvas.addEventListener("pointercancel", endDrag);
+elements.canvas.addEventListener("pointerdown", (event) => {
+  if (event.target === elements.canvas || event.target.closest(".satellite-layer")) {
+    startBackgroundDrag(event);
+  }
+});
+elements.canvas.addEventListener("pointermove", (event) => {
+  moveBackgroundDrag(event);
+  moveResize(event);
+  moveDrag(event);
+});
+elements.canvas.addEventListener("pointerup", (event) => {
+  if (endBackgroundDrag(event)) {
+    return;
+  }
+  if (endResize(event)) {
+    return;
+  }
+  endDrag(event);
+});
+elements.canvas.addEventListener("pointercancel", (event) => {
+  if (endBackgroundDrag(event)) {
+    return;
+  }
+  if (endResize(event)) {
+    return;
+  }
+  endDrag(event);
+});
+elements.canvas.addEventListener("wheel", (event) => {
+  if (!state.backgroundEdit) {
+    return;
+  }
+  event.preventDefault();
+  changeBackgroundZoom(event.deltaY < 0 ? 1 : -1);
+}, { passive: false });
 
 document.querySelector("#cloud-login-button").addEventListener("click", () => void remoteLogin());
 document.querySelector("#cloud-sync-button").addEventListener("click", () => void syncCurrentLayout());
 document.querySelector("#cloud-load-button").addEventListener("click", () => void loadRemoteLayouts());
 document.querySelector("#cloud-logout-button").addEventListener("click", remoteLogout);
+document.querySelector("#background-enable-button").addEventListener("click", enableBackground);
+document.querySelector("#background-edit-button").addEventListener("click", toggleBackgroundEdit);
+document.querySelector("#background-zoom-in-button").addEventListener("click", () => changeBackgroundZoom(1));
+document.querySelector("#background-zoom-out-button").addEventListener("click", () => changeBackgroundZoom(-1));
 document.querySelector("#apply-background-button").addEventListener("click", applyBackgroundSettings);
 document.querySelector("#current-location-background-button").addEventListener("click", useCurrentLocationForBackground);
 elements.backgroundOpacity.addEventListener("input", () => {
@@ -992,6 +1411,11 @@ elements.facilitySelect.addEventListener("change", changeFacility);
   control.addEventListener("change", updateSelectedFromForm);
 });
 
+document.querySelectorAll("[data-adjacent-direction]").forEach((button) => {
+  button.addEventListener("click", () => createAdjacentSpaces(button.dataset.adjacentDirection));
+});
+document.querySelector("#rotate-left-button").addEventListener("click", () => rotateSelected(-90));
+document.querySelector("#rotate-right-button").addEventListener("click", () => rotateSelected(90));
 document.querySelector("#duplicate-button").addEventListener("click", duplicateSelected);
 document.querySelector("#delete-button").addEventListener("click", deleteSelected);
 document.querySelector("#save-button").addEventListener("click", saveLocal);
@@ -1010,9 +1434,36 @@ document.querySelector("#import-file").addEventListener("change", async (event) 
 elements.themeButton.addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 
 document.addEventListener("keydown", (event) => {
-  if ((event.key === "Delete" || event.key === "Backspace") && !event.target.matches("input, select, textarea")) {
-    deleteSelected();
+  if (event.target.matches("input, select, textarea")) {
+    return;
   }
+  if (event.key === "Escape" && state.backgroundEdit) {
+    toggleBackgroundEdit();
+    return;
+  }
+  if (event.key === "Delete" || event.key === "Backspace") {
+    deleteSelected();
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    duplicateSelected();
+    return;
+  }
+  const item = getSelectedObject();
+  if (!item || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+    return;
+  }
+  event.preventDefault();
+  const step = event.shiftKey ? 10 : 1;
+  if (event.key === "ArrowLeft") item.x -= step;
+  if (event.key === "ArrowRight") item.x += step;
+  if (event.key === "ArrowUp") item.y -= step;
+  if (event.key === "ArrowDown") item.y += step;
+  item.x = Math.max(0, Math.min(getCurrentLayout().canvas.width - (item.width ?? 34), item.x));
+  item.y = Math.max(0, Math.min(getCurrentLayout().canvas.height - (item.height ?? 34), item.y));
+  saveLocal();
+  render();
 });
 
 restoreLocal();
