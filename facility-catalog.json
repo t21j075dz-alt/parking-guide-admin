@@ -5,7 +5,7 @@
     "note": "研究対象120店舗。2026-09-28に店舗所在地を再監査し、確認済み住所を固定登録。公式MAP座標が得られた店舗は座標も登録し、それ以外は確認済み住所から地理院住所検索で位置決定する。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
-    "fixedCoordinateCount": 67
+    "fixedCoordinateCount": 79
   },
   "facilities": [
     {
@@ -1254,8 +1254,8 @@
       "municipality": "神埼市",
       "address": "佐賀県神埼市神埼町枝ヶ里35-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.30799543,
+      "longitude": 130.37138127,
       "layoutId": "target_066",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1263,7 +1263,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1273,8 +1273,8 @@
       "municipality": "武雄市",
       "address": "佐賀県武雄市武雄町大字昭和7番",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.19251261,
+      "longitude": 130.02306679,
       "layoutId": "target_067",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1282,7 +1282,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1292,8 +1292,8 @@
       "municipality": "三養基郡みやき町",
       "address": "佐賀県三養基郡みやき町大字白壁2228番地",
       "category": "discount-store",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.32856655,
+      "longitude": 130.47662582,
       "layoutId": "target_068",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1301,7 +1301,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "MrMax公式店舗情報",
       "locationSourceUrl": "https://www.mrmax.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1311,8 +1311,8 @@
       "municipality": "武雄市",
       "address": "佐賀県武雄市武雄町武雄3921",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.18347807,
+      "longitude": 130.01354209,
       "layoutId": "target_069",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1320,7 +1320,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1330,8 +1330,8 @@
       "municipality": "唐津市",
       "address": "佐賀県唐津市和多田西山9-5",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.42958176,
+      "longitude": 129.98082724,
       "layoutId": "target_070",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1339,7 +1339,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合・同一住所の家具館地点）",
       "operatingStatus": "active"
     },
     {
@@ -1406,8 +1406,8 @@
       "municipality": "佐世保市",
       "address": "長崎県佐世保市大和町65-2",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.155115,
+      "longitude": 129.7493534,
       "layoutId": "target_074",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1415,7 +1415,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1425,8 +1425,8 @@
       "municipality": "島原市",
       "address": "長崎県島原市前浜町丙227",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.80797713,
+      "longitude": 130.35799213,
       "layoutId": "target_075",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1434,7 +1434,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1444,8 +1444,8 @@
       "municipality": "大村市",
       "address": "長崎県大村市松並2丁目92-1",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.92372796,
+      "longitude": 129.9478489,
       "layoutId": "target_076",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1453,7 +1453,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1463,8 +1463,8 @@
       "municipality": "諫早市",
       "address": "長崎県諫早市長野町1690-8",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.83059658,
+      "longitude": 130.08053372,
       "layoutId": "target_077",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1472,7 +1472,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1482,8 +1482,8 @@
       "municipality": "西彼杵郡時津町",
       "address": "長崎県西彼杵郡時津町日並郷3613",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.8461022,
+      "longitude": 129.8341358,
       "layoutId": "target_078",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1491,7 +1491,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "TRIAL公式店舗情報",
       "locationSourceUrl": "https://www.trial-net.co.jp/shops/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（TRIAL公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1501,8 +1501,8 @@
       "municipality": "佐世保市",
       "address": "長崎県佐世保市大宮町2-4 サクセスビル",
       "category": "supermarket",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 33.1568865,
+      "longitude": 129.7378939,
       "layoutId": "target_079",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1510,7 +1510,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "マルキョウ公式店舗情報",
       "locationSourceUrl": "https://www.marukyo.co.jp/store/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "MapFan地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
@@ -1520,8 +1520,8 @@
       "municipality": "西彼杵郡時津町",
       "address": "長崎県西彼杵郡時津町日並郷2195-53",
       "category": "home-center",
-      "latitude": null,
-      "longitude": null,
+      "latitude": 32.84950899,
+      "longitude": 129.83003103,
       "layoutId": "target_080",
       "targetBuildingId": null,
       "isDemo": false,
@@ -1529,7 +1529,7 @@
       "locationVerificationDate": "2026-09-28",
       "locationSource": "ナフコ公式店舗情報",
       "locationSourceUrl": "https://www.nafco.life/shop_list/",
-      "coordinateSource": "確認済み住所から地理院住所検索",
+      "coordinateSource": "Mapion地点（公式住所照合）",
       "operatingStatus": "active"
     },
     {
