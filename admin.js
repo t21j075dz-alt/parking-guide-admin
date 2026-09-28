@@ -1571,6 +1571,9 @@ function updateFacilityLocationSummary(facility) {
   if (facility.statusNote) {
     parts.push(facility.statusNote);
   }
+  if (facility.operatingStatus === "opening-scheduled" && !facility.statusNote) {
+    parts.push("開業予定施設です。航空写真に完成店舗が写っていない場合があります。");
+  }
   elements.facilityAddress.textContent = parts.join(" / ");
 }
 
@@ -1588,7 +1591,10 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   }
 
   facilities.forEach((facility) => {
-    elements.facilitySelect.add(new Option(facility.name, facility.id));
+    const suffix = facility.operatingStatus === "opening-scheduled"
+      ? `（${facility.plannedOpen === "2026-11" ? "2026年11月開業予定" : "開業予定"}）`
+      : "";
+    elements.facilitySelect.add(new Option(`${facility.name}${suffix}`, facility.id));
   });
 
   if (preferredFacilityId
