@@ -1864,7 +1864,7 @@ function moveVertexDrag(event) {
 
   if (elements.snapEnabled?.checked && !event.altKey) {
     /* 頂点は通常オブジェクトより細かい、グリッド間隔の1/2刻みで動かす。 */
-    const vertexStep = Math.max(0.25, getGridSize() / 2);
+    const vertexStep = Math.max(0.1, getGridSize() / 2);
     x = Math.round(x / vertexStep) * vertexStep;
     y = Math.round(y / vertexStep) * vertexStep;
   }
@@ -2622,8 +2622,8 @@ function moveDrag(event) {
   const initialPosition = clampObjectPosition(item, rawX, rawY, layout);
   const snapped = snapObjectPosition(item, initialPosition.x, initialPosition.y);
   const finalPosition = clampObjectPosition(item, snapped.x, snapped.y, layout);
-  item.x = Math.round(finalPosition.x);
-  item.y = Math.round(finalPosition.y);
+  item.x = Math.round(finalPosition.x * 100) / 100;
+  item.y = Math.round(finalPosition.y * 100) / 100;
   showSnapGuides(snapped.guideX, snapped.guideY);
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   if (node) {
@@ -2805,10 +2805,10 @@ function updateSelectedFromForm() {
     Number(elements.y.value) || 0,
     layout,
   );
-  item.x = Math.round(requestedPosition.x);
-  item.y = Math.round(requestedPosition.y);
-  elements.x.value = item.x;
-  elements.y.value = item.y;
+  item.x = Math.round(requestedPosition.x * 100) / 100;
+  item.y = Math.round(requestedPosition.y * 100) / 100;
+  elements.x.value = String(item.x);
+  elements.y.value = String(item.y);
   item.rotation = Number(elements.rotation.value) || 0;
   if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
     item.width = Math.max(3, Number(elements.width.value) || 3);
@@ -3696,14 +3696,14 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   event.preventDefault();
-  const step = event.shiftKey ? 10 : 1;
+  const step = event.shiftKey ? 5 : 0.5;
   if (event.key === "ArrowLeft") item.x -= step;
   if (event.key === "ArrowRight") item.x += step;
   if (event.key === "ArrowUp") item.y -= step;
   if (event.key === "ArrowDown") item.y += step;
   const keyboardPosition = clampObjectPosition(item, item.x, item.y, getCurrentLayout());
-  item.x = Math.round(keyboardPosition.x);
-  item.y = Math.round(keyboardPosition.y);
+  item.x = Math.round(keyboardPosition.x * 100) / 100;
+  item.y = Math.round(keyboardPosition.y * 100) / 100;
   saveLocal();
   render();
 });
