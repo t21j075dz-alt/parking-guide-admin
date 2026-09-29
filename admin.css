@@ -328,12 +328,57 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 .editor-toolbar {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: 44px;
   padding: 6px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
+}
+
+/* 編集操作を「移動」「拡大縮小」「形変更」に明示的に分ける。 */
+.edit-mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+}
+
+.edit-mode-label {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.edit-mode-button {
+  min-height: 30px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.edit-mode-button.is-active,
+.edit-mode-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.map-canvas[data-edit-mode="move"] .map-object {
+  cursor: move;
+}
+
+.map-canvas[data-edit-mode="resize"] .map-object {
+  cursor: default;
+}
+
+.map-canvas[data-edit-mode="reshape"] .map-object {
+  cursor: crosshair;
 }
 
 .toolbar-check {
