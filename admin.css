@@ -1353,9 +1353,9 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
    地図上の文字整理と道路内の自動標識
    ========================================================= */
 
-/* 建物と駐車場敷地以外の名称ラベルは、配置図を見やすくするため表示しない。 */
-.map-object:not([data-object-type="building"]):not([data-object-type="parkingLot"]):not([data-object-type="excludedParkingLot"]) > .object-label,
-.map-object:not([data-object-type="building"]):not([data-object-type="parkingLot"]):not([data-object-type="excludedParkingLot"]).selected > .object-label {
+/* 建物以外の名称ラベルは、配置図を見やすくするため表示しない。 */
+.map-object:not([data-object-type="building"]) > .object-label,
+.map-object:not([data-object-type="building"]).selected > .object-label {
   display: none !important;
 }
 
