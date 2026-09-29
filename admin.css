@@ -90,7 +90,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 }
 .map-object[data-object-type="parkingSpace"] {
   --space-line-color: #ffffff;
-  --space-line-width: 0.4px;
+  --space-line-width: 0.35px;
   border: 0;
   background: transparent;
   overflow: visible;
@@ -128,14 +128,31 @@ h2 { margin: 0 0 10px; font-size: 15px; }
  * 車路側（下側）は開放する。
  */
 .map-object[data-object-type="parkingSpace"][data-marking-style="photoStall"]::before {
-  inset: 0.25px 0.4px 0.5px;
-  background:
-    linear-gradient(var(--space-line-color) 0 0)
-      left top / var(--space-line-width) 100% no-repeat,
-    linear-gradient(var(--space-line-color) 0 0)
-      right top / var(--space-line-width) 100% no-repeat,
-    linear-gradient(var(--space-line-color) 0 0)
-      center top / 100% var(--space-line-width) no-repeat;
+  display: none;
+}
+
+/*
+ * 写真風駐車枠はSVGの1本のパスで左右＋奥側を描く。
+ * non-scaling-stroke により編集倍率を上げても線幅は画面上ほぼ一定。
+ */
+.parking-photo-marking {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.parking-photo-marking__path {
+  fill: none;
+  stroke: var(--space-line-color, #fff);
+  stroke-width: var(--space-screen-line-width, 0.35px);
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
 }
 .map-object[data-object-type="parkingSpace"][data-marking-style="sides"]::before {
   border-right: var(--space-line-width) solid var(--space-line-color);
@@ -1702,7 +1719,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 /* 駐車枠は8×16pxでも白線や文字が図形を覆わない大きさに統一。 */
 .map-object[data-object-type="parkingSpace"] {
-  --space-line-width: 0.4px;
+  --space-line-width: 0.35px;
 }
 .map-object[data-object-type="parkingSpace"] > .space-type-mark,
 .map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
@@ -1860,7 +1877,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 /* version 9: 6×12px駐車枠と編集用ラベルの最終仕様 */
 .map-object[data-object-type="parkingSpace"] {
-  --space-line-width: 0.4px;
+  --space-line-width: 0.35px;
 }
 
 /* 種別文字は選択中だけ、画面上ほぼ一定の大きさで表示する。 */
