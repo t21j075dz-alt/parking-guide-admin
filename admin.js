@@ -151,6 +151,10 @@ const OBJECT_DEFAULTS = {
   roadSign: { width: 48, height: 58, name: "道路標識" },
 };
 
+/*
+ * 頂点を動かして自由形状に変更できるオブジェクト。
+ * 建物・敷地・道路・歩道だけに限定し、標識や設備類には形変更を持たせない。
+ */
 const POLYGON_OBJECT_TYPES = new Set([
   "parkingLot",
   "excludedParkingLot",
@@ -160,6 +164,26 @@ const POLYGON_OBJECT_TYPES = new Set([
   "nationalRoad",
   "prefecturalRoad",
   "publicRoad",
+]);
+
+/*
+ * 形変更は行わず、移動・回転・拡大縮小だけで扱うオブジェクト。
+ * 将来機能を追加しても誤って頂点編集対象にしないため明示しておく。
+ */
+const RESIZE_ONLY_OBJECT_TYPES = new Set([
+  "parkingSpace",
+  "crosswalk",
+  "stopLine",
+  "speedBump",
+  "roadSign",
+  "noEntry",
+  "buildingEntrance",
+  "parkingEntrance",
+  "cartCorral",
+  "bicycleParking",
+  "motorcycleParking",
+  "loadingZone",
+  "evCharger",
 ]);
 
 const BASE_LAYER_OBJECT_TYPES = new Set([
@@ -1167,7 +1191,9 @@ function updateEditModeUi() {
     let help = EDIT_MODE_HELP[state.editMode] ?? EDIT_MODE_HELP.move;
     const selected = getSelectedObject();
     if (state.editMode === "reshape" && selected && !POLYGON_OBJECT_TYPES.has(selected.objectType)) {
-      help += " 選択中のオブジェクトは形変更の対象外です。";
+      help += RESIZE_ONLY_OBJECT_TYPES.has(selected.objectType)
+        ? " 選択中のオブジェクトは形変更しません。サイズ調整は「拡大縮小」を使用してください。"
+        : " 選択中のオブジェクトは形変更の対象外です。";
     }
     elements.editModeHelp.textContent = help;
   }
@@ -1728,6 +1754,7 @@ function updatePolygonSvg(node, item) {
 
 /** 青＝既存頂点、白＋＝新しい頂点を追加するハンドル。 */
 function addPolygonHandles(node, item) {
+  if (!POLYGON_OBJECT_TYPES.has(item?.objectType)) return;
   const points = getPolygonPoints(item);
   if (!points) return;
 
@@ -1774,8 +1801,9 @@ function startVertexDrag(event) {
 
   const node = event.currentTarget.closest(".map-object");
   const item = getCurrentLayout()?.objects.find((object) => object.uid === node?.dataset.uid);
+  if (!item || !POLYGON_OBJECT_TYPES.has(item.objectType)) return;
   const points = getPolygonPoints(item);
-  if (!item || !points) return;
+  if (!points) return;
 
   let vertexIndex = Number(event.currentTarget.dataset.vertexIndex);
   if (!Number.isInteger(vertexIndex)) {
@@ -2519,7 +2547,7 @@ function render() {
         && !(BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false)) {
       if (state.editMode === "resize") {
         addResizeHandles(node, item);
-      } else if (state.editMode === "reshape") {
+      } else if (state.editMode === "reshape" && POLYGON_OBJECT_TYPES.has(item.objectType)) {
         addPolygonHandles(node, item);
       }
     }
