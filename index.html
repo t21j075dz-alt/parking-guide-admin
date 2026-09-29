@@ -108,12 +108,10 @@
         <section>
           <h2>道路標識</h2>
           <div class="tool-list">
-            <button type="button" data-add-object="roadSign" data-sign-type="nationalRoute">国道（おにぎり）</button>
-            <button type="button" data-add-object="roadSign" data-sign-type="prefecturalRoute">都道府県道（ヘキサ）</button>
             <button type="button" data-add-object="roadSign" data-sign-type="noEntry">車両進入禁止</button>
             <button type="button" data-add-object="roadSign" data-sign-type="stop">一時停止</button>
           </div>
-          <p class="tool-help">国道・都道府県道は、追加後に右側の設定で路線番号と都道府県名を編集できます。</p>
+          <p class="tool-help">一時停止・進入禁止は道路上へ置くと自動でその道路に関連付けます。国道・県道の標識は道路オブジェクト側へ路線番号を設定すると道路内へ自動表示します。</p>
         </section>
 
         <!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
@@ -324,7 +322,7 @@
             </label>
             <label id="route-number-field">路線番号<input id="road-sign-route-number" type="text" inputmode="numeric" maxlength="4" placeholder="53"></label>
             <label id="route-prefecture-field">都道府県名<input id="road-sign-prefecture" type="text" maxlength="8" placeholder="岡山県"></label>
-            <p class="muted">0°では標識の正面が上向きです。国道は番号、都道府県道は番号と都道府県名を表示します。</p>
+            <p id="road-sign-help" class="muted">一時停止・進入禁止は道路上へ置くと自動で関連付けます。国道・県道を選択した場合は、路線番号を設定すると道路内へ標識を自動表示します。</p>
           </fieldset>
 
           <fieldset id="parking-entrance-settings" hidden>
