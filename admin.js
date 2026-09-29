@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 9;
+const OBJECT_DEFAULTS_VERSION = 10;
 const CANVAS_SIZE_VERSION = 2;
 const DEFAULT_CANVAS_WIDTH = 1800;
 const DEFAULT_CANVAS_HEIGHT = 1200;
@@ -195,6 +195,31 @@ const V8_OBJECT_DEFAULTS = Object.freeze({
   prefecturalRoad: { width: 220, height: 26 },
   publicRoad: { width: 180, height: 22 },
   parkingSpace: { width: 8, height: 16 },
+  road: { width: 90, height: 20 },
+  sidewalk: { width: 75, height: 8 },
+  crosswalk: { width: 28, height: 10 },
+  building: { width: 90, height: 55 },
+  buildingEntrance: { width: 8, height: 8 },
+  parkingEntrance: { width: 9, height: 9 },
+  stopLine: { width: 28, height: 3 },
+  speedBump: { width: 28, height: 4 },
+  noEntry: { width: 9, height: 9 },
+  cartCorral: { width: 24, height: 14 },
+  bicycleParking: { width: 34, height: 16 },
+  motorcycleParking: { width: 28, height: 16 },
+  loadingZone: { width: 48, height: 24 },
+  evCharger: { width: 8, height: 8 },
+  roadSign: { width: 16, height: 20 },
+});
+
+/* version 9で使っていた初期寸法。version 10では線描画方式だけを更新する。 */
+const V9_OBJECT_DEFAULTS = Object.freeze({
+  parkingLot: { width: 180, height: 120 },
+  excludedParkingLot: { width: 100, height: 70 },
+  nationalRoad: { width: 240, height: 30 },
+  prefecturalRoad: { width: 220, height: 26 },
+  publicRoad: { width: 180, height: 22 },
+  parkingSpace: { width: 6, height: 12 },
   road: { width: 90, height: 20 },
   sidewalk: { width: 75, height: 8 },
   crosswalk: { width: 28, height: 10 },
@@ -539,9 +564,11 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 8
-    ? V8_OBJECT_DEFAULTS
-    : previousVersion >= 7
+  const previousDefaults = previousVersion >= 9
+    ? V9_OBJECT_DEFAULTS
+    : previousVersion >= 8
+      ? V8_OBJECT_DEFAULTS
+      : previousVersion >= 7
       ? V7_OBJECT_DEFAULTS
       : previousVersion >= 6
       ? V6_OBJECT_DEFAULTS
@@ -615,15 +642,16 @@ function migrateLegacyObjectDefaults(layout) {
     changed = true;
   });
 
-  if (previousVersion < 9) {
+  if (previousVersion < 10) {
     (layout.objects ?? []).forEach((item) => {
       if (item.objectType !== "parkingSpace") return;
 
       const width = Number(item.markingWidth);
       if (!Number.isFinite(width)
           || Math.abs(width - 1) < 0.0001
-          || Math.abs(width - 0.5) < 0.0001) {
-        item.markingWidth = 0.4;
+          || Math.abs(width - 0.5) < 0.0001
+          || Math.abs(width - 0.4) < 0.0001) {
+        item.markingWidth = 0.35;
         changed = true;
       }
     });
@@ -825,7 +853,7 @@ function addObject(type, options = {}) {
     /* 航空写真例に合わせ、奥側を閉じて車路側を開けた細い3辺線を標準にする。 */
     item.markingStyle = "photoStall";
     item.markingColor = "#ffffff";
-    item.markingWidth = 0.4;
+    item.markingWidth = 0.35;
 
     assignParkingSpaceNumber(item, layout);
   }
@@ -2839,6 +2867,28 @@ function appendRoadSignFace(node, item) {
    描画・選択・ドラッグ
    ========================================================= */
 
+/** 写真風駐車枠を、欠けにくいSVGの連続3辺線として描画する。 */
+function appendPhotoParkingMarking(node) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("parking-photo-marking");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.classList.add("parking-photo-marking__path");
+
+  /*
+   * 左下→左上→右上→右下を1本のパスで描く。
+   * 端から3%内側を通してクリップ境界で片側だけ消えるのを防ぐ。
+   */
+  path.setAttribute("d", "M 3 97 V 3 H 97 V 97");
+  path.setAttribute("vector-effect", "non-scaling-stroke");
+
+  svg.append(path);
+  node.append(svg);
+}
+
 /** 背景と全オブジェクトを現在の編集状態から描画する。 */
 function render() {
   const layout = ensureLayout(state.facilityId);
@@ -2900,10 +2950,16 @@ function render() {
     }
     if (item.objectType === "parkingSpace") {
       node.dataset.spaceType = item.spaceType ?? "standard";
-      node.dataset.markingStyle = item.markingStyle ?? "uShape";
+      node.dataset.markingStyle = item.markingStyle ?? "photoStall";
       node.style.setProperty("--space-line-color", item.markingColor ?? "#ffffff");
-      node.style.setProperty("--space-line-width", `${Math.max(0.2, Number(item.markingWidth) || 0.4)}px`);
+      const parkingLineWidth = Math.max(0.2, Number(item.markingWidth) || 0.35);
+      node.style.setProperty("--space-line-width", `${parkingLineWidth}px`);
+      node.style.setProperty("--space-screen-line-width", `${parkingLineWidth}px`);
       node.style.setProperty("--space-counter-rotation", `${-(Number(item.rotation) || 0)}deg`);
+
+      if ((item.markingStyle ?? "photoStall") === "photoStall") {
+        appendPhotoParkingMarking(node);
+      }
 
       const typeMark = document.createElement("span");
       typeMark.className = "space-type-mark";
@@ -3166,7 +3222,7 @@ function updateSettings() {
     elements.spaceStatus.value = item.status ?? "available";
     elements.spaceMarkingStyle.value = item.markingStyle ?? "photoStall";
     elements.spaceMarkingColor.value = item.markingColor ?? "#ffffff";
-    elements.spaceMarkingWidth.value = String(Math.max(0.2, Number(item.markingWidth) || 0.4));
+    elements.spaceMarkingWidth.value = String(Math.max(0.2, Number(item.markingWidth) || 0.35));
     elements.spaceMarkingWidthOutput.value = `${elements.spaceMarkingWidth.value}px`;
     elements.spaceMarkingWidthOutput.textContent = `${elements.spaceMarkingWidth.value}px`;
   }
@@ -3313,7 +3369,7 @@ function updateSelectedFromForm() {
 
     item.markingStyle = elements.spaceMarkingStyle.value;
     item.markingColor = elements.spaceMarkingColor.value;
-    item.markingWidth = Math.max(0.2, Number(elements.spaceMarkingWidth.value) || 0.4);
+    item.markingWidth = Math.max(0.2, Number(elements.spaceMarkingWidth.value) || 0.35);
   }
   if (item.objectType === "buildingEntrance") {
     item.entranceType = elements.entranceType.value;
