@@ -385,6 +385,28 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
   cursor: crosshair;
 }
 
+/*
+ * オブジェクトが重なっていても、拡大縮小・形変更中は選択中のものだけを操作する。
+ * 非選択オブジェクトは見た目を残したままポインター入力だけ通過させる。
+ */
+.map-canvas.has-selection[data-edit-mode="resize"] .map-object:not(.selected),
+.map-canvas.has-selection[data-edit-mode="reshape"] .map-object:not(.selected) {
+  pointer-events: none !important;
+}
+
+/* 選択中のオブジェクトと編集ハンドルは一時的に最前面へ出す。 */
+.map-canvas.has-selection[data-edit-mode="resize"] .map-object.selected,
+.map-canvas.has-selection[data-edit-mode="reshape"] .map-object.selected {
+  z-index: 100 !important;
+  pointer-events: auto !important;
+}
+
+.map-canvas.has-selection[data-edit-mode="resize"] .map-object.selected .resize-handle,
+.map-canvas.has-selection[data-edit-mode="reshape"] .map-object.selected .polygon-handle {
+  z-index: 120 !important;
+  pointer-events: auto !important;
+}
+
 .toolbar-check {
   display: inline-flex;
   align-items: center;
