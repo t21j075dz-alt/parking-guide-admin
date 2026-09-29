@@ -282,12 +282,18 @@ const elements = {
   wheelchairAccessible: document.querySelector("#wheelchair-accessible"),
   guideTarget: document.querySelector("#guide-target"),
   buildingId: document.querySelector("#building-id"),
+  buildingIdOptions: document.querySelector("#building-id-options"),
+  buildingIdHelp: document.querySelector("#building-id-help"),
   themeButton: document.querySelector("#theme-button"),
 };
 
 /* =========================================================
    レイアウトの生成・取得
    ========================================================= */
+
+function getFacilityDisplayName(facility) {
+  return facility?.displayName || facility?.name || "";
+}
 
 function getCurrentLayout() {
   return state.layouts[state.facilityId] ?? null;
@@ -1846,7 +1852,28 @@ function endDrag(event) {
    右側設定パネル
    ========================================================= */
 
+/** 選択中の複合施設に登録された目的店舗を buildingId 候補として表示する。 */
+function updateBuildingIdOptions() {
+  const facility = getCurrentFacilityRecord();
+  const destinations = Array.isArray(facility?.destinations) ? facility.destinations : [];
+
+  elements.buildingIdOptions?.replaceChildren();
+  destinations.forEach((destination) => {
+    const option = document.createElement("option");
+    option.value = destination.buildingId;
+    option.label = destination.name;
+    elements.buildingIdOptions?.append(option);
+  });
+
+  if (elements.buildingIdHelp) {
+    elements.buildingIdHelp.textContent = destinations.length > 0
+      ? `この敷地の目的店舗：${destinations.map((item) => `${item.name} = ${item.buildingId}`).join(" / ")}`
+      : "単独施設では任意の建物IDを使用できます。";
+  }
+}
+
 function updateSettings() {
+  updateBuildingIdOptions();
   const item = getSelectedObject();
   elements.emptySettings.hidden = Boolean(item);
   elements.form.hidden = !item;
@@ -2444,6 +2471,9 @@ function updateFacilityLocationSummary(facility) {
   if (facility.statusNote) {
     parts.push(facility.statusNote);
   }
+  if (Array.isArray(facility.destinations) && facility.destinations.length > 0) {
+    parts.push(`目的店舗：${facility.destinations.map((item) => item.name).join(" / ")}`);
+  }
   if (facility.operatingStatus === "opening-scheduled" && !facility.statusNote) {
     parts.push("開業予定施設です。航空写真に完成店舗が写っていない場合があります。");
   }
@@ -2467,7 +2497,7 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
     const suffix = facility.operatingStatus === "opening-scheduled"
       ? `（${facility.plannedOpen === "2026-11" ? "2026年11月開業予定" : "開業予定"}）`
       : "";
-    elements.facilitySelect.add(new Option(`${facility.name}${suffix}`, facility.id));
+    elements.facilitySelect.add(new Option(`${getFacilityDisplayName(facility)}${suffix}`, facility.id));
   });
 
   if (preferredFacilityId
@@ -2476,6 +2506,7 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
   }
 
   state.facilityId = elements.facilitySelect.value || null;
+  updateBuildingIdOptions();
 
   if (state.facilityId) {
     const facility = state.facilityId === experiment.id
@@ -2524,6 +2555,7 @@ function changePrefecture() {
 /** 施設変更時に対応するレイアウトへ編集対象を切り替える。 */
 function changeFacility() {
   state.facilityId = elements.facilitySelect.value;
+  updateBuildingIdOptions();
   state.selectedUid = null;
   state.backgroundEdit = false;
   state.backgroundDrag = null;
@@ -2711,8 +2743,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") item.x += step;
   if (event.key === "ArrowUp") item.y -= step;
   if (event.key === "ArrowDown") item.y += step;
-  item.x = Math.max(0, Math.min(getCurrentLayout().canvas.width - (item.width ?? 34), item.x));
-  item.y = Math.max(0, Math.min(getCurrentLayout().canvas.height - (item.height ?? 34), item.y));
+  const keyboardPosition = clampObjectPosition(item, item.x, item.y, getCurrentLayout());
+  item.x = Math.round(keyboardPosition.x);
+  item.y = Math.round(keyboardPosition.y);
   saveLocal();
   render();
 });
