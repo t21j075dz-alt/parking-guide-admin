@@ -522,8 +522,9 @@ function ensureLayout(facilityId) {
     };
   }
   const layout = state.layouts[facilityId];
-  migrateLegacyObjectDefaults(layout);
+  layout.objects = Array.isArray(layout.objects) ? layout.objects : [];
   layout.canvas ??= {};
+  migrateLegacyObjectDefaults(layout);
   if (Number(layout.canvasSizeVersion) < CANVAS_SIZE_VERSION) {
     if ((Number(layout.canvas.width) || 1000) <= 1000) {
       layout.canvas.width = DEFAULT_CANVAS_WIDTH;
@@ -544,7 +545,7 @@ function ensureLayout(facilityId) {
    */
   (layout.objects ?? []).forEach((item) => {
     if (item.objectType !== "parkingSpace"
-        || !["compact", "accessible"].includes(item.spaceType)
+        || !["compact", "accessible", "ev"].includes(item.spaceType)
         || (Number(item.width) === 25 && Number(item.height) === 50)) {
       return;
     }
@@ -1163,6 +1164,7 @@ function applyViewScale(scale, preserveCenter = false) {
   elements.editorZoomRange.value = String(Math.round(nextScale * 100));
   elements.editorZoomOutput.value = `${Math.round(nextScale * 100)}%`;
   elements.editorZoomOutput.textContent = `${Math.round(nextScale * 100)}%`;
+  updateGridAppearance();
 
   if (preserveCenter && scroll && centerX !== null && centerY !== null) {
     scroll.scrollLeft = Math.max(0, centerX * nextScale - scroll.clientWidth / 2);
@@ -1260,6 +1262,7 @@ function getGridSize() {
 function updateGridAppearance() {
   const size = getGridSize();
   const visible = elements.gridVisible?.checked !== false;
+  const fineGridVisible = size * state.viewScale >= 3;
   const layout = getCurrentLayout();
   const parkingLot = layout?.objects?.find((item) => item.objectType === "parkingLot");
 
@@ -1272,6 +1275,10 @@ function updateGridAppearance() {
 
   elements.canvas.classList.toggle("grid-hidden", !visible);
   elements.canvas.style.setProperty("--grid-size", `${size}px`);
+  elements.canvas.style.setProperty(
+    "--ui-grid-fine-color",
+    fineGridVisible ? "rgb(148 163 184 / 14%)" : "transparent",
+  );
   elements.canvas.style.setProperty("--meter-grid-size", "10px");
   elements.canvas.style.setProperty("--major-grid-size", "50px");
   elements.canvas.style.setProperty("--grid-origin-x", `${originX}px`);
@@ -2070,10 +2077,10 @@ function moveResize(event) {
     node.style.width = `${item.width}px`;
     node.style.height = `${item.height}px`;
   }
-  elements.x.value = Math.round(item.x);
-  elements.y.value = Math.round(item.y);
-  elements.width.value = Math.round(item.width);
-  elements.height.value = Math.round(item.height);
+  elements.x.value = String(Math.round(item.x * 100) / 100);
+  elements.y.value = String(Math.round(item.y * 100) / 100);
+  elements.width.value = String(Math.round(item.width * 100) / 100);
+  elements.height.value = String(Math.round(item.height * 100) / 100);
 }
 
 /** リサイズ終了時に変更結果を保存する。 */
@@ -2804,7 +2811,7 @@ function updateSettings() {
     elements.entranceType.value = item.entranceType ?? "main";
     elements.publicAccess.checked = item.publicAccess !== false;
     elements.wheelchairAccessible.checked = item.wheelchairAccessible === true;
-    elements.guideTarget.checked = item.guideTarget === true;
+    elements.guideTarget.checked = item.guideTarget !== false;
     elements.buildingId.value = item.buildingId ?? "";
   }
 }
@@ -2943,21 +2950,43 @@ function updateSelectedFromForm() {
 /** 選択オブジェクトを新しいUIDで複製し、少しずらした位置へ配置する。 */
 function duplicateSelected() {
   const item = getSelectedObject();
-  if (!item) {
+  const layout = getCurrentLayout();
+  if (!item || !layout) {
     return;
   }
+
   const copy = structuredClone(item);
   copy.uid = createUid(item.objectType);
+
   if (item.objectType === "parkingSpace") {
     delete copy.spaceNumber;
-    assignParkingSpaceNumber(copy, getCurrentLayout());
+    assignParkingSpaceNumber(copy, layout);
   } else {
     copy.name = `${item.name} コピー`;
   }
-  copy.x += 20;
-  copy.y += 20;
-  getCurrentLayout().objects.push(copy);
+
+  if (item.objectType === "roadSign") {
+    delete copy.linkedRoadUid;
+    delete copy.roadAnchorX;
+    delete copy.roadAnchorY;
+  }
+
+  if (item.objectType === "building") {
+    copy.buildingId = "";
+  }
+
+  const requested = clampObjectPosition(
+    copy,
+    (Number(copy.x) || 0) + 20,
+    (Number(copy.y) || 0) + 20,
+    layout,
+  );
+  copy.x = Math.round(requested.x * 100) / 100;
+  copy.y = Math.round(requested.y * 100) / 100;
+
+  layout.objects.push(copy);
   state.selectedUid = copy.uid;
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 }
@@ -2968,7 +2997,25 @@ function deleteSelected() {
   if (!layout || !state.selectedUid) {
     return;
   }
+
+  const deleted = layout.objects.find((item) => item.uid === state.selectedUid) ?? null;
   layout.objects = layout.objects.filter((item) => item.uid !== state.selectedUid);
+
+  if (deleted?.objectType === "building" && deleted.buildingId) {
+    const sameBuildingIdStillExists = layout.objects.some(
+      (item) =>
+        item.objectType === "building"
+        && item.buildingId === deleted.buildingId,
+    );
+    if (!sameBuildingIdStillExists) {
+      layout.objects.forEach((item) => {
+        if (item.objectType === "buildingEntrance" && item.buildingId === deleted.buildingId) {
+          item.buildingId = "";
+        }
+      });
+    }
+  }
+
   state.selectedUid = null;
   syncLinkedRoadSigns(layout);
   syncRoadTrafficControls(layout);
