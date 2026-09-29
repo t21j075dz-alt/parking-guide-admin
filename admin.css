@@ -1347,3 +1347,72 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 @media (max-width: 1200px) {
   .layout-scale { order: 4; }
 }
+
+
+/* =========================================================
+   地図上の文字整理と道路内の自動標識
+   ========================================================= */
+
+/* 建物と駐車場敷地以外の名称ラベルは、配置図を見やすくするため表示しない。 */
+.map-object:not([data-object-type="building"]):not([data-object-type="parkingLot"]):not([data-object-type="excludedParkingLot"]) > .object-label,
+.map-object:not([data-object-type="building"]):not([data-object-type="parkingLot"]):not([data-object-type="excludedParkingLot"]).selected > .object-label {
+  display: none !important;
+}
+
+/* 駐車枠の番号・種別文字も通常時は隠し、選択中だけ確認できるようにする。 */
+.map-object[data-object-type="parkingSpace"]:not(.selected) > .space-number-mark,
+.map-object[data-object-type="parkingSpace"]:not(.selected) > .space-type-mark {
+  display: none !important;
+}
+
+/* 国道・都道府県道そのものへ自動表示する路線標識。 */
+.embedded-route-shield {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 18;
+  width: 32px;
+  height: 36px;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 35%));
+  transform-origin: center;
+}
+
+.embedded-route-shield[data-sign-type="nationalRoute"] {
+  background: #1769aa;
+  clip-path: polygon(50% 0, 86% 10%, 100% 38%, 88% 78%, 50% 100%, 12% 78%, 0 38%, 14% 10%);
+}
+
+.embedded-route-shield[data-sign-type="prefecturalRoute"] {
+  background: #1769aa;
+  clip-path: polygon(50% 0, 96% 24%, 96% 76%, 50% 100%, 4% 76%, 4% 24%);
+}
+
+.embedded-route-shield__inner {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  background: #fff;
+  clip-path: inherit;
+}
+
+.embedded-route-shield__heading {
+  max-width: 27px;
+  overflow: hidden;
+  color: #1769aa;
+  font-size: 5px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embedded-route-shield__number {
+  color: #1769aa;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.5px;
+}
