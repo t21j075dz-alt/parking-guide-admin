@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 6;
+const OBJECT_DEFAULTS_VERSION = 7;
 const CANVAS_SIZE_VERSION = 2;
 const DEFAULT_CANVAS_WIDTH = 1800;
 const DEFAULT_CANVAS_HEIGHT = 1200;
@@ -136,6 +136,31 @@ const V5_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 22, height: 22 },
   roadSign: { width: 48, height: 58 },
 });
+  
+/* version 6で使っていた小型初期寸法。未調整のものだけversion 7へ縮小する。 */
+const V6_OBJECT_DEFAULTS = Object.freeze({
+  parkingLot: { width: 420, height: 300 },
+  excludedParkingLot: { width: 240, height: 160 },
+  nationalRoad: { width: 600, height: 72 },
+  prefecturalRoad: { width: 540, height: 60 },
+  publicRoad: { width: 440, height: 48 },
+  parkingSpace: { width: 20, height: 40 },
+  road: { width: 220, height: 46 },
+  sidewalk: { width: 190, height: 18 },
+  crosswalk: { width: 64, height: 24 },
+  building: { width: 200, height: 120 },
+  buildingEntrance: { width: 16, height: 16 },
+  parkingEntrance: { width: 18, height: 18 },
+  stopLine: { width: 64, height: 6 },
+  speedBump: { width: 64, height: 9 },
+  noEntry: { width: 18, height: 18 },
+  cartCorral: { width: 54, height: 32 },
+  bicycleParking: { width: 84, height: 36 },
+  motorcycleParking: { width: 64, height: 36 },
+  loadingZone: { width: 112, height: 58 },
+  evCharger: { width: 16, height: 16 },
+  roadSign: { width: 34, height: 42 },
+});
 
 /*
  * 白紙の模式図では 1m = 10px（0.1m/px）を基本縮尺とする。
@@ -145,35 +170,35 @@ const V5_OBJECT_DEFAULTS = Object.freeze({
 const SCHEMATIC_METERS_PER_PIXEL = 0.1;
 
 const PARKING_SPACE_PRESETS = Object.freeze({
-  /* 航空写真へ合わせやすいよう、表示上は全種類20×40pxへ統一する。実寸情報は属性として保持する。 */
-  standard: { width: 20, height: 40, widthMeters: 2.5, lengthMeters: 5.0 },
-  compact: { width: 20, height: 40, widthMeters: 2.0, lengthMeters: 3.6 },
-  accessible: { width: 20, height: 40, widthMeters: 3.5, lengthMeters: 6.0 },
-  ev: { width: 20, height: 40, widthMeters: 2.5, lengthMeters: 5.0 },
+  /* 航空写真を隠さないことを優先し、表示上は全種類10×20pxへ統一する。実寸情報は属性として保持する。 */
+  standard: { width: 10, height: 20, widthMeters: 2.5, lengthMeters: 5.0 },
+  compact: { width: 10, height: 20, widthMeters: 2.0, lengthMeters: 3.6 },
+  accessible: { width: 10, height: 20, widthMeters: 3.5, lengthMeters: 6.0 },
+  ev: { width: 10, height: 20, widthMeters: 2.5, lengthMeters: 5.0 },
 });
 
 const OBJECT_DEFAULTS = {
-  parkingLot: { width: 420, height: 300, name: "駐車場敷地" },
-  excludedParkingLot: { width: 240, height: 160, name: "対象外駐車場" },
-  nationalRoad: { width: 600, height: 72, name: "国道" },
-  prefecturalRoad: { width: 540, height: 60, name: "県道" },
-  publicRoad: { width: 440, height: 48, name: "公道" },
-  parkingSpace: { width: 20, height: 40, name: "駐車区画" },
-  road: { width: 220, height: 46, name: "場内車道" },
-  sidewalk: { width: 190, height: 18, name: "歩道" },
-  crosswalk: { width: 64, height: 24, name: "横断歩道" },
-  building: { width: 200, height: 120, name: "建物" },
-  buildingEntrance: { width: 16, height: 16, name: "店舗入口" },
-  parkingEntrance: { width: 18, height: 18, name: "駐車場出入口" },
-  stopLine: { width: 64, height: 6, name: "停止線" },
-  speedBump: { width: 64, height: 9, name: "速度抑制ハンプ" },
-  noEntry: { width: 18, height: 18, name: "進入禁止" },
-  cartCorral: { width: 54, height: 32, name: "カート置き場" },
-  bicycleParking: { width: 84, height: 36, name: "駐輪場" },
-  motorcycleParking: { width: 64, height: 36, name: "二輪車置場" },
-  loadingZone: { width: 112, height: 58, name: "荷捌きスペース" },
-  evCharger: { width: 16, height: 16, name: "EV充電器" },
-  roadSign: { width: 34, height: 42, name: "道路標識" },
+  parkingLot: { width: 180, height: 120, name: "駐車場敷地" },
+  excludedParkingLot: { width: 100, height: 70, name: "対象外駐車場" },
+  nationalRoad: { width: 240, height: 30, name: "国道" },
+  prefecturalRoad: { width: 220, height: 26, name: "県道" },
+  publicRoad: { width: 180, height: 22, name: "公道" },
+  parkingSpace: { width: 10, height: 20, name: "駐車区画" },
+  road: { width: 90, height: 20, name: "場内車道" },
+  sidewalk: { width: 75, height: 8, name: "歩道" },
+  crosswalk: { width: 28, height: 10, name: "横断歩道" },
+  building: { width: 90, height: 55, name: "建物" },
+  buildingEntrance: { width: 8, height: 8, name: "店舗入口" },
+  parkingEntrance: { width: 9, height: 9, name: "駐車場出入口" },
+  stopLine: { width: 28, height: 3, name: "停止線" },
+  speedBump: { width: 28, height: 4, name: "速度抑制ハンプ" },
+  noEntry: { width: 9, height: 9, name: "進入禁止" },
+  cartCorral: { width: 24, height: 14, name: "カート置き場" },
+  bicycleParking: { width: 34, height: 16, name: "駐輪場" },
+  motorcycleParking: { width: 28, height: 16, name: "二輪車置場" },
+  loadingZone: { width: 48, height: 24, name: "荷捌きスペース" },
+  evCharger: { width: 8, height: 8, name: "EV充電器" },
+  roadSign: { width: 16, height: 20, name: "道路標識" },
 };
 
 /*
@@ -464,15 +489,17 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 5
-    ? V5_OBJECT_DEFAULTS
-    : previousVersion >= 4
-      ? V4_OBJECT_DEFAULTS
-      : previousVersion >= 3
-        ? V3_OBJECT_DEFAULTS
-        : previousVersion >= 2
-          ? V2_OBJECT_DEFAULTS
-          : LEGACY_OBJECT_DEFAULTS;
+  const previousDefaults = previousVersion >= 6
+    ? V6_OBJECT_DEFAULTS
+    : previousVersion >= 5
+      ? V5_OBJECT_DEFAULTS
+      : previousVersion >= 4
+        ? V4_OBJECT_DEFAULTS
+        : previousVersion >= 3
+          ? V3_OBJECT_DEFAULTS
+          : previousVersion >= 2
+            ? V2_OBJECT_DEFAULTS
+            : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
 
   (layout.objects ?? []).forEach((item) => {
@@ -570,21 +597,24 @@ function ensureLayout(facilityId) {
   }
 
   /*
-   * 旧版の標準25×50pxの駐車枠だけを20×40pxへ移行する。
-   * 手動で大きさを変えた駐車枠はそのまま残す。
+   * 旧版の標準サイズ（25×50 / 20×40）の駐車枠だけを10×20pxへ移行する。
+   * それ以外の手動調整済みサイズは変更しない。
    */
   (layout.objects ?? []).forEach((item) => {
-    if (item.objectType !== "parkingSpace"
-        || Number(item.width) !== 25
-        || Number(item.height) !== 50) {
-      return;
-    }
-    const centerX = Number(item.x || 0) + 12.5;
-    const centerY = Number(item.y || 0) + 25;
-    item.width = 20;
-    item.height = 40;
-    item.x = Math.round((centerX - 10) * 100) / 100;
-    item.y = Math.round((centerY - 20) * 100) / 100;
+    if (item.objectType !== "parkingSpace") return;
+    const oldWidth = Number(item.width);
+    const oldHeight = Number(item.height);
+    const isLegacyDefault =
+      (oldWidth === 25 && oldHeight === 50)
+      || (oldWidth === 20 && oldHeight === 40);
+    if (!isLegacyDefault) return;
+
+    const centerX = Number(item.x || 0) + oldWidth / 2;
+    const centerY = Number(item.y || 0) + oldHeight / 2;
+    item.width = 10;
+    item.height = 20;
+    item.x = Math.round((centerX - 5) * 100) / 100;
+    item.y = Math.round((centerY - 10) * 100) / 100;
   });
 
   return layout;
@@ -638,11 +668,11 @@ function getParkingSpaceLabel(spaceType) {
 /** 建物外形に合わせた名称ラベルの文字サイズを返す。手動指定時は保存値を優先する。 */
 function getBuildingLabelFontSize(item) {
   if (item?.labelAutoScale === false) {
-    return Math.max(5, Math.min(40, Number(item.labelFontSize) || 12));
+    return Math.max(3, Math.min(18, Number(item.labelFontSize) || 6));
   }
   const width = Math.max(3, Number(item?.width) || OBJECT_DEFAULTS.building.width);
   const height = Math.max(3, Number(item?.height) || OBJECT_DEFAULTS.building.height);
-  return Math.max(5, Math.min(24, Math.round(Math.min(width / 22, height / 8))));
+  return Math.max(3, Math.min(12, Math.round(Math.min(width / 20, height / 7))));
 }
 
 /**
@@ -725,7 +755,7 @@ function addObject(type, options = {}) {
     /* 写真例のような、進入側が開いた3辺線を標準にする。 */
     item.markingStyle = "uShape";
     item.markingColor = "#ffffff";
-    item.markingWidth = 2;
+    item.markingWidth = 1;
 
     assignParkingSpaceNumber(item, layout);
   }
@@ -3015,7 +3045,7 @@ function updateSettings() {
     elements.spaceStatus.value = item.status ?? "available";
     elements.spaceMarkingStyle.value = item.markingStyle ?? "full";
     elements.spaceMarkingColor.value = item.markingColor ?? "#ffffff";
-    elements.spaceMarkingWidth.value = String(Math.max(1, Number(item.markingWidth) || 3));
+    elements.spaceMarkingWidth.value = String(Math.max(1, Number(item.markingWidth) || 1));
     elements.spaceMarkingWidthOutput.value = `${elements.spaceMarkingWidth.value}px`;
     elements.spaceMarkingWidthOutput.textContent = `${elements.spaceMarkingWidth.value}px`;
   }
@@ -3162,7 +3192,7 @@ function updateSelectedFromForm() {
 
     item.markingStyle = elements.spaceMarkingStyle.value;
     item.markingColor = elements.spaceMarkingColor.value;
-    item.markingWidth = Math.max(1, Number(elements.spaceMarkingWidth.value) || 2);
+    item.markingWidth = Math.max(1, Number(elements.spaceMarkingWidth.value) || 1);
   }
   if (item.objectType === "buildingEntrance") {
     item.entranceType = elements.entranceType.value;
