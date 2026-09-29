@@ -73,7 +73,7 @@
             <button type="button" data-add-object="prefecturalRoad">県道</button>
             <button type="button" data-add-object="publicRoad">公道</button>
           </div>
-          <p class="tool-help">四角形で追加されます。青い頂点をドラッグして変形し、辺中央の「＋」をドラッグすると頂点を増やせます。頂点はダブルクリックで削除できます。</p>
+          <p class="tool-help">四角形で追加されます。「形変更」モードに切り替えると、青い頂点をドラッグして変形でき、辺中央の「＋」から頂点を追加できます。頂点はダブルクリックで削除できます。</p>
         </section>
 
         <!-- 駐車区画は種類を選んでから1つの追加ボタンで配置する。 -->
@@ -181,6 +181,12 @@
           <p class="map-attribution">背景写真を使用する場合：出典 国土地理院（地理院タイル）。全国最新写真は最大ズーム18です。画質が不足する地点では「オルソ画像」「簡易空中写真」も比較してください。</p>
         </details>
         <div class="editor-toolbar" aria-label="編集補助">
+          <div class="edit-mode-switcher" role="group" aria-label="編集モード">
+            <span class="edit-mode-label">編集モード</span>
+            <button type="button" class="edit-mode-button is-active" data-edit-mode="move" aria-pressed="true">移動</button>
+            <button type="button" class="edit-mode-button" data-edit-mode="resize" aria-pressed="false">拡大縮小</button>
+            <button type="button" class="edit-mode-button" data-edit-mode="reshape" aria-pressed="false">形変更</button>
+          </div>
           <div class="grid-toolbar">
             <label class="toolbar-check"><input id="grid-visible" type="checkbox" checked> 方眼グリッド</label>
             <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 吸着</label>
@@ -211,7 +217,7 @@
             <button id="editor-zoom-fit-button" type="button">全体表示</button>
           </div>
           <button id="rotate-left-button" type="button">↶ 90°</button>
-          <button id="rotate-right-button" type="button">↷ 90°</button><span class="polygon-help">青＝頂点／白＋＝頂点追加／頂点ダブルクリック＝削除</span>
+          <button id="rotate-right-button" type="button">↷ 90°</button><span id="edit-mode-help" class="polygon-help">移動モード：オブジェクトをドラッグして位置を調整します。</span>
         </div>
         <div id="canvas-scroll" class="canvas-scroll">
           <div id="canvas-stage" class="canvas-stage">
@@ -226,7 +232,7 @@
         <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
         <form id="object-form" hidden>
           <label class="primary-setting">名称<input id="object-name" type="text"></label>
-          <p class="direct-edit-help">移動は枠をドラッグ、サイズ変更は周囲の白いハンドルをドラッグします。</p>
+          <p class="direct-edit-help">上部の編集モードを切り替えて操作します。移動＝位置調整、拡大縮小＝周囲の白いハンドル、形変更＝多角形の青い頂点を編集します。</p>
           <details class="numeric-settings">
             <summary>数値で微調整</summary>
             <div class="settings-grid">
