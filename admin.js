@@ -1178,8 +1178,8 @@ function changeViewScale(delta) {
 /* 編集モードごとの操作説明。モードは保存データには含めず、管理画面だけの状態として扱う。 */
 const EDIT_MODE_HELP = Object.freeze({
   move: "移動モード：オブジェクトをドラッグして位置を調整します。",
-  resize: "拡大縮小モード：選択したオブジェクトの周囲に出る白いハンドルをドラッグしてサイズを変更します。",
-  reshape: "形変更モード：建物・敷地・車道・歩道・外周道路は同じ操作です。青い頂点をドラッグ、白い＋で頂点追加、頂点のダブルクリックで削除できます。",
+  resize: "拡大縮小モード：選択中のオブジェクトだけを操作します。重なった他の図形はクリックを通過します。別の図形を選ぶときは「移動」に切り替えます。",
+  reshape: "形変更モード：選択中の建物・敷地・車道・歩道・外周道路だけを操作します。重なった他の図形はクリックを通過します。",
 });
 
 /** 編集モードのボタン表示・キャンバス状態・説明文を同期する。 */
@@ -2465,6 +2465,7 @@ function render() {
   syncLinkedRoadSigns(layout);
   syncRoadTrafficControls(layout);
   elements.canvas.replaceChildren();
+  elements.canvas.classList.toggle("has-selection", Boolean(state.selectedUid));
   updateEditModeUi();
   elements.canvas.classList.toggle("base-layers-locked", elements.baseLayerLock?.checked === true);
   updateGridAppearance();
