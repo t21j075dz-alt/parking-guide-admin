@@ -90,7 +90,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 }
 .map-object[data-object-type="parkingSpace"] {
   --space-line-color: #ffffff;
-  --space-line-width: 0.5px;
+  --space-line-width: 0.4px;
   border: 0;
   background: transparent;
   overflow: visible;
@@ -128,7 +128,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
  * 車路側（下側）は開放する。
  */
 .map-object[data-object-type="parkingSpace"][data-marking-style="photoStall"]::before {
-  inset: 0.4px 0.5px 0.7px;
+  inset: 0.25px 0.4px 0.5px;
   background:
     linear-gradient(var(--space-line-color) 0 0)
       left top / var(--space-line-width) 100% no-repeat,
@@ -1702,7 +1702,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 /* 駐車枠は8×16pxでも白線や文字が図形を覆わない大きさに統一。 */
 .map-object[data-object-type="parkingSpace"] {
-  --space-line-width: 0.5px;
+  --space-line-width: 0.4px;
 }
 .map-object[data-object-type="parkingSpace"] > .space-type-mark,
 .map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
@@ -1855,4 +1855,60 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
   bottom: 0.5px !important;
   font-size: 2px !important;
+}
+
+
+/* version 9: 6×12px駐車枠と編集用ラベルの最終仕様 */
+.map-object[data-object-type="parkingSpace"] {
+  --space-line-width: 0.4px;
+}
+
+/* 種別文字は選択中だけ、画面上ほぼ一定の大きさで表示する。 */
+.map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
+  left: 50% !important;
+  top: 42% !important;
+  bottom: auto !important;
+  font-size: var(--ui-parking-type-font-size, 6px) !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  background: rgb(15 23 42 / 58%) !important;
+  border-radius: var(--ui-parking-number-radius, 2px) !important;
+  padding: 0 !important;
+  text-shadow: none !important;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--space-counter-rotation, 0deg)) !important;
+  transform-origin: center !important;
+}
+
+/*
+ * 番号は枠内に詰め込まず、車路側の外へ小さな白ラベルとして出す。
+ * 編集倍率を変えても画面上の文字サイズはほぼ一定にする。
+ */
+.map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
+  left: 50% !important;
+  top: auto !important;
+  bottom: var(--ui-parking-number-bottom, -9px) !important;
+  display: block !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding:
+    var(--ui-parking-number-pad-y, 1px)
+    var(--ui-parking-number-pad-x, 2px) !important;
+  border: var(--ui-parking-number-border, 0.5px) solid rgb(15 23 42 / 26%) !important;
+  border-radius: var(--ui-parking-number-radius, 2px) !important;
+  background: rgb(255 255 255 / 94%) !important;
+  color: #0f172a !important;
+  font-size: var(--ui-parking-number-font-size, 7px) !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+  white-space: nowrap !important;
+  transform:
+    translateX(-50%)
+    rotate(var(--space-counter-rotation, 0deg)) !important;
+  transform-origin: center !important;
+  z-index: 30 !important;
 }
