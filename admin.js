@@ -156,6 +156,7 @@ const POLYGON_OBJECT_TYPES = new Set([
   "excludedParkingLot",
   "building",
   "road",
+  "sidewalk",
   "nationalRoad",
   "prefecturalRoad",
   "publicRoad",
@@ -1149,7 +1150,7 @@ function changeViewScale(delta) {
 const EDIT_MODE_HELP = Object.freeze({
   move: "移動モード：オブジェクトをドラッグして位置を調整します。",
   resize: "拡大縮小モード：選択したオブジェクトの周囲に出る白いハンドルをドラッグしてサイズを変更します。",
-  reshape: "形変更モード：敷地・道路・建物などの青い頂点をドラッグします。白い＋で頂点追加、頂点のダブルクリックで削除できます。",
+  reshape: "形変更モード：建物・敷地・車道・歩道・外周道路は同じ操作です。青い頂点をドラッグ、白い＋で頂点追加、頂点のダブルクリックで削除できます。",
 });
 
 /** 編集モードのボタン表示・キャンバス状態・説明文を同期する。 */
@@ -2328,6 +2329,54 @@ function appendEmbeddedRouteShield(node, item) {
   node.append(shield);
 }
 
+/**
+ * 道路面へ、保存データから分かる交通情報を簡潔に描画する。
+ * 一時停止は、警察庁の交通規制基準に合わせて停止線と「止まれ」を組み合わせる。
+ * 車両進入禁止は道路標識で示すため、誤解を避けて路面記号は自動生成しない。
+ */
+function appendRoadSurfaceMarkings(node, item, layout) {
+  if (!ROAD_SURFACE_TYPES.has(item.objectType)) return;
+
+  if (item.objectType === "road" && item.trafficDirection === "oneWay") {
+    const arrow = document.createElement("div");
+    arrow.className = "road-direction-mark";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.innerHTML = '<span class="road-direction-mark__shaft"></span><span class="road-direction-mark__head"></span>';
+    node.append(arrow);
+  }
+
+  const linkedStops = (layout?.objects ?? []).filter(
+    (candidate) =>
+      candidate.objectType === "roadSign"
+      && candidate.signType === "stop"
+      && candidate.linkedRoadUid === item.uid,
+  );
+
+  linkedStops.forEach((sign) => {
+    const mark = document.createElement("div");
+    mark.className = "road-surface-stop-mark";
+    mark.setAttribute("aria-hidden", "true");
+
+    const anchorX = Math.max(0, Math.min(1, Number(sign.roadAnchorX) || 0.5));
+    const anchorY = Math.max(0, Math.min(1, Number(sign.roadAnchorY) || 0.5));
+    const localRotation = (Number(sign.rotation) || 0) - (Number(item.rotation) || 0);
+
+    mark.style.left = `${anchorX * 100}%`;
+    mark.style.top = `${anchorY * 100}%`;
+    mark.style.transform = `translate(-50%, -50%) rotate(${localRotation}deg)`;
+
+    const stopLine = document.createElement("span");
+    stopLine.className = "road-surface-stop-line";
+
+    const text = document.createElement("span");
+    text.className = "road-surface-stop-text";
+    text.textContent = "止まれ";
+
+    mark.append(stopLine, text);
+    node.append(mark);
+  });
+}
+
 /** 道路標識の保存属性から、国道・県道・規制標識の図形を生成する。 */
 function appendRoadSignFace(node, item) {
   const signType = item.signType ?? "nationalRoute";
@@ -2355,7 +2404,13 @@ function appendRoadSignFace(node, item) {
   } else {
     const inner = document.createElement("div");
     inner.className = "road-sign-stop-inner";
-    inner.textContent = "止まれ";
+    const japanese = document.createElement("span");
+    japanese.className = "road-sign-stop-jp";
+    japanese.textContent = "止まれ";
+    const english = document.createElement("span");
+    english.className = "road-sign-stop-en";
+    english.textContent = "STOP";
+    inner.append(japanese, english);
     face.append(inner);
   }
   node.append(face);
@@ -2415,6 +2470,9 @@ function render() {
     if (item.objectType === "roadSign") appendRoadSignFace(node, item);
     if (["nationalRoad", "prefecturalRoad"].includes(item.objectType)) {
       appendEmbeddedRouteShield(node, item);
+    }
+    if (ROAD_SURFACE_TYPES.has(item.objectType)) {
+      appendRoadSurfaceMarkings(node, item, layout);
     }
     if (item.objectType === "building") {
       node.style.setProperty("--building-label-font-size", `${getBuildingLabelFontSize(item)}px`);
