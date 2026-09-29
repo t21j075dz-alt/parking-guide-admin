@@ -212,6 +212,8 @@ const state = {
   layouts: {},
   facilityId: null,
   selectedUid: null,
+  /* move=移動 / resize=拡大縮小 / reshape=多角形の頂点編集 */
+  editMode: "move",
   drag: null,
   resize: null,
   vertexDrag: null,
@@ -238,6 +240,7 @@ const elements = {
   canvasStage: document.querySelector("#canvas-stage"),
   editorZoomRange: document.querySelector("#editor-zoom-range"),
   editorZoomOutput: document.querySelector("#editor-zoom-output"),
+  editModeHelp: document.querySelector("#edit-mode-help"),
   canvasWidth: document.querySelector("#canvas-width"),
   canvasHeight: document.querySelector("#canvas-height"),
   canvasScale: document.querySelector("#canvas-scale"),
@@ -1107,6 +1110,46 @@ function changeViewScale(delta) {
   applyViewScale(state.viewScale + delta, true);
 }
 
+/* 編集モードごとの操作説明。モードは保存データには含めず、管理画面だけの状態として扱う。 */
+const EDIT_MODE_HELP = Object.freeze({
+  move: "移動モード：オブジェクトをドラッグして位置を調整します。",
+  resize: "拡大縮小モード：選択したオブジェクトの周囲に出る白いハンドルをドラッグしてサイズを変更します。",
+  reshape: "形変更モード：敷地・道路・建物などの青い頂点をドラッグします。白い＋で頂点追加、頂点のダブルクリックで削除できます。",
+});
+
+/** 編集モードのボタン表示・キャンバス状態・説明文を同期する。 */
+function updateEditModeUi() {
+  document.querySelectorAll("[data-edit-mode]").forEach((button) => {
+    const active = button.dataset.editMode === state.editMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  elements.canvas.dataset.editMode = state.editMode;
+
+  if (elements.editModeHelp) {
+    let help = EDIT_MODE_HELP[state.editMode] ?? EDIT_MODE_HELP.move;
+    const selected = getSelectedObject();
+    if (state.editMode === "reshape" && selected && !POLYGON_OBJECT_TYPES.has(selected.objectType)) {
+      help += " 選択中のオブジェクトは形変更の対象外です。";
+    }
+    elements.editModeHelp.textContent = help;
+  }
+}
+
+/** 移動・拡大縮小・形変更を切り替え、途中のドラッグ状態を安全に解除する。 */
+function setEditMode(mode) {
+  if (!Object.prototype.hasOwnProperty.call(EDIT_MODE_HELP, mode)) {
+    return;
+  }
+  state.editMode = mode;
+  state.drag = null;
+  state.resize = null;
+  state.vertexDrag = null;
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
+  render();
+}
+
 /** キャンバス全体が現在の編集領域へ収まる倍率へ変更する。 */
 function fitViewScale() {
   const layout = getCurrentLayout();
@@ -1441,7 +1484,7 @@ function addPolygonHandles(node, item) {
 function startVertexDrag(event) {
   event.stopPropagation();
   event.preventDefault();
-  if (event.button !== 0) return;
+  if (state.editMode !== "reshape" || event.button !== 0) return;
 
   const node = event.currentTarget.closest(".map-object");
   const item = getCurrentLayout()?.objects.find((object) => object.uid === node?.dataset.uid);
@@ -1586,9 +1629,6 @@ function endVertexDrag(event) {
 
 /** 選択枠の周囲にPowerPoint風の8個のリサイズハンドルを付ける。 */
 function addResizeHandles(node, item) {
-  if (["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
-    return;
-  }
   ["nw", "n", "ne", "e", "se", "s", "sw", "w"].forEach((direction) => {
     const handle = document.createElement("button");
     handle.type = "button";
@@ -1604,6 +1644,9 @@ function addResizeHandles(node, item) {
 function startResize(event) {
   event.stopPropagation();
   event.preventDefault();
+  if (state.editMode !== "resize") {
+    return;
+  }
   const node = event.currentTarget.closest(".map-object");
   const item = getCurrentLayout()?.objects.find((object) => object.uid === node?.dataset.uid);
   if (!item) {
@@ -1849,6 +1892,7 @@ function render() {
   elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? SCHEMATIC_METERS_PER_PIXEL;
   updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
+  updateEditModeUi();
   elements.canvas.classList.toggle("base-layers-locked", elements.baseLayerLock?.checked === true);
   updateGridAppearance();
   renderBackground(layout);
@@ -1927,8 +1971,11 @@ function render() {
 
     if (item.uid === state.selectedUid
         && !(BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false)) {
-      addResizeHandles(node, item);
-      addPolygonHandles(node, item);
+      if (state.editMode === "resize") {
+        addResizeHandles(node, item);
+      } else if (state.editMode === "reshape") {
+        addPolygonHandles(node, item);
+      }
     }
 
     node.addEventListener("pointerdown", startDrag);
@@ -1959,6 +2006,10 @@ function startDrag(event) {
   if (BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false) {
     state.selectedUid = item.uid;
     render();
+    return;
+  }
+  if (state.editMode !== "move") {
+    state.selectedUid = item.uid;
     return;
   }
   state.selectedUid = item.uid;
@@ -2836,6 +2887,11 @@ function updateCanvasSettings() {
    イベント
    ========================================================= */
 
+/* 編集モードは同時に1つだけ有効にする。 */
+document.querySelectorAll("[data-edit-mode]").forEach((button) => {
+  button.addEventListener("click", () => setEditMode(button.dataset.editMode));
+});
+
 document.querySelectorAll("[data-add-object]").forEach((button) => {
   button.addEventListener("click", () => addObject(button.dataset.addObject, {
     spaceType: button.dataset.spaceType,
@@ -3010,7 +3066,9 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   const item = getSelectedObject();
-  if (!item || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+  if (state.editMode !== "move"
+      || !item
+      || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
     return;
   }
   event.preventDefault();
