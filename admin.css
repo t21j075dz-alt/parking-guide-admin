@@ -90,7 +90,7 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 }
 .map-object[data-object-type="parkingSpace"] {
   --space-line-color: #ffffff;
-  --space-line-width: 3px;
+  --space-line-width: 0.5px;
   border: 0;
   background: transparent;
   overflow: visible;
@@ -120,6 +120,22 @@ h2 { margin: 0 0 10px; font-size: 15px; }
   border-top: var(--space-line-width) solid var(--space-line-color);
   border-right: var(--space-line-width) solid var(--space-line-color);
   border-left: var(--space-line-width) solid var(--space-line-color);
+}
+
+/*
+ * 航空写真でよく見える駐車ます向け。
+ * 線を外形から少し内側へ寄せ、奥側の横線＋左右線だけを描く。
+ * 車路側（下側）は開放する。
+ */
+.map-object[data-object-type="parkingSpace"][data-marking-style="photoStall"]::before {
+  inset: 0.4px 0.5px 0.7px;
+  background:
+    linear-gradient(var(--space-line-color) 0 0)
+      left top / var(--space-line-width) 100% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0)
+      right top / var(--space-line-width) 100% no-repeat,
+    linear-gradient(var(--space-line-color) 0 0)
+      center top / 100% var(--space-line-width) no-repeat;
 }
 .map-object[data-object-type="parkingSpace"][data-marking-style="sides"]::before {
   border-right: var(--space-line-width) solid var(--space-line-color);
@@ -1684,9 +1700,9 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   border-radius: 2px !important;
 }
 
-/* 駐車枠は10×20pxでも白線や文字が図形を覆わない大きさに統一。 */
+/* 駐車枠は8×16pxでも白線や文字が図形を覆わない大きさに統一。 */
 .map-object[data-object-type="parkingSpace"] {
-  --space-line-width: 1px;
+  --space-line-width: 0.5px;
 }
 .map-object[data-object-type="parkingSpace"] > .space-type-mark,
 .map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
@@ -1827,4 +1843,16 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .road-sign-stop-en {
   font-size: 2.5px !important;
   letter-spacing: 0 !important;
+}
+
+
+/* version 8: 8×16px駐車枠用の最終表示調整 */
+.map-object[data-object-type="parkingSpace"] > .space-type-mark,
+.map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
+  font-size: 3px !important;
+}
+.map-object[data-object-type="parkingSpace"] > .space-number-mark,
+.map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
+  bottom: 0.5px !important;
+  font-size: 2px !important;
 }
