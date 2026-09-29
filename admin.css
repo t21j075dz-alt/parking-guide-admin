@@ -1256,10 +1256,10 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   clip-path: inherit;
 }
 .road-sign-heading {
-  max-width: 36px;
+  max-width: 28px;
   overflow: hidden;
   color: #1769aa;
-  font-size: 7px;
+  font-size: 5px;
   font-weight: 800;
   line-height: 1;
   text-overflow: ellipsis;
@@ -1267,7 +1267,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 }
 .road-sign-number {
   color: #1769aa;
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 900;
   line-height: 0.95;
   letter-spacing: -1px;
@@ -1275,17 +1275,17 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .map-object[data-sign-type="noEntry"] .road-sign-face {
   top: 3px;
   height: 72%;
-  border: 3px solid #fff;
+  border: 2px solid #fff;
   border-radius: 50%;
   background: #dc2626;
-  box-shadow: 0 0 0 2px #dc2626;
+  box-shadow: 0 0 0 1.5px #dc2626;
 }
 .road-sign-no-entry-bar {
   position: absolute;
   left: 13%;
   right: 13%;
-  top: calc(50% - 4px);
-  height: 8px;
+  top: calc(50% - 2.5px);
+  height: 5px;
   border-radius: 2px;
   background: #fff;
 }
@@ -1298,10 +1298,10 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   inset: 3px 4px 5px;
   display: grid;
   place-items: center;
-  padding-bottom: 8px;
+  padding-bottom: 5px;
   background: #dc2626;
   color: #fff;
-  font-size: 8px;
+  font-size: 6px;
   font-weight: 900;
   line-height: 1;
   clip-path: inherit;
