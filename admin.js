@@ -1078,6 +1078,17 @@ function applyViewScale(scale, preserveCenter = false) {
   }
 
   state.viewScale = nextScale;
+  /* 編集補助UIだけは画面上の太さ・大きさを一定にし、高倍率時の肥大化を防ぐ。 */
+  elements.canvas.style.setProperty("--ui-polygon-stroke", `${0.8 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-selection-stroke", `${1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-resize-handle-size", `${5 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-resize-handle-border", `${1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-handle-size", `${7 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-handle-border", `${1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-handle-font-size", `${6 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-grid-fine-line", `${0.45 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-grid-meter-line", `${0.65 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-grid-major-line", `${0.9 / nextScale}px`);
   elements.canvas.style.transform = `scale(${nextScale})`;
   elements.canvasStage.style.width = `${layout.canvas.width * nextScale}px`;
   elements.canvasStage.style.height = `${layout.canvas.height * nextScale}px`;
@@ -1491,9 +1502,11 @@ function moveVertexDrag(event) {
     }
   }
 
-  if (elements.snapEnabled?.checked) {
-    x = snapToGrid(x);
-    y = snapToGrid(y);
+  if (elements.snapEnabled?.checked && !event.altKey) {
+    /* 頂点は通常オブジェクトより細かい、グリッド間隔の1/2刻みで動かす。 */
+    const vertexStep = Math.max(0.25, getGridSize() / 2);
+    x = Math.round(x / vertexStep) * vertexStep;
+    y = Math.round(y / vertexStep) * vertexStep;
   }
 
   /*
@@ -1503,10 +1516,10 @@ function moveVertexDrag(event) {
    */
   let guideLocalX = null;
   let guideLocalY = null;
-  if (elements.orthogonalSnap?.checked) {
+  if (elements.orthogonalSnap?.checked && !event.altKey) {
     const previous = points[(index - 1 + points.length) % points.length];
     const next = points[(index + 1) % points.length];
-    const threshold = Math.max(5, getGridSize());
+    const threshold = Math.max(0.75, getGridSize() / 2);
 
     const xCandidates = [previous.x, next.x];
     const yCandidates = [previous.y, next.y];
@@ -1542,8 +1555,8 @@ function moveVertexDrag(event) {
   }
 
   const point = points[index];
-  point.x = Math.max(0, Math.min(item.width, Math.round(x)));
-  point.y = Math.max(0, Math.min(item.height, Math.round(y)));
+  point.x = Math.max(0, Math.min(item.width, Math.round(x * 100) / 100));
+  point.y = Math.max(0, Math.min(item.height, Math.round(y * 100) / 100));
 
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   updatePolygonSvg(node, item);
@@ -1836,6 +1849,7 @@ function render() {
   elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? SCHEMATIC_METERS_PER_PIXEL;
   updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
+  elements.canvas.classList.toggle("base-layers-locked", elements.baseLayerLock?.checked === true);
   updateGridAppearance();
   renderBackground(layout);
   applyViewScale(state.viewScale);

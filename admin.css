@@ -386,24 +386,25 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 .resize-handle {
   position: absolute;
   z-index: 40;
-  width: 5px !important;
-  min-width: 5px;
-  height: 5px !important;
-  min-height: 5px;
+  width: var(--ui-resize-handle-size, 5px) !important;
+  min-width: var(--ui-resize-handle-size, 5px);
+  height: var(--ui-resize-handle-size, 5px) !important;
+  min-height: var(--ui-resize-handle-size, 5px);
   padding: 0;
-  border: 1px solid #2563eb;
+  border: var(--ui-resize-handle-border, 1px) solid #2563eb;
   border-radius: 1px;
   background: #ffffff;
+  transform: translate(-50%, -50%);
 }
 
-.resize-handle--nw { left: -4px; top: -4px; cursor: nwse-resize; }
-.resize-handle--n  { left: calc(50% - 3px); top: -4px; cursor: ns-resize; }
-.resize-handle--ne { right: -4px; top: -4px; cursor: nesw-resize; }
-.resize-handle--e  { right: -4px; top: calc(50% - 3px); cursor: ew-resize; }
-.resize-handle--se { right: -4px; bottom: -4px; cursor: nwse-resize; }
-.resize-handle--s  { left: calc(50% - 3px); bottom: -4px; cursor: ns-resize; }
-.resize-handle--sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
-.resize-handle--w  { left: -4px; top: calc(50% - 3px); cursor: ew-resize; }
+.resize-handle--nw { left: 0; top: 0; cursor: nwse-resize; }
+.resize-handle--n  { left: 50%; top: 0; cursor: ns-resize; }
+.resize-handle--ne { left: 100%; top: 0; cursor: nesw-resize; }
+.resize-handle--e  { left: 100%; top: 50%; cursor: ew-resize; }
+.resize-handle--se { left: 100%; top: 100%; cursor: nwse-resize; }
+.resize-handle--s  { left: 50%; top: 100%; cursor: ns-resize; }
+.resize-handle--sw { left: 0; top: 100%; cursor: nesw-resize; }
+.resize-handle--w  { left: 0; top: 50%; cursor: ew-resize; }
 
 .snap-guide {
   position: absolute;
@@ -705,16 +706,16 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
 .polygon-handle {
   position: absolute;
   z-index: 60;
-  width: 7px !important;
-  min-width: 7px;
-  height: 7px !important;
-  min-height: 7px;
+  width: var(--ui-polygon-handle-size, 7px) !important;
+  min-width: var(--ui-polygon-handle-size, 7px);
+  height: var(--ui-polygon-handle-size, 7px) !important;
+  min-height: var(--ui-polygon-handle-size, 7px);
   padding: 0;
   transform: translate(-50%, -50%);
   touch-action: none;
 }
 .polygon-handle--vertex {
-  border: 1px solid #fff;
+  border: var(--ui-polygon-handle-border, 1px) solid #fff;
   border-radius: 50%;
   background: #2563eb;
   box-shadow: 0 0 0 1px #1e3a8a;
@@ -722,11 +723,11 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
 .polygon-handle--add {
   display: grid;
   place-items: center;
-  border: 1px solid #64748b;
+  border: var(--ui-polygon-handle-border, 1px) solid #64748b;
   border-radius: 50%;
   background: #fff;
   color: #334155;
-  font-size: 6px;
+  font-size: var(--ui-handle-font-size, 6px);
   font-weight: 800;
   line-height: 1;
 }
@@ -879,7 +880,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 /* 背景レイヤーを固定中はクリック・ドラッグ対象から外す。 */
 .base-layer-object.is-layer-locked {
   cursor: not-allowed;
-  opacity: 0.92;
+  opacity: 1;
 }
 .base-layer-object.selected {
   z-index: 2 !important;
@@ -1009,12 +1010,12 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   z-index: 1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgb(148 163 184 / 14%) 0.5px, transparent 0.5px),
-    linear-gradient(90deg, rgb(148 163 184 / 14%) 0.5px, transparent 0.5px),
-    linear-gradient(rgb(71 85 105 / 24%) 0.75px, transparent 0.75px),
-    linear-gradient(90deg, rgb(71 85 105 / 24%) 0.75px, transparent 0.75px),
-    linear-gradient(rgb(30 41 59 / 34%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(30 41 59 / 34%) 1px, transparent 1px);
+    linear-gradient(rgb(148 163 184 / 14%) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
+    linear-gradient(90deg, rgb(148 163 184 / 14%) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
+    linear-gradient(rgb(71 85 105 / 24%) var(--ui-grid-meter-line, 0.65px), transparent var(--ui-grid-meter-line, 0.65px)),
+    linear-gradient(90deg, rgb(71 85 105 / 24%) var(--ui-grid-meter-line, 0.65px), transparent var(--ui-grid-meter-line, 0.65px)),
+    linear-gradient(rgb(30 41 59 / 34%) var(--ui-grid-major-line, 0.9px), transparent var(--ui-grid-major-line, 0.9px)),
+    linear-gradient(90deg, rgb(30 41 59 / 34%) var(--ui-grid-major-line, 0.9px), transparent var(--ui-grid-major-line, 0.9px));
   background-position:
     var(--grid-origin-x) var(--grid-origin-y),
     var(--grid-origin-x) var(--grid-origin-y),
@@ -1235,6 +1236,68 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   clip-path: inherit;
 }
 .map-object[data-object-type="roadSign"].selected { z-index: 50 !important; }
+
+/*
+ * 編集倍率を上げても輪郭・選択枠が画面上で太くならないようにする。
+ * 多角形はSVG輪郭を選択色に変え、外側のoutlineとの二重線を避ける。
+ */
+.polygon-fill {
+  stroke-width: var(--ui-polygon-stroke, 0.8px) !important;
+}
+.map-object.selected {
+  outline-width: var(--ui-selection-stroke, 1px);
+  outline-offset: var(--ui-selection-stroke, 1px);
+}
+.polygon-object.selected {
+  outline: none !important;
+}
+.polygon-object.selected .polygon-fill {
+  stroke: #f59e0b;
+}
+
+/*
+ * 基盤レイヤー固定後は完成図として不透明表示に戻す。
+ * 名称ラベルは建物名だけを残し、駐車枠番号や道路標識の番号は維持する。
+ */
+.map-canvas.base-layers-locked .polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: #4b5055;
+  stroke: #2f3439;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="excludedParkingLot"] .polygon-fill {
+  fill: #676d73;
+  stroke: #4b5563;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="road"] .polygon-fill {
+  fill: #5b6570;
+  stroke: #374151;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="nationalRoad"] .polygon-fill {
+  fill: #64748b;
+  stroke: #334155;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="prefecturalRoad"] .polygon-fill {
+  fill: #71717a;
+  stroke: #3f3f46;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="publicRoad"] .polygon-fill {
+  fill: #737b84;
+  stroke: #4b5563;
+}
+.map-canvas.base-layers-locked .polygon-object[data-object-type="building"] .polygon-fill {
+  fill: #dbe4ea;
+  stroke: #334155;
+}
+.map-canvas.base-layers-locked .map-object[data-object-type="sidewalk"] {
+  background: var(--sidewalk);
+  opacity: 1;
+}
+.map-canvas.base-layers-locked .map-object[data-object-type="crosswalk"] {
+  background: repeating-linear-gradient(90deg, #fff 0 8px, #64748b 8px 16px);
+  opacity: 1;
+}
+.map-canvas.base-layers-locked .map-object:not([data-object-type="building"]) > .object-label {
+  display: none !important;
+}
 
 @media (max-width: 1200px) {
   .layout-scale { order: 4; }
