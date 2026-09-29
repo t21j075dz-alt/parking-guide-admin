@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 10;
+const OBJECT_DEFAULTS_VERSION = 11;
 const CANVAS_SIZE_VERSION = 2;
 const DEFAULT_CANVAS_WIDTH = 1800;
 const DEFAULT_CANVAS_HEIGHT = 1200;
@@ -237,6 +237,31 @@ const V9_OBJECT_DEFAULTS = Object.freeze({
   roadSign: { width: 16, height: 20 },
 });
 
+/* version 10で使っていた初期寸法。標識・停止線系だけversion 11へ小型化する。 */
+const V10_OBJECT_DEFAULTS = Object.freeze({
+  parkingLot: { width: 180, height: 120 },
+  excludedParkingLot: { width: 100, height: 70 },
+  nationalRoad: { width: 240, height: 30 },
+  prefecturalRoad: { width: 220, height: 26 },
+  publicRoad: { width: 180, height: 22 },
+  parkingSpace: { width: 6, height: 12 },
+  road: { width: 90, height: 20 },
+  sidewalk: { width: 75, height: 8 },
+  crosswalk: { width: 28, height: 10 },
+  building: { width: 90, height: 55 },
+  buildingEntrance: { width: 8, height: 8 },
+  parkingEntrance: { width: 9, height: 9 },
+  stopLine: { width: 28, height: 3 },
+  speedBump: { width: 28, height: 4 },
+  noEntry: { width: 9, height: 9 },
+  cartCorral: { width: 24, height: 14 },
+  bicycleParking: { width: 34, height: 16 },
+  motorcycleParking: { width: 28, height: 16 },
+  loadingZone: { width: 48, height: 24 },
+  evCharger: { width: 8, height: 8 },
+  roadSign: { width: 16, height: 20 },
+});
+
 /*
  * 白紙の模式図では 1m = 10px（0.1m/px）を基本縮尺とする。
  * 駐車ますの初期寸法は国土交通省資料を参考にし、普通車は一般的な
@@ -265,15 +290,15 @@ const OBJECT_DEFAULTS = {
   building: { width: 90, height: 55, name: "建物" },
   buildingEntrance: { width: 8, height: 8, name: "店舗入口" },
   parkingEntrance: { width: 9, height: 9, name: "駐車場出入口" },
-  stopLine: { width: 28, height: 3, name: "停止線" },
-  speedBump: { width: 28, height: 4, name: "速度抑制ハンプ" },
-  noEntry: { width: 9, height: 9, name: "進入禁止" },
+  stopLine: { width: 18, height: 2, name: "停止線" },
+  speedBump: { width: 20, height: 3, name: "速度抑制ハンプ" },
+  noEntry: { width: 7, height: 7, name: "進入禁止" },
   cartCorral: { width: 24, height: 14, name: "カート置き場" },
   bicycleParking: { width: 34, height: 16, name: "駐輪場" },
   motorcycleParking: { width: 28, height: 16, name: "二輪車置場" },
   loadingZone: { width: 48, height: 24, name: "荷捌きスペース" },
   evCharger: { width: 8, height: 8, name: "EV充電器" },
-  roadSign: { width: 16, height: 20, name: "道路標識" },
+  roadSign: { width: 10, height: 12, name: "道路標識" },
 };
 
 /*
@@ -364,10 +389,18 @@ const EDGE_OVERFLOW_OBJECT_TYPES = new Set([
 ]);
 const EDGE_OVERFLOW_VISIBLE_MARGIN = 20;
 
+/** 細線オブジェクトだけは3px未満まで縮小できるようにする。 */
+function getMinimumObjectSize(item) {
+  if (item?.objectType === "stopLine") return 0.5;
+  if (item?.objectType === "speedBump") return 1;
+  return 3;
+}
+
 /** オブジェクト種別に応じた移動可能範囲へ座標を収める。 */
 function clampObjectPosition(item, x, y, layout) {
-  const width = Math.max(3, Number(item.width) || 34);
-  const height = Math.max(3, Number(item.height) || 34);
+  const minimumSize = getMinimumObjectSize(item);
+  const width = Math.max(minimumSize, Number(item.width) || 34);
+  const height = Math.max(minimumSize, Number(item.height) || 34);
   const canvasWidth = Math.max(1, Number(layout?.canvas?.width) || DEFAULT_CANVAS_WIDTH);
   const canvasHeight = Math.max(1, Number(layout?.canvas?.height) || DEFAULT_CANVAS_HEIGHT);
 
@@ -564,9 +597,11 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 9
-    ? V9_OBJECT_DEFAULTS
-    : previousVersion >= 8
+  const previousDefaults = previousVersion >= 10
+    ? V10_OBJECT_DEFAULTS
+    : previousVersion >= 9
+      ? V9_OBJECT_DEFAULTS
+      : previousVersion >= 8
       ? V8_OBJECT_DEFAULTS
       : previousVersion >= 7
       ? V7_OBJECT_DEFAULTS
@@ -2408,7 +2443,7 @@ function moveResize(event) {
   const direction = state.resize.direction;
   const sx = direction.includes("e") ? 1 : direction.includes("w") ? -1 : 0;
   const sy = direction.includes("s") ? 1 : direction.includes("n") ? -1 : 0;
-  const minSize = 3;
+  const minSize = getMinimumObjectSize(item);
   const requestedWidth = sx === 0 ? state.resize.width : state.resize.width + sx * localDx;
   const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
   const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
@@ -2473,11 +2508,13 @@ function createAdjacentSpaces(direction) {
   }
   const count = Math.max(1, Math.min(50, Number(elements.adjacentCount?.value) || 1));
   const radians = (Number(source.rotation) || 0) * Math.PI / 180;
+  const sourceWidth = Number(source.width) || OBJECT_DEFAULTS.parkingSpace.width;
+  const sourceHeight = Number(source.height) || OBJECT_DEFAULTS.parkingSpace.height;
   const local = {
-    right: [source.width, 0],
-    left: [-source.width, 0],
-    down: [0, source.height],
-    up: [0, -source.height],
+    right: [sourceWidth, 0],
+    left: [-sourceWidth, 0],
+    down: [0, sourceHeight],
+    up: [0, -sourceHeight],
   }[direction];
   if (!local) {
     return;
@@ -2491,8 +2528,9 @@ function createAdjacentSpaces(direction) {
     copy.uid = createUid("parkingSpace");
     delete copy.spaceNumber;
     assignParkingSpaceNumber(copy, layout);
-    copy.x = Math.round((source.x + stepX * index) * 100) / 100;
-    copy.y = Math.round((source.y + stepY * index) * 100) / 100;
+    /* 回転時も共有辺がずれないよう、連続生成だけは4桁精度を保持する。 */
+    copy.x = Math.round((Number(source.x) + stepX * index) * 10000) / 10000;
+    copy.y = Math.round((Number(source.y) + stepY * index) * 10000) / 10000;
     if (copy.x < 0 || copy.y < 0
         || copy.x + copy.width > layout.canvas.width
         || copy.y + copy.height > layout.canvas.height) {
@@ -2552,8 +2590,9 @@ function scaleEntireLayout() {
   objects.forEach((item) => {
     item.x = Math.round((centerX + ((Number(item.x) || 0) - centerX) * factor) * 100) / 100;
     item.y = Math.round((centerY + ((Number(item.y) || 0) - centerY) * factor) * 100) / 100;
-    item.width = Math.max(3, Math.round((Number(item.width) || 3) * factor * 100) / 100);
-    item.height = Math.max(3, Math.round((Number(item.height) || 3) * factor * 100) / 100);
+    const minimumSize = getMinimumObjectSize(item);
+    item.width = Math.max(minimumSize, Math.round((Number(item.width) || minimumSize) * factor * 100) / 100);
+    item.height = Math.max(minimumSize, Math.round((Number(item.height) || minimumSize) * factor * 100) / 100);
     if (Array.isArray(item.polygonPoints)) {
       item.polygonPoints = item.polygonPoints.map((point) => ({
         x: Number((Number(point.x) * factor).toFixed(2)),
@@ -2880,9 +2919,9 @@ function appendPhotoParkingMarking(node) {
 
   /*
    * 左下→左上→右上→右下を1本のパスで描く。
-   * 端から3%内側を通してクリップ境界で片側だけ消えるのを防ぐ。
+   * 外形境界そのものを通し、連続設置した隣接枠の共有線を完全一致させる。
    */
-  path.setAttribute("d", "M 3 97 V 3 H 97 V 97");
+  path.setAttribute("d", "M 0 100 V 0 H 100 V 100");
   path.setAttribute("vector-effect", "non-scaling-stroke");
 
   svg.append(path);
@@ -3261,10 +3300,11 @@ function updateSelectedFromForm() {
   elements.y.value = String(item.y);
   item.rotation = Number(elements.rotation.value) || 0;
   if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
-    const previousWidth = Math.max(3, Number(item.width) || 3);
-    const previousHeight = Math.max(3, Number(item.height) || 3);
-    const nextWidth = Math.max(3, Number(elements.width.value) || 3);
-    const nextHeight = Math.max(3, Number(elements.height.value) || 3);
+    const minimumSize = getMinimumObjectSize(item);
+    const previousWidth = Math.max(minimumSize, Number(item.width) || minimumSize);
+    const previousHeight = Math.max(minimumSize, Number(item.height) || minimumSize);
+    const nextWidth = Math.max(minimumSize, Number(elements.width.value) || minimumSize);
+    const nextHeight = Math.max(minimumSize, Number(elements.height.value) || minimumSize);
 
     if (POLYGON_OBJECT_TYPES.has(item.objectType)
         && (Math.abs(nextWidth - previousWidth) > 0.0001
