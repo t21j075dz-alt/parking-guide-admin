@@ -172,6 +172,14 @@ const BASE_LAYER_OBJECT_TYPES = new Set([
   "crosswalk",
 ]);
 
+/* 標識を関連付けられる道路面。 */
+const ROAD_SURFACE_TYPES = new Set([
+  "road",
+  "nationalRoad",
+  "prefecturalRoad",
+  "publicRoad",
+]);
+
 /*
  * 外周道路・敷地・建物などは、実際の配置に合わせてキャンバス端をまたげる。
  * 完全に見失わないよう、最低20pxだけはキャンバス内へ残す。
@@ -306,6 +314,7 @@ const elements = {
   roadSignPrefecture: document.querySelector("#road-sign-prefecture"),
   routeNumberField: document.querySelector("#route-number-field"),
   routePrefectureField: document.querySelector("#route-prefecture-field"),
+  roadSignHelp: document.querySelector("#road-sign-help"),
   themeButton: document.querySelector("#theme-button"),
 };
 
@@ -671,6 +680,10 @@ function addObject(type, options = {}) {
     if (destination?.name) {
       item.name = destination.name;
     }
+  }
+  if (["nationalRoad", "prefecturalRoad"].includes(type)) {
+    item.routeNumber = "";
+    item.prefectureName = getCurrentFacilityRecord()?.prefecture ?? "";
   }
   if (type === "roadSign") {
     const signType = options.signType ?? "nationalRoute";
@@ -1845,6 +1858,184 @@ function scaleEntireLayout() {
   render();
 }
 
+/** キャンバス座標を回転済みオブジェクトのローカル座標へ変換する。 */
+function globalPointToObjectLocal(item, globalX, globalY) {
+  const width = Math.max(1, Number(item.width) || 1);
+  const height = Math.max(1, Number(item.height) || 1);
+  const centerX = (Number(item.x) || 0) + width / 2;
+  const centerY = (Number(item.y) || 0) + height / 2;
+  const dx = globalX - centerX;
+  const dy = globalY - centerY;
+  const radians = -(Number(item.rotation) || 0) * Math.PI / 180;
+  return {
+    x: dx * Math.cos(radians) - dy * Math.sin(radians) + width / 2,
+    y: dx * Math.sin(radians) + dy * Math.cos(radians) + height / 2,
+  };
+}
+
+/** オブジェクトのローカル座標をキャンバス座標へ戻す。 */
+function objectLocalPointToGlobal(item, localX, localY) {
+  const width = Math.max(1, Number(item.width) || 1);
+  const height = Math.max(1, Number(item.height) || 1);
+  const centerX = (Number(item.x) || 0) + width / 2;
+  const centerY = (Number(item.y) || 0) + height / 2;
+  const dx = localX - width / 2;
+  const dy = localY - height / 2;
+  const radians = (Number(item.rotation) || 0) * Math.PI / 180;
+  return {
+    x: centerX + dx * Math.cos(radians) - dy * Math.sin(radians),
+    y: centerY + dx * Math.sin(radians) + dy * Math.cos(radians),
+  };
+}
+
+/** 点が多角形内に含まれるかを奇偶則で判定する。 */
+function isPointInsidePolygon(points, x, y) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const xi = Number(points[i].x);
+    const yi = Number(points[i].y);
+    const xj = Number(points[j].x);
+    const yj = Number(points[j].y);
+    const intersects =
+      ((yi > y) !== (yj > y))
+      && (x < (xj - xi) * (y - yi) / ((yj - yi) || Number.EPSILON) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+/** 指定キャンバス座標を含む道路面を取得する。重なった場合は面積が小さい道路を優先する。 */
+function findRoadSurfaceAtPoint(layout, x, y) {
+  const candidates = (layout?.objects ?? [])
+    .filter((item) => ROAD_SURFACE_TYPES.has(item.objectType))
+    .filter((item) => {
+      const local = globalPointToObjectLocal(item, x, y);
+      return isPointInsidePolygon(getPolygonPoints(item), local.x, local.y);
+    })
+    .sort((a, b) => (Number(a.width) || 0) * (Number(a.height) || 0)
+      - (Number(b.width) || 0) * (Number(b.height) || 0));
+  return candidates[0] ?? null;
+}
+
+/**
+ * 一時停止・進入禁止などを道路上に置いたとき、その道路へ相対位置で関連付ける。
+ * 道路を後から移動・変形しても標識が追従できる。
+ */
+function attachRoadSignToSurface(sign, layout) {
+  if (sign?.objectType !== "roadSign" || !layout) return false;
+
+  const centerX = (Number(sign.x) || 0) + (Number(sign.width) || 48) / 2;
+  const centerY = (Number(sign.y) || 0) + (Number(sign.height) || 58) / 2;
+  const road = findRoadSurfaceAtPoint(layout, centerX, centerY);
+
+  if (!road) {
+    delete sign.linkedRoadUid;
+    delete sign.roadAnchorX;
+    delete sign.roadAnchorY;
+    return false;
+  }
+
+  const local = globalPointToObjectLocal(road, centerX, centerY);
+  sign.linkedRoadUid = road.uid;
+  sign.roadAnchorX = Math.max(0, Math.min(1, local.x / Math.max(1, Number(road.width) || 1)));
+  sign.roadAnchorY = Math.max(0, Math.min(1, local.y / Math.max(1, Number(road.height) || 1)));
+
+  /* 旧式の国道・県道標識を道路上へ置いた場合も道路側へ情報を引き継ぐ。 */
+  if (sign.signType === "nationalRoute" && road.objectType === "nationalRoad") {
+    road.routeNumber = sign.routeNumber ?? road.routeNumber ?? "";
+  }
+  if (sign.signType === "prefecturalRoute" && road.objectType === "prefecturalRoad") {
+    road.routeNumber = sign.routeNumber ?? road.routeNumber ?? "";
+    road.prefectureName = sign.prefectureName ?? road.prefectureName ?? "";
+  }
+  return true;
+}
+
+/** 道路へ関連付け済みの標識位置を道路の現在形状へ追従させる。 */
+function syncLinkedRoadSigns(layout) {
+  const roads = new Map(
+    (layout?.objects ?? [])
+      .filter((item) => ROAD_SURFACE_TYPES.has(item.objectType))
+      .map((item) => [item.uid, item]),
+  );
+
+  (layout?.objects ?? []).forEach((sign) => {
+    if (sign.objectType !== "roadSign" || !sign.linkedRoadUid) return;
+    const road = roads.get(sign.linkedRoadUid);
+    if (!road) {
+      delete sign.linkedRoadUid;
+      delete sign.roadAnchorX;
+      delete sign.roadAnchorY;
+      return;
+    }
+
+    const localX = (Number(sign.roadAnchorX) || 0) * Math.max(1, Number(road.width) || 1);
+    const localY = (Number(sign.roadAnchorY) || 0) * Math.max(1, Number(road.height) || 1);
+    const global = objectLocalPointToGlobal(road, localX, localY);
+    sign.x = Math.round(global.x - (Number(sign.width) || 48) / 2);
+    sign.y = Math.round(global.y - (Number(sign.height) || 58) / 2);
+  });
+}
+
+/** 道路データへ、道路上に置かれた規制標識の情報を自動反映する。 */
+function syncRoadTrafficControls(layout) {
+  const roads = new Map();
+  (layout?.objects ?? []).forEach((item) => {
+    if (!ROAD_SURFACE_TYPES.has(item.objectType)) return;
+    delete item.trafficControls;
+    roads.set(item.uid, item);
+  });
+
+  (layout?.objects ?? []).forEach((sign) => {
+    if (sign.objectType !== "roadSign" || !sign.linkedRoadUid) return;
+    const road = roads.get(sign.linkedRoadUid);
+    if (!road) return;
+
+    road.trafficControls ??= {
+      stopSignUids: [],
+      noEntrySignUids: [],
+    };
+
+    if (sign.signType === "stop") {
+      road.trafficControls.hasStop = true;
+      road.trafficControls.stopSignUids.push(sign.uid);
+    }
+    if (sign.signType === "noEntry") {
+      road.trafficControls.noEntry = true;
+      road.trafficControls.noEntrySignUids.push(sign.uid);
+    }
+  });
+}
+
+/** 国道・県道オブジェクト内へ路線標識を自動表示する。 */
+function appendEmbeddedRouteShield(node, item) {
+  if (!["nationalRoad", "prefecturalRoad"].includes(item.objectType)) return;
+  const routeNumber = String(item.routeNumber ?? "").trim();
+  if (!routeNumber) return;
+
+  const signType = item.objectType === "nationalRoad" ? "nationalRoute" : "prefecturalRoute";
+  const shield = document.createElement("div");
+  shield.className = "embedded-route-shield";
+  shield.dataset.signType = signType;
+  shield.style.transform =
+    `translate(-50%, -50%) rotate(${-(Number(item.rotation) || 0)}deg)`;
+
+  const inner = document.createElement("div");
+  inner.className = "embedded-route-shield__inner";
+  const heading = document.createElement("div");
+  heading.className = "embedded-route-shield__heading";
+  heading.textContent = signType === "nationalRoute"
+    ? "国道"
+    : (item.prefectureName || getCurrentFacilityRecord()?.prefecture || "県道");
+  const number = document.createElement("div");
+  number.className = "embedded-route-shield__number";
+  number.textContent = routeNumber;
+
+  inner.append(heading, number);
+  shield.append(inner);
+  node.append(shield);
+}
+
 /** 道路標識の保存属性から、国道・県道・規制標識の図形を生成する。 */
 function appendRoadSignFace(node, item) {
   const signType = item.signType ?? "nationalRoute";
@@ -1891,6 +2082,8 @@ function render() {
   elements.canvasHeight.value = layout.canvas.height;
   elements.canvasScale.value = layout.canvas.scaleMetersPerPixel ?? SCHEMATIC_METERS_PER_PIXEL;
   updateBackgroundControls(layout);
+  syncLinkedRoadSigns(layout);
+  syncRoadTrafficControls(layout);
   elements.canvas.replaceChildren();
   updateEditModeUi();
   elements.canvas.classList.toggle("base-layers-locked", elements.baseLayerLock?.checked === true);
@@ -1928,6 +2121,9 @@ function render() {
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "roadSign") appendRoadSignFace(node, item);
+    if (["nationalRoad", "prefecturalRoad"].includes(item.objectType)) {
+      appendEmbeddedRouteShield(node, item);
+    }
     if (item.objectType === "building") {
       node.style.setProperty("--building-label-font-size", `${getBuildingLabelFontSize(item)}px`);
     }
@@ -2065,9 +2261,18 @@ function endDrag(event) {
   if (!state.drag || event.pointerId !== state.drag.pointerId) {
     return;
   }
+  const item = getSelectedObject();
+  const layout = getCurrentLayout();
   state.drag = null;
   elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
+
+  if (item?.objectType === "roadSign") {
+    attachRoadSignToSurface(item, layout);
+  }
+  syncLinkedRoadSigns(layout);
+  syncRoadTrafficControls(layout);
   saveLocal();
+  render();
 }
 
 /* =========================================================
@@ -2148,13 +2353,35 @@ function updateSettings() {
     elements.buildingLabelFontSizeOutput.textContent = `${labelFontSize}px`;
   }
 
-  elements.roadSignSettings.hidden = item.objectType !== "roadSign";
-  if (item.objectType === "roadSign") {
+  const isRouteRoad = ["nationalRoad", "prefecturalRoad"].includes(item.objectType);
+  elements.roadSignSettings.hidden = item.objectType !== "roadSign" && !isRouteRoad;
+  elements.roadSignType.disabled = isRouteRoad;
+
+  if (isRouteRoad) {
+    elements.roadSignType.value = item.objectType === "nationalRoad" ? "nationalRoute" : "prefecturalRoute";
+    elements.roadSignRouteNumber.value = item.routeNumber ?? "";
+    elements.roadSignPrefecture.value = item.prefectureName ?? getCurrentFacilityRecord()?.prefecture ?? "";
+    elements.routeNumberField.hidden = false;
+    elements.routePrefectureField.hidden = item.objectType !== "prefecturalRoad";
+    if (elements.roadSignHelp) {
+      elements.roadSignHelp.textContent =
+        "路線番号を入力すると、この道路の中央へ国道・県道標識を自動表示します。別の標識オブジェクトを置く必要はありません。";
+    }
+  } else if (item.objectType === "roadSign") {
     elements.roadSignType.value = item.signType ?? "nationalRoute";
     elements.roadSignRouteNumber.value = item.routeNumber ?? "";
     elements.roadSignPrefecture.value = item.prefectureName ?? getCurrentFacilityRecord()?.prefecture ?? "";
     elements.routeNumberField.hidden = !["nationalRoute", "prefecturalRoute"].includes(elements.roadSignType.value);
     elements.routePrefectureField.hidden = elements.roadSignType.value !== "prefecturalRoute";
+    if (elements.roadSignHelp) {
+      elements.roadSignHelp.textContent =
+        item.linkedRoadUid
+          ? `この標識は道路 ${item.linkedRoadUid} に関連付け済みです。道路を動かしても追従します。`
+          : "一時停止・進入禁止は道路面の上へ移動すると、その道路に自動で関連付けます。";
+    }
+  } else if (elements.roadSignHelp) {
+    elements.roadSignHelp.textContent =
+      "一時停止・進入禁止は道路上へ置くと自動で関連付けます。国道・県道を選択した場合は路線番号を道路内へ自動表示します。";
   }
 
   elements.parkingEntranceSettings.hidden = item.objectType !== "parkingEntrance";
@@ -2246,6 +2473,12 @@ function updateSelectedFromForm() {
       item.labelFontSize = Math.max(5, Math.min(40, Number(elements.buildingLabelFontSize.value) || 12));
     }
   }
+  if (["nationalRoad", "prefecturalRoad"].includes(item.objectType)) {
+    item.routeNumber = elements.roadSignRouteNumber.value.trim();
+    item.prefectureName = elements.roadSignPrefecture.value.trim()
+      || getCurrentFacilityRecord()?.prefecture
+      || "";
+  }
   if (item.objectType === "roadSign") {
     const previousType = item.signType ?? "nationalRoute";
     const signNames = {
@@ -2299,6 +2532,11 @@ function updateSelectedFromForm() {
   }
   item.x = Math.min(item.x, layout.canvas.width - (item.width ?? 34));
   item.y = Math.min(item.y, layout.canvas.height - (item.height ?? 34));
+  if (item.objectType === "roadSign") {
+    attachRoadSignToSurface(item, layout);
+  }
+  syncLinkedRoadSigns(layout);
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 }
@@ -2333,6 +2571,8 @@ function deleteSelected() {
   }
   layout.objects = layout.objects.filter((item) => item.uid !== state.selectedUid);
   state.selectedUid = null;
+  syncLinkedRoadSigns(layout);
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 }
