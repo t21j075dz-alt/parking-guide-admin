@@ -1146,12 +1146,14 @@ function applyViewScale(scale, preserveCenter = false) {
   elements.canvas.style.setProperty("--ui-selection-stroke", `${1 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-size", `${5 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-border", `${1 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-handle-size", `${7 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-add-handle-size", `${10 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-handle-border", `${1 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-shadow-y", `${1 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-shadow-blur", `${2 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-handle-font-size", `${6 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-handle-size", `${6 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-hit-size", `${10 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-visual-size", `${5 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-font-size", `${4 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-handle-border", `${0.8 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-shadow-y", `${0.8 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-shadow-blur", `${1.5 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-handle-font-size", `${5 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-fine-line", `${0.45 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-meter-line", `${0.65 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-major-line", `${0.9 / nextScale}px`);
@@ -1864,7 +1866,7 @@ function moveVertexDrag(event) {
 
   if (elements.snapEnabled?.checked && !event.altKey) {
     /* 頂点は通常オブジェクトより細かい、グリッド間隔の1/2刻みで動かす。 */
-    const vertexStep = Math.max(0.1, getGridSize() / 2);
+    const vertexStep = Math.max(0.05, getGridSize() / 2);
     x = Math.round(x / vertexStep) * vertexStep;
     y = Math.round(y / vertexStep) * vertexStep;
   }
@@ -3696,7 +3698,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   event.preventDefault();
-  const step = event.shiftKey ? 5 : 0.5;
+  const step = event.shiftKey ? 1 : 0.1;
   if (event.key === "ArrowLeft") item.x -= step;
   if (event.key === "ArrowRight") item.x += step;
   if (event.key === "ArrowUp") item.y -= step;
