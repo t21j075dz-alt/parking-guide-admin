@@ -280,7 +280,7 @@ const state = {
    */
   viewScale: 1,
   remoteAccessToken: null,
-  remoteSyncTimer: null,
+  remoteSyncTimers: new Map(),
 };
 
 /* 頻繁に参照するDOM要素を初期化時にまとめて保持する。 */
@@ -3146,56 +3146,70 @@ async function remoteLogin() {
   updateCloudStatus("ログインしました。以後の編集は自動反映されます。");
 }
 
-/** 現在施設のレイアウトをクラウドへ保存する。 */
-async function syncCurrentLayout() {
+/** 指定施設のレイアウトをクラウドへ保存する。 */
+async function syncLayoutByFacilityId(facilityId) {
   const config = getRemoteConfig();
-  const layout = getCurrentLayout();
+  const layout = state.layouts[facilityId] ?? null;
   if (!config.enabled || !state.remoteAccessToken || !layout) {
     return false;
   }
 
-  const response = await fetch(`${config.url}/rest/v1/parking_layouts?on_conflict=facility_id`, {
-    method: "POST",
-    headers: {
-      apikey: config.publishableKey,
-      Authorization: `Bearer ${state.remoteAccessToken}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-    },
-    body: JSON.stringify({
-      facility_id: layout.facilityId,
-      layout_data: layout,
-      updated_at: new Date().toISOString(),
-    }),
-  });
+  try {
+    const response = await fetch(`${config.url}/rest/v1/parking_layouts?on_conflict=facility_id`, {
+      method: "POST",
+      headers: {
+        apikey: config.publishableKey,
+        Authorization: `Bearer ${state.remoteAccessToken}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        facility_id: layout.facilityId,
+        layout_data: layout,
+        updated_at: new Date().toISOString(),
+      }),
+    });
 
-  if (response.ok) {
-    updateCloudStatus(`自動反映済み：${new Date().toLocaleTimeString("ja-JP")}`);
-    return true;
-  }
+    if (response.ok) {
+      updateCloudStatus(`自動反映済み：${new Date().toLocaleTimeString("ja-JP")}`);
+      return true;
+    }
 
-  if (response.status === 401) {
-    state.remoteAccessToken = null;
-    sessionStorage.removeItem("parkingAdminRemoteToken");
-    updateCloudStatus("ログインの有効期限が切れました。もう一度ログインしてください。");
-  } else {
-    updateCloudStatus("クラウド保存に失敗しました。SupabaseのRLS設定を確認してください。");
+    if (response.status === 401) {
+      state.remoteAccessToken = null;
+      sessionStorage.removeItem("parkingAdminRemoteToken");
+      updateCloudStatus("ログインの有効期限が切れました。もう一度ログインしてください。");
+    } else {
+      updateCloudStatus("クラウド保存に失敗しました。SupabaseのRLS設定を確認してください。");
+    }
+  } catch {
+    updateCloudStatus("クラウド保存に失敗しました。ネットワーク接続を確認してください。");
   }
   return false;
 }
 
+/** 現在施設のレイアウトをクラウドへ保存する。 */
+async function syncCurrentLayout() {
+  return syncLayoutByFacilityId(state.facilityId);
+}
+
 /** 連続編集時の通信をまとめ、約1秒後に現在施設を保存する。 */
 function scheduleRemoteSync() {
-  if (!getRemoteConfig().enabled || !state.remoteAccessToken) {
+  if (!getRemoteConfig().enabled || !state.remoteAccessToken || !state.facilityId) {
     return;
   }
-  if (state.remoteSyncTimer !== null) {
-    clearTimeout(state.remoteSyncTimer);
+
+  const facilityId = state.facilityId;
+  const previousTimer = state.remoteSyncTimers.get(facilityId);
+  if (previousTimer !== undefined) {
+    clearTimeout(previousTimer);
   }
-  state.remoteSyncTimer = setTimeout(() => {
-    state.remoteSyncTimer = null;
-    void syncCurrentLayout();
+
+  const timer = setTimeout(() => {
+    state.remoteSyncTimers.delete(facilityId);
+    void syncLayoutByFacilityId(facilityId);
   }, 1000);
+  state.remoteSyncTimers.set(facilityId, timer);
 }
 
 /** クラウド上の全レイアウトを取得して端末内データへ反映する。 */
@@ -3222,8 +3236,11 @@ async function loadRemoteLayouts() {
       state.layouts[row.facility_id] = row.layout_data;
     }
   });
-  localStorage.setItem("parkingAdminLayoutsV1", JSON.stringify(state.layouts));
+  try {
+    localStorage.setItem("parkingAdminLayoutsV1", JSON.stringify(state.layouts));
+  } catch {}
   ensureLayout(state.facilityId);
+  state.selectedUid = null;
   render();
   updateCloudStatus(`クラウドから${rows.length}件読み込みました。`);
 }
@@ -3263,7 +3280,7 @@ function saveLocal() {
 function restoreLocal() {
   try {
     const saved = JSON.parse(localStorage.getItem("parkingAdminLayoutsV1") ?? "null");
-    if (saved && typeof saved === "object") {
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
       state.layouts = saved;
     }
   } catch {
