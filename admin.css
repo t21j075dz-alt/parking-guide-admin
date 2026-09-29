@@ -994,3 +994,210 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 #new-parking-space-type {
   width: 100%;
 }
+
+/* 航空写真の上にも方眼を重ね、広いキャンバスで位置関係を追いやすくする。 */
+.map-canvas {
+  background-color: #f8fafc;
+  background-image: none !important;
+  isolation: isolate;
+}
+.map-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(148 163 184 / 20%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 20%) 1px, transparent 1px),
+    linear-gradient(rgb(71 85 105 / 30%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(71 85 105 / 30%) 1px, transparent 1px),
+    linear-gradient(rgb(30 41 59 / 42%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(30 41 59 / 42%) 1px, transparent 1px);
+  background-position:
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y),
+    var(--grid-origin-x) var(--grid-origin-y);
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    var(--meter-grid-size) var(--meter-grid-size),
+    var(--meter-grid-size) var(--meter-grid-size),
+    var(--major-grid-size) var(--major-grid-size),
+    var(--major-grid-size) var(--major-grid-size);
+}
+.map-canvas.grid-hidden::before { display: none; }
+html[data-theme="dark"] .map-canvas::before {
+  opacity: 0.78;
+  filter: brightness(1.35);
+}
+
+/* 写真が見えるよう、敷地・道路・建物は輪郭を保ちながら半透明にする。 */
+.polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: rgb(75 80 85 / 38%);
+  stroke: #2563eb;
+}
+.polygon-object[data-object-type="excludedParkingLot"] .polygon-fill {
+  fill: rgb(114 119 125 / 32%);
+}
+.polygon-object[data-object-type="building"] .polygon-fill {
+  fill: rgb(219 228 234 / 52%);
+  stroke: #334155;
+}
+.polygon-object[data-object-type="road"] .polygon-fill {
+  fill: rgb(100 116 139 / 42%);
+  stroke: #334155;
+}
+.polygon-object[data-object-type="nationalRoad"] .polygon-fill {
+  fill: rgb(219 234 254 / 40%);
+}
+.polygon-object[data-object-type="prefecturalRoad"] .polygon-fill {
+  fill: rgb(254 243 199 / 40%);
+}
+.polygon-object[data-object-type="publicRoad"] .polygon-fill {
+  fill: rgb(229 231 235 / 40%);
+}
+
+/* 写真→グリッド→基盤図形→設備・標識の順で積み重ねる。 */
+.satellite-layer { z-index: 0; }
+.map-object[data-object-type="parkingLot"],
+.map-object[data-object-type="excludedParkingLot"] { z-index: 2 !important; }
+.map-object[data-object-type="nationalRoad"],
+.map-object[data-object-type="prefecturalRoad"],
+.map-object[data-object-type="publicRoad"] { z-index: 3 !important; }
+.map-object[data-object-type="road"],
+.map-object[data-object-type="sidewalk"],
+.map-object[data-object-type="crosswalk"] { z-index: 4 !important; }
+.map-object[data-object-type="building"] { z-index: 6; }
+.base-layer-object.selected { z-index: 4 !important; }
+.map-object[data-object-type="parkingLot"].selected,
+.map-object[data-object-type="excludedParkingLot"].selected { z-index: 2 !important; }
+.map-object[data-object-type="nationalRoad"].selected,
+.map-object[data-object-type="prefecturalRoad"].selected,
+.map-object[data-object-type="publicRoad"].selected { z-index: 3 !important; }
+
+.layout-scale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.layout-scale label { font-size: 12px; font-weight: 600; }
+.layout-scale input { width: 58px; min-height: 30px; padding: 3px 5px; }
+.layout-scale button { min-height: 30px; padding: 3px 8px; }
+
+/* 編集可能な国道・都道府県道・規制標識。 */
+.map-object[data-object-type="roadSign"] {
+  z-index: 32;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+}
+.map-object[data-object-type="roadSign"]::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 62%;
+  z-index: -1;
+  width: 4px;
+  height: 46%;
+  border: 1px solid #64748b;
+  border-radius: 2px;
+  background: #cbd5e1;
+}
+.road-sign-face {
+  position: absolute;
+  left: 4%;
+  top: 0;
+  width: 92%;
+  height: 78%;
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 45%));
+}
+.map-object[data-sign-type="nationalRoute"] .road-sign-face {
+  background: #1769aa;
+  clip-path: polygon(50% 0, 86% 10%, 100% 38%, 88% 78%, 50% 100%, 12% 78%, 0 38%, 14% 10%);
+}
+.map-object[data-sign-type="nationalRoute"] .road-sign-inner {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  background: #fff;
+  clip-path: inherit;
+}
+.map-object[data-sign-type="prefecturalRoute"] .road-sign-face {
+  background: #1769aa;
+  clip-path: polygon(50% 0, 96% 24%, 96% 76%, 50% 100%, 4% 76%, 4% 24%);
+}
+.map-object[data-sign-type="prefecturalRoute"] .road-sign-inner {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  background: #fff;
+  clip-path: inherit;
+}
+.road-sign-heading {
+  max-width: 36px;
+  overflow: hidden;
+  color: #1769aa;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.road-sign-number {
+  color: #1769aa;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -1px;
+}
+.map-object[data-sign-type="noEntry"] .road-sign-face {
+  top: 3px;
+  height: 72%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 0 0 2px #dc2626;
+}
+.road-sign-no-entry-bar {
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  top: calc(50% - 4px);
+  height: 8px;
+  border-radius: 2px;
+  background: #fff;
+}
+.map-object[data-sign-type="stop"] .road-sign-face {
+  background: #fff;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+.road-sign-stop-inner {
+  position: absolute;
+  inset: 3px 4px 5px;
+  display: grid;
+  place-items: center;
+  padding-bottom: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  clip-path: inherit;
+}
+.map-object[data-object-type="roadSign"].selected { z-index: 50 !important; }
+
+@media (max-width: 1200px) {
+  .layout-scale { order: 4; }
+}

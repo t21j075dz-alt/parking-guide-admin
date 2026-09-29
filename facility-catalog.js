@@ -474,6 +474,15 @@ window.ADMIN_FACILITY_CATALOG = {
     "replacementReason": "研究対象見直し後も比較対象として残すため再登録",
     "layoutId": "target_022",
     "targetBuildingId": null,
+    "destinations": [
+      { "buildingId": "lamu_okayama_chuo", "name": "ラ・ムー 岡山中央店", "sourceUrl": "https://www.dkt-s.com/map.html?id=371" },
+      { "buildingId": "uniqlo_okayama_okakita", "name": "ユニクロ 岡山岡北店", "sourceUrl": "https://map.uniqlo.com/jp/ja/detail/10101688" },
+      { "buildingId": "gu_okayama_okakita", "name": "ジーユー 岡山岡北店", "sourceUrl": "https://map.gu-global.com/jp/ja/detail/10100988" },
+      { "buildingId": "jins_okayama_okakita", "name": "JINS 岡山岡北店", "sourceUrl": "https://store-jp.jins.com/b/jins/info/20471/" },
+      { "buildingId": "zagzag_kohoku", "name": "ザグザグ岡北店", "sourceUrl": "https://www.zagzag.co.jp/shops/kouhoku/" },
+      { "buildingId": "daiso_okayama_okakita", "name": "ダイソー 岡山岡北店" },
+      { "buildingId": "nishimatsuya_okayama_okakita", "name": "西松屋 岡山岡北店", "sourceUrl": "https://www.24028.jp/tenpo/detail.php?cid=33&doc=1035" }
+    ],
     "isDemo": false,
     "sampleRole": "large-comparison"
   },

@@ -61,10 +61,14 @@
         <!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
         <section>
           <h2>敷地・建物・外周道路</h2>
+          <label class="field-label" for="destination-building-select">店舗建物</label>
+          <select id="destination-building-select">
+            <option value="">汎用建物</option>
+          </select>
           <div class="tool-list">
             <button type="button" data-add-object="parkingLot">駐車場敷地</button>
             <button type="button" data-add-object="excludedParkingLot">対象外駐車場敷地</button>
-            <button type="button" data-add-object="building">建物</button>
+            <button id="add-destination-building-button" type="button">選択した店舗建物を追加</button>
             <button type="button" data-add-object="nationalRoad">国道</button>
             <button type="button" data-add-object="prefecturalRoad">県道</button>
             <button type="button" data-add-object="publicRoad">公道</button>
@@ -98,8 +102,18 @@
             <button type="button" data-add-object="crosswalk">横断歩道</button>
             <button type="button" data-add-object="stopLine">停止線</button>
             <button type="button" data-add-object="speedBump">速度抑制ハンプ</button>
-            <button type="button" data-add-object="noEntry">進入禁止</button>
           </div>
+        </section>
+
+        <section>
+          <h2>道路標識</h2>
+          <div class="tool-list">
+            <button type="button" data-add-object="roadSign" data-sign-type="nationalRoute">国道（おにぎり）</button>
+            <button type="button" data-add-object="roadSign" data-sign-type="prefecturalRoute">都道府県道（ヘキサ）</button>
+            <button type="button" data-add-object="roadSign" data-sign-type="noEntry">車両進入禁止</button>
+            <button type="button" data-add-object="roadSign" data-sign-type="stop">一時停止</button>
+          </div>
+          <p class="tool-help">国道・都道府県道は、追加後に右側の設定で路線番号と都道府県名を編集できます。</p>
         </section>
 
         <!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
@@ -124,16 +138,16 @@
         <div class="workspace-head">
           <div>
             <h2 id="canvas-title">配置図</h2>
-            <p>航空写真を使わない白紙の模式図です。敷地・建物・道路は頂点を動かして自由な多角形にできます。</p>
+            <p>航空写真と拡張グリッドを下敷きに、敷地・建物・道路を自由な多角形で編集できます。</p>
           </div>
           <div class="canvas-settings">
-            <label>幅 <input id="canvas-width" type="number" min="400" max="4000" step="10"></label>
-            <label>高さ <input id="canvas-height" type="number" min="300" max="4000" step="10"></label>
+            <label>幅 <input id="canvas-width" type="number" min="400" max="6000" step="10"></label>
+            <label>高さ <input id="canvas-height" type="number" min="300" max="6000" step="10"></label>
             <label>m/px <input id="canvas-scale" type="number" min="0" step="0.001" placeholder="未設定"></label>
           </div>
         </div>
         <!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
-        <details class="background-panel" hidden>
+        <details class="background-panel" open>
           <summary>航空写真を下敷きにする</summary>
           <div class="background-main-actions">
             <button id="background-enable-button" type="button">航空写真を表示</button>
@@ -184,6 +198,10 @@
           </div>
           <span class="muted grid-help">薄線＝設定間隔、太線＝1m、最太線＝5m。駐車枠は近い枠の端・中心・隙間なし位置へ吸着します。敷地・道路は通常編集できます。誤操作を防ぎたいときだけ「敷地・道路をロック」をONにします。</span>
           <span class="toolbar-spacer"></span>
+          <div class="layout-scale" aria-label="配置全体のサイズ変更">
+            <label>配置全体 <input id="layout-scale-percent" type="number" min="25" max="400" step="5" value="100">%</label>
+            <button id="apply-layout-scale-button" type="button">一括サイズ変更</button>
+          </div>
           <div class="editor-zoom" aria-label="編集倍率">
             <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
             <input id="editor-zoom-range" type="range" min="25" max="12800" step="25" value="100" aria-label="編集倍率">
@@ -271,6 +289,28 @@
             <legend>車道</legend>
             <label>通行方向<select id="road-direction"><option value="twoWay">双方向</option><option value="oneWay">一方通行（矢印方向）</option></select></label>
             <p class="muted">一方通行の向きは「回転」で調整します。0°では右向きです。</p>
+          </fieldset>
+
+          <fieldset id="building-settings" hidden>
+            <legend>建物</legend>
+            <label>店舗・建物<select id="building-destination"></select></label>
+            <label>建物ID<input id="building-object-id" type="text" list="building-id-options" placeholder="building_001"></label>
+            <p class="muted">複合施設の店舗を選ぶと、名称と建物IDをまとめて反映します。</p>
+          </fieldset>
+
+          <fieldset id="road-sign-settings" hidden>
+            <legend>道路標識</legend>
+            <label>標識種類
+              <select id="road-sign-type">
+                <option value="nationalRoute">国道（おにぎり）</option>
+                <option value="prefecturalRoute">都道府県道（ヘキサ）</option>
+                <option value="noEntry">車両進入禁止</option>
+                <option value="stop">一時停止</option>
+              </select>
+            </label>
+            <label id="route-number-field">路線番号<input id="road-sign-route-number" type="text" inputmode="numeric" maxlength="4" placeholder="53"></label>
+            <label id="route-prefecture-field">都道府県名<input id="road-sign-prefecture" type="text" maxlength="8" placeholder="岡山県"></label>
+            <p class="muted">0°では標識の正面が上向きです。国道は番号、都道府県道は番号と都道府県名を表示します。</p>
           </fieldset>
 
           <fieldset id="parking-entrance-settings" hidden>

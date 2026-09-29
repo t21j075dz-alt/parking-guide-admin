@@ -49,6 +49,9 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
 });
 
 const OBJECT_DEFAULTS_VERSION = 5;
+const CANVAS_SIZE_VERSION = 2;
+const DEFAULT_CANVAS_WIDTH = 1800;
+const DEFAULT_CANVAS_HEIGHT = 1200;
 
 /* 航空写真上で白線へ合わせやすいよう、従来の約1/2を初期寸法にする。 */
 const V2_OBJECT_DEFAULTS = Object.freeze({
@@ -145,6 +148,7 @@ const OBJECT_DEFAULTS = {
   motorcycleParking: { width: 84, height: 48, name: "二輪車置場" },
   loadingZone: { width: 150, height: 78, name: "荷捌きスペース" },
   evCharger: { width: 22, height: 22, name: "EV充電器" },
+  roadSign: { width: 48, height: 58, name: "道路標識" },
 };
 
 const POLYGON_OBJECT_TYPES = new Set([
@@ -182,8 +186,8 @@ const EDGE_OVERFLOW_VISIBLE_MARGIN = 20;
 function clampObjectPosition(item, x, y, layout) {
   const width = Math.max(3, Number(item.width) || 34);
   const height = Math.max(3, Number(item.height) || 34);
-  const canvasWidth = Math.max(1, Number(layout?.canvas?.width) || 1000);
-  const canvasHeight = Math.max(1, Number(layout?.canvas?.height) || 700);
+  const canvasWidth = Math.max(1, Number(layout?.canvas?.width) || DEFAULT_CANVAS_WIDTH);
+  const canvasHeight = Math.max(1, Number(layout?.canvas?.height) || DEFAULT_CANVAS_HEIGHT);
 
   if (EDGE_OVERFLOW_OBJECT_TYPES.has(item.objectType)) {
     const visibleX = Math.min(EDGE_OVERFLOW_VISIBLE_MARGIN, width);
@@ -286,6 +290,16 @@ const elements = {
   buildingId: document.querySelector("#building-id"),
   buildingIdOptions: document.querySelector("#building-id-options"),
   buildingIdHelp: document.querySelector("#building-id-help"),
+  destinationBuildingSelect: document.querySelector("#destination-building-select"),
+  buildingSettings: document.querySelector("#building-settings"),
+  buildingDestination: document.querySelector("#building-destination"),
+  buildingObjectId: document.querySelector("#building-object-id"),
+  roadSignSettings: document.querySelector("#road-sign-settings"),
+  roadSignType: document.querySelector("#road-sign-type"),
+  roadSignRouteNumber: document.querySelector("#road-sign-route-number"),
+  roadSignPrefecture: document.querySelector("#road-sign-prefecture"),
+  routeNumberField: document.querySelector("#route-number-field"),
+  routePrefectureField: document.querySelector("#route-prefecture-field"),
   themeButton: document.querySelector("#theme-button"),
 };
 
@@ -336,7 +350,8 @@ function ensureLayoutMatchesFacility(facility) {
       schemaVersion: 1,
       facilityId: facility.id,
       facilityIdentityKey: identityKey,
-      canvas: { width: 1000, height: 700, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      canvas: { width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      canvasSizeVersion: CANVAS_SIZE_VERSION,
       mapMode: "schematic",
       background: null,
       objects: [],
@@ -437,7 +452,8 @@ function ensureLayout(facilityId) {
     state.layouts[facilityId] = {
       schemaVersion: 1,
       facilityId,
-      canvas: { width: 1000, height: 700, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      canvas: { width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT, scaleMetersPerPixel: SCHEMATIC_METERS_PER_PIXEL },
+      canvasSizeVersion: CANVAS_SIZE_VERSION,
       mapMode: "schematic",
       background: null,
       objects: [],
@@ -445,8 +461,17 @@ function ensureLayout(facilityId) {
   }
   const layout = state.layouts[facilityId];
   migrateLegacyObjectDefaults(layout);
-  layout.mapMode = "schematic";
-  layout.background = null;
+  layout.canvas ??= {};
+  if (Number(layout.canvasSizeVersion) < CANVAS_SIZE_VERSION) {
+    if ((Number(layout.canvas.width) || 1000) <= 1000) {
+      layout.canvas.width = DEFAULT_CANVAS_WIDTH;
+    }
+    if ((Number(layout.canvas.height) || 700) <= 700) {
+      layout.canvas.height = DEFAULT_CANVAS_HEIGHT;
+    }
+    layout.canvasSizeVersion = CANVAS_SIZE_VERSION;
+  }
+  layout.mapMode = layout.background ? "hybrid" : (layout.mapMode ?? "schematic");
   if (!Number.isFinite(layout.canvas?.scaleMetersPerPixel) || layout.canvas.scaleMetersPerPixel <= 0) {
     layout.canvas.scaleMetersPerPixel = SCHEMATIC_METERS_PER_PIXEL;
   }
@@ -500,6 +525,7 @@ function createUid(type) {
     motorcycleParking: "motorcycle",
     loadingZone: "loading",
     evCharger: "ev_charger",
+    roadSign: "road_sign",
   }[type] ?? "object";
   const used = new Set(getCurrentLayout()?.objects.map((item) => item.uid) ?? []);
   let number = 1;
@@ -620,6 +646,26 @@ function addObject(type, options = {}) {
       guideTarget: true,
       buildingId: "",
     });
+  }
+  if (type === "building") {
+    const destination = options.destination;
+    item.buildingId = destination?.buildingId ?? "";
+    if (destination?.name) {
+      item.name = destination.name;
+    }
+  }
+  if (type === "roadSign") {
+    const signType = options.signType ?? "nationalRoute";
+    const signDefaults = {
+      nationalRoute: { name: "国道標識", routeNumber: "53" },
+      prefecturalRoute: { name: "岡山県道標識", routeNumber: "96" },
+      noEntry: { name: "車両進入禁止", routeNumber: "" },
+      stop: { name: "一時停止", routeNumber: "" },
+    }[signType] ?? { name: "道路標識", routeNumber: "" };
+    item.signType = signType;
+    item.routeNumber = signDefaults.routeNumber;
+    item.prefectureName = getCurrentFacilityRecord()?.prefecture ?? "岡山県";
+    item.name = signDefaults.name;
   }
   layout.objects.push(item);
   state.selectedUid = uid;
@@ -817,11 +863,12 @@ function enableBackground() {
    * 手入力欄の偶然残っていた値を自動採用しない。
    */
   if (!layout.background) {
-    if (layout) layout.background = null;
+    void locateFacilityForBackground(facility, layout);
     return;
   }
 
   layout.background.type = GSI_PHOTO_SOURCES[layout.background.type] ? layout.background.type : "gsi-seamlessphoto";
+  layout.mapMode = "hybrid";
   saveLocal();
   render();
   elements.backgroundStatus.textContent =
@@ -933,6 +980,7 @@ function applyBackgroundSettings() {
 
   if (elements.backgroundType.value === "none") {
     layout.background = null;
+    layout.mapMode = "schematic";
     saveLocal();
     render();
     return;
@@ -958,6 +1006,7 @@ function applyBackgroundSettings() {
     locatedBy: "manual-coordinate",
     manuallyAdjusted: true,
   };
+  layout.mapMode = "hybrid";
   elements.backgroundStatus.textContent = "航空写真を更新しました。背景を合わせてからオブジェクトを配置してください。";
   saveLocal();
   render();
@@ -1509,7 +1558,7 @@ function endVertexDrag(event) {
 
 /** 選択枠の周囲にPowerPoint風の8個のリサイズハンドルを付ける。 */
 function addResizeHandles(node, item) {
-  if (["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
+  if (["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
     return;
   }
   ["nw", "n", "ne", "e", "se", "s", "sw", "w"].forEach((direction) => {
@@ -1670,6 +1719,94 @@ function rotateSelected(delta) {
   render();
 }
 
+/** 全オブジェクトの相対配置を保ったまま、配置データ自体を一括拡大・縮小する。 */
+function scaleEntireLayout() {
+  const layout = getCurrentLayout();
+  const objects = layout?.objects ?? [];
+  const percentInput = document.querySelector("#layout-scale-percent");
+  const requestedFactor = Math.max(0.25, Math.min(4, (Number(percentInput?.value) || 100) / 100));
+  if (!layout || objects.length === 0 || Math.abs(requestedFactor - 1) < 0.0001) {
+    return;
+  }
+
+  const minX = Math.min(...objects.map((item) => Number(item.x) || 0));
+  const minY = Math.min(...objects.map((item) => Number(item.y) || 0));
+  const maxX = Math.max(...objects.map((item) => (Number(item.x) || 0) + (Number(item.width) || 0)));
+  const maxY = Math.max(...objects.map((item) => (Number(item.y) || 0) + (Number(item.height) || 0)));
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const factor = Math.max(0.25, Math.min(
+    requestedFactor,
+    5900 / Math.max(1, maxX - minX),
+    5900 / Math.max(1, maxY - minY),
+  ));
+
+  objects.forEach((item) => {
+    item.x = Math.round(centerX + ((Number(item.x) || 0) - centerX) * factor);
+    item.y = Math.round(centerY + ((Number(item.y) || 0) - centerY) * factor);
+    item.width = Math.max(3, Math.round((Number(item.width) || 3) * factor));
+    item.height = Math.max(3, Math.round((Number(item.height) || 3) * factor));
+    if (Array.isArray(item.polygonPoints)) {
+      item.polygonPoints = item.polygonPoints.map((point) => ({
+        x: Number((Number(point.x) * factor).toFixed(2)),
+        y: Number((Number(point.y) * factor).toFixed(2)),
+      }));
+    }
+  });
+
+  const nextMinX = Math.min(...objects.map((item) => item.x));
+  const nextMinY = Math.min(...objects.map((item) => item.y));
+  const shiftX = nextMinX < 0 ? -nextMinX : 0;
+  const shiftY = nextMinY < 0 ? -nextMinY : 0;
+  if (shiftX || shiftY) {
+    objects.forEach((item) => {
+      item.x += shiftX;
+      item.y += shiftY;
+    });
+  }
+
+  const contentMaxX = Math.max(...objects.map((item) => item.x + item.width));
+  const contentMaxY = Math.max(...objects.map((item) => item.y + item.height));
+  layout.canvas.width = Math.min(6000, Math.max(layout.canvas.width, Math.ceil(contentMaxX + 50)));
+  layout.canvas.height = Math.min(6000, Math.max(layout.canvas.height, Math.ceil(contentMaxY + 50)));
+  percentInput.value = "100";
+  saveLocal();
+  render();
+}
+
+/** 道路標識の保存属性から、国道・県道・規制標識の図形を生成する。 */
+function appendRoadSignFace(node, item) {
+  const signType = item.signType ?? "nationalRoute";
+  node.dataset.signType = signType;
+  const face = document.createElement("div");
+  face.className = "road-sign-face";
+
+  if (["nationalRoute", "prefecturalRoute"].includes(signType)) {
+    const inner = document.createElement("div");
+    inner.className = "road-sign-inner";
+    const heading = document.createElement("div");
+    heading.className = "road-sign-heading";
+    heading.textContent = signType === "nationalRoute"
+      ? "国道"
+      : (item.prefectureName || "都道府県");
+    const number = document.createElement("div");
+    number.className = "road-sign-number";
+    number.textContent = item.routeNumber || "?";
+    inner.append(heading, number);
+    face.append(inner);
+  } else if (signType === "noEntry") {
+    const bar = document.createElement("div");
+    bar.className = "road-sign-no-entry-bar";
+    face.append(bar);
+  } else {
+    const inner = document.createElement("div");
+    inner.className = "road-sign-stop-inner";
+    inner.textContent = "止まれ";
+    face.append(inner);
+  }
+  node.append(face);
+}
+
 /* =========================================================
    描画・選択・ドラッグ
    ========================================================= */
@@ -1685,8 +1822,7 @@ function render() {
   updateBackgroundControls(layout);
   elements.canvas.replaceChildren();
   updateGridAppearance();
-
-  /* 新仕様：航空写真などの下敷きは描画しない。 */
+  renderBackground(layout);
   applyViewScale(state.viewScale);
 
   layout.objects.forEach((item) => {
@@ -1718,6 +1854,7 @@ function render() {
 
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
+    if (item.objectType === "roadSign") appendRoadSignFace(node, item);
     if (item.objectType === "parkingSpace") {
       node.dataset.spaceType = item.spaceType ?? "standard";
       node.dataset.markingStyle = item.markingStyle ?? "uShape";
@@ -1867,6 +2004,20 @@ function updateBuildingIdOptions() {
     elements.buildingIdOptions?.append(option);
   });
 
+  const populateSelect = (select, emptyLabel) => {
+    if (!select) return;
+    const previousValue = select.value;
+    select.replaceChildren(new Option(emptyLabel, ""));
+    destinations.forEach((destination) => {
+      select.add(new Option(destination.name, destination.buildingId));
+    });
+    if ([...select.options].some((option) => option.value === previousValue)) {
+      select.value = previousValue;
+    }
+  };
+  populateSelect(elements.destinationBuildingSelect, "汎用建物");
+  populateSelect(elements.buildingDestination, "任意の建物");
+
   if (elements.buildingIdHelp) {
     elements.buildingIdHelp.textContent = destinations.length > 0
       ? `この敷地の目的店舗：${destinations.map((item) => `${item.name} = ${item.buildingId}`).join(" / ")}`
@@ -1890,13 +2041,31 @@ function updateSettings() {
   elements.rotation.value = item.rotation ?? 0;
   elements.width.value = item.width ?? 34;
   elements.height.value = item.height ?? 34;
-  const fixedMarker = ["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType);
+  const fixedMarker = ["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType);
   elements.widthField.hidden = fixedMarker;
   elements.heightField.hidden = fixedMarker;
 
   elements.roadSettings.hidden = item.objectType !== "road";
   if (item.objectType === "road") {
     elements.roadDirection.value = item.trafficDirection ?? "twoWay";
+  }
+
+  elements.buildingSettings.hidden = item.objectType !== "building";
+  if (item.objectType === "building") {
+    elements.buildingObjectId.value = item.buildingId ?? "";
+    elements.buildingDestination.value = [...elements.buildingDestination.options]
+      .some((option) => option.value === (item.buildingId ?? ""))
+      ? (item.buildingId ?? "")
+      : "";
+  }
+
+  elements.roadSignSettings.hidden = item.objectType !== "roadSign";
+  if (item.objectType === "roadSign") {
+    elements.roadSignType.value = item.signType ?? "nationalRoute";
+    elements.roadSignRouteNumber.value = item.routeNumber ?? "";
+    elements.roadSignPrefecture.value = item.prefectureName ?? getCurrentFacilityRecord()?.prefecture ?? "";
+    elements.routeNumberField.hidden = !["nationalRoute", "prefecturalRoute"].includes(elements.roadSignType.value);
+    elements.routePrefectureField.hidden = elements.roadSignType.value !== "prefecturalRoute";
   }
 
   elements.parkingEntranceSettings.hidden = item.objectType !== "parkingEntrance";
@@ -1944,7 +2113,7 @@ function updateSelectedFromForm() {
   elements.x.value = item.x;
   elements.y.value = item.y;
   item.rotation = Number(elements.rotation.value) || 0;
-  if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger"].includes(item.objectType)) {
+  if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
     item.width = Math.max(3, Number(elements.width.value) || 3);
     item.height = Math.max(3, Number(elements.height.value) || 3);
   }
@@ -1967,6 +2136,38 @@ function updateSelectedFromForm() {
     item.accessType = elements.parkingAccessType.value;
     if (item.name === accessNames[previousAccessType]) {
       item.name = accessNames[item.accessType];
+      elements.name.value = item.name;
+    }
+  }
+  if (item.objectType === "building") {
+    const destinationId = elements.buildingDestination.value;
+    const destination = getCurrentFacilityRecord()?.destinations?.find(
+      (candidate) => candidate.buildingId === destinationId,
+    );
+    if (destination) {
+      item.buildingId = destination.buildingId;
+      item.name = destination.name;
+      elements.name.value = item.name;
+      elements.buildingObjectId.value = item.buildingId;
+    } else {
+      item.buildingId = elements.buildingObjectId.value.trim();
+    }
+  }
+  if (item.objectType === "roadSign") {
+    const previousType = item.signType ?? "nationalRoute";
+    const signNames = {
+      nationalRoute: "国道標識",
+      prefecturalRoute: `${item.prefectureName || "都道府県"}道標識`,
+      noEntry: "車両進入禁止",
+      stop: "一時停止",
+    };
+    item.signType = elements.roadSignType.value;
+    item.routeNumber = elements.roadSignRouteNumber.value.trim();
+    item.prefectureName = elements.roadSignPrefecture.value.trim();
+    if (item.name === signNames[previousType] || item.name === "道路標識") {
+      item.name = item.signType === "prefecturalRoute"
+        ? `${item.prefectureName || "都道府県"}道標識`
+        : ({ nationalRoute: "国道標識", noEntry: "車両進入禁止", stop: "一時停止" }[item.signType] ?? "道路標識");
       elements.name.value = item.name;
     }
   }
@@ -2374,6 +2575,7 @@ async function locateFacilityForBackground(facility, layout, options = {}) {
       coordinateSource: facility.coordinateSource ?? "確認済み座標",
       manuallyAdjusted: false,
     };
+    layout.mapMode = "hybrid";
     saveLocal();
     render();
     elements.backgroundStatus.textContent =
@@ -2425,6 +2627,7 @@ async function locateFacilityForBackground(facility, layout, options = {}) {
       coordinateSource: "確認済み住所から国土地理院住所検索",
       manuallyAdjusted: false,
     };
+    layout.mapMode = "hybrid";
     saveLocal();
     render();
     elements.backgroundStatus.textContent =
@@ -2514,9 +2717,8 @@ function renderFacilityOptions(prefecture, preferredFacilityId = null) {
     const facility = state.facilityId === experiment.id
       ? experiment
       : state.facilities.find((item) => item.id === state.facilityId);
-    const layout = ensureLayoutMatchesFacility(facility);
+    ensureLayoutMatchesFacility(facility);
     updateFacilityLocationSummary(facility);
-    if (layout) layout.background = null;
     elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   } else {
     elements.facilityId.textContent = "該当する施設がありません。";
@@ -2568,11 +2770,10 @@ function changeFacility() {
   const facility = state.facilityId === experiment.id
     ? experiment
     : state.facilities.find((item) => item.id === state.facilityId);
-  const layout = ensureLayoutMatchesFacility(facility);
+  ensureLayoutMatchesFacility(facility);
   elements.facilityId.textContent = `facilityId: ${state.facilityId}`;
   updateFacilityLocationSummary(facility);
   render();
-  if (layout) layout.background = null;
 }
 
 /** キャンバス寸法とメートル換算係数を現在施設のレイアウトへ保存する。 */
@@ -2581,8 +2782,8 @@ function updateCanvasSettings() {
   if (!layout) {
     return;
   }
-  layout.canvas.width = Math.max(400, Number(elements.canvasWidth.value) || 1000);
-  layout.canvas.height = Math.max(300, Number(elements.canvasHeight.value) || 700);
+  layout.canvas.width = Math.min(6000, Math.max(400, Number(elements.canvasWidth.value) || DEFAULT_CANVAS_WIDTH));
+  layout.canvas.height = Math.min(6000, Math.max(300, Number(elements.canvasHeight.value) || DEFAULT_CANVAS_HEIGHT));
   const scale = Number(elements.canvasScale.value);
   layout.canvas.scaleMetersPerPixel = Number.isFinite(scale) && scale > 0 ? scale : null;
   saveLocal();
@@ -2598,7 +2799,15 @@ document.querySelectorAll("[data-add-object]").forEach((button) => {
     spaceType: button.dataset.spaceType,
     trafficDirection: button.dataset.trafficDirection,
     accessType: button.dataset.accessType,
+    signType: button.dataset.signType,
   }));
+});
+
+document.querySelector("#add-destination-building-button")?.addEventListener("click", () => {
+  const destination = getCurrentFacilityRecord()?.destinations?.find(
+    (candidate) => candidate.buildingId === elements.destinationBuildingSelect?.value,
+  );
+  addObject("building", { destination });
 });
 
 document.querySelector("#add-parking-space-button")?.addEventListener("click", () => {
@@ -2614,33 +2823,44 @@ elements.canvas.addEventListener("click", (event) => {
   state.selectedUid = null;
   render();
 });
+elements.canvas.addEventListener("pointerdown", (event) => {
+  startBackgroundDrag(event);
+});
 elements.canvas.addEventListener("pointermove", (event) => {
+  moveBackgroundDrag(event);
   moveVertexDrag(event);
   moveResize(event);
   moveDrag(event);
 });
 elements.canvas.addEventListener("pointerup", (event) => {
+  if (endBackgroundDrag(event)) return;
   if (endVertexDrag(event)) return;
   if (endResize(event)) return;
   endDrag(event);
 });
 elements.canvas.addEventListener("pointercancel", (event) => {
+  if (endBackgroundDrag(event)) return;
   if (endVertexDrag(event)) return;
   if (endResize(event)) return;
   endDrag(event);
 });
+elements.canvas.addEventListener("wheel", (event) => {
+  if (!state.backgroundEdit) return;
+  event.preventDefault();
+  changeBackgroundZoom(event.deltaY < 0 ? 1 : -1);
+}, { passive: false });
 
 document.querySelector("#cloud-login-button").addEventListener("click", () => void remoteLogin());
 document.querySelector("#cloud-sync-button").addEventListener("click", () => void syncCurrentLayout());
 document.querySelector("#cloud-load-button").addEventListener("click", () => void loadRemoteLayouts());
 document.querySelector("#cloud-logout-button").addEventListener("click", remoteLogout);
-document.querySelector("#background-enable-button")?.addEventListener("click", () => {});
-document.querySelector("#background-edit-button")?.addEventListener("click", () => {});
-document.querySelector("#background-zoom-in-button")?.addEventListener("click", () => {});
-document.querySelector("#background-zoom-out-button")?.addEventListener("click", () => {});
-document.querySelector("#apply-background-button")?.addEventListener("click", () => {});
-document.querySelector("#current-location-background-button")?.addEventListener("click", () => {});
-document.querySelector("#reset-facility-location-button")?.addEventListener("click", () => {});
+document.querySelector("#background-enable-button")?.addEventListener("click", enableBackground);
+document.querySelector("#background-edit-button")?.addEventListener("click", toggleBackgroundEdit);
+document.querySelector("#background-zoom-in-button")?.addEventListener("click", () => changeBackgroundZoom(1));
+document.querySelector("#background-zoom-out-button")?.addEventListener("click", () => changeBackgroundZoom(-1));
+document.querySelector("#apply-background-button")?.addEventListener("click", applyBackgroundSettings);
+document.querySelector("#current-location-background-button")?.addEventListener("click", useCurrentLocationForBackground);
+document.querySelector("#reset-facility-location-button")?.addEventListener("click", () => void resetBackgroundToFacilityLocation());
 elements.backgroundOpacity.addEventListener("input", () => {
   const layout = getCurrentLayout();
   if (layout?.background && GSI_PHOTO_SOURCES[layout.background.type]) {
@@ -2673,8 +2893,14 @@ elements.facilitySelect.addEventListener("change", changeFacility);
   elements.roadDirection, elements.parkingAccessType,
   elements.spaceType, elements.spaceStatus, elements.spaceMarkingStyle, elements.spaceMarkingColor,
   elements.spaceMarkingWidth, elements.entranceType, elements.publicAccess,
-  elements.wheelchairAccessible, elements.guideTarget, elements.buildingId].forEach((control) => {
+  elements.wheelchairAccessible, elements.guideTarget, elements.buildingId,
+  elements.buildingDestination, elements.roadSignType,
+  elements.roadSignRouteNumber, elements.roadSignPrefecture].forEach((control) => {
   control.addEventListener("change", updateSelectedFromForm);
+});
+elements.buildingObjectId.addEventListener("change", () => {
+  elements.buildingDestination.value = "";
+  updateSelectedFromForm();
 });
 
 /* 線の太さはスライダー操作中にも数値を表示する。 */
@@ -2702,6 +2928,7 @@ document.querySelector("#editor-zoom-out-button").addEventListener("click", () =
         : 8),
 ));
 document.querySelector("#editor-zoom-fit-button").addEventListener("click", fitViewScale);
+document.querySelector("#apply-layout-scale-button")?.addEventListener("click", scaleEntireLayout);
 
 document.querySelector("#rotate-left-button").addEventListener("click", () => rotateSelected(-90));
 document.querySelector("#rotate-right-button").addEventListener("click", () => rotateSelected(90));
