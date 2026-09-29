@@ -1472,24 +1472,28 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   fill: rgb(115 123 132 / 44%);
 }
 
-/* 形変更をしやすくするため、頂点と頂点追加ハンドルを従来より大きくする。 */
+/* 形変更ハンドルは、編集倍率を上げても画面上の大きさを一定に保つ。 */
 .polygon-handle {
-  width: var(--ui-polygon-handle-size, 11px) !important;
-  min-width: var(--ui-polygon-handle-size, 11px) !important;
-  height: var(--ui-polygon-handle-size, 11px) !important;
-  min-height: var(--ui-polygon-handle-size, 11px) !important;
+  width: var(--ui-polygon-handle-size, 7px) !important;
+  min-width: var(--ui-polygon-handle-size, 7px) !important;
+  height: var(--ui-polygon-handle-size, 7px) !important;
+  min-height: var(--ui-polygon-handle-size, 7px) !important;
 }
 .polygon-handle--vertex {
-  border-width: 2px;
-  box-shadow: 0 0 0 1px #1e3a8a, 0 1px 3px rgb(15 23 42 / 35%);
+  border-width: var(--ui-polygon-handle-border, 1px);
+  box-shadow:
+    0 0 0 var(--ui-polygon-handle-border, 1px) #1e3a8a,
+    0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 32%);
 }
 .polygon-handle--add {
-  width: 13px !important;
-  min-width: 13px !important;
-  height: 13px !important;
-  min-height: 13px !important;
-  font-size: 9px;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 28%);
+  width: var(--ui-polygon-add-handle-size, 10px) !important;
+  min-width: var(--ui-polygon-add-handle-size, 10px) !important;
+  height: var(--ui-polygon-add-handle-size, 10px) !important;
+  min-height: var(--ui-polygon-add-handle-size, 10px) !important;
+  border-width: var(--ui-polygon-handle-border, 1px);
+  font-size: var(--ui-handle-font-size, 6px);
+  box-shadow:
+    0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 25%);
 }
 
 /* 旧来の文字矢印を廃止し、道路上に白い進行方向矢印を描く。 */
