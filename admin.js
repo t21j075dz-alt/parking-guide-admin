@@ -1147,7 +1147,10 @@ function applyViewScale(scale, preserveCenter = false) {
   elements.canvas.style.setProperty("--ui-resize-handle-size", `${5 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-border", `${1 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-handle-size", `${7 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-handle-size", `${10 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-handle-border", `${1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-shadow-y", `${1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-shadow-blur", `${2 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-handle-font-size", `${6 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-fine-line", `${0.45 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-meter-line", `${0.65 / nextScale}px`);
