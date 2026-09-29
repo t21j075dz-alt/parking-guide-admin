@@ -48,7 +48,7 @@ const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 42, height: 42 },
 });
 
-const OBJECT_DEFAULTS_VERSION = 5;
+const OBJECT_DEFAULTS_VERSION = 6;
 const CANVAS_SIZE_VERSION = 2;
 const DEFAULT_CANVAS_WIDTH = 1800;
 const DEFAULT_CANVAS_HEIGHT = 1200;
@@ -112,6 +112,31 @@ const V4_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 22, height: 22 },
 });
 
+/* version 5で使っていた初期寸法。未調整の既存オブジェクトだけversion 6へ安全に移行する。 */
+const V5_OBJECT_DEFAULTS = Object.freeze({
+  parkingLot: { width: 520, height: 360 },
+  excludedParkingLot: { width: 300, height: 200 },
+  nationalRoad: { width: 760, height: 90 },
+  prefecturalRoad: { width: 680, height: 74 },
+  publicRoad: { width: 560, height: 60 },
+  parkingSpace: { width: 25, height: 50 },
+  road: { width: 280, height: 58 },
+  sidewalk: { width: 240, height: 24 },
+  crosswalk: { width: 86, height: 32 },
+  building: { width: 240, height: 150 },
+  buildingEntrance: { width: 22, height: 22 },
+  parkingEntrance: { width: 26, height: 26 },
+  stopLine: { width: 86, height: 8 },
+  speedBump: { width: 86, height: 12 },
+  noEntry: { width: 26, height: 26 },
+  cartCorral: { width: 72, height: 44 },
+  bicycleParking: { width: 110, height: 48 },
+  motorcycleParking: { width: 84, height: 48 },
+  loadingZone: { width: 150, height: 78 },
+  evCharger: { width: 22, height: 22 },
+  roadSign: { width: 48, height: 58 },
+});
+
 /*
  * 白紙の模式図では 1m = 10px（0.1m/px）を基本縮尺とする。
  * 駐車ますの初期寸法は国土交通省資料を参考にし、普通車は一般的な
@@ -120,35 +145,35 @@ const V4_OBJECT_DEFAULTS = Object.freeze({
 const SCHEMATIC_METERS_PER_PIXEL = 0.1;
 
 const PARKING_SPACE_PRESETS = Object.freeze({
-  /* 見た目の枠サイズは全種類25×50pxへ統一する。実寸情報は属性として保持する。 */
-  standard: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
-  compact: { width: 25, height: 50, widthMeters: 2.0, lengthMeters: 3.6 },
-  accessible: { width: 25, height: 50, widthMeters: 3.5, lengthMeters: 6.0 },
-  ev: { width: 25, height: 50, widthMeters: 2.5, lengthMeters: 5.0 },
+  /* 航空写真へ合わせやすいよう、表示上は全種類20×40pxへ統一する。実寸情報は属性として保持する。 */
+  standard: { width: 20, height: 40, widthMeters: 2.5, lengthMeters: 5.0 },
+  compact: { width: 20, height: 40, widthMeters: 2.0, lengthMeters: 3.6 },
+  accessible: { width: 20, height: 40, widthMeters: 3.5, lengthMeters: 6.0 },
+  ev: { width: 20, height: 40, widthMeters: 2.5, lengthMeters: 5.0 },
 });
 
 const OBJECT_DEFAULTS = {
-  parkingLot: { width: 520, height: 360, name: "駐車場敷地" },
-  excludedParkingLot: { width: 300, height: 200, name: "対象外駐車場" },
-  nationalRoad: { width: 760, height: 90, name: "国道" },
-  prefecturalRoad: { width: 680, height: 74, name: "県道" },
-  publicRoad: { width: 560, height: 60, name: "公道" },
-  parkingSpace: { width: 25, height: 50, name: "駐車区画" },
-  road: { width: 280, height: 58, name: "場内車道" },
-  sidewalk: { width: 240, height: 24, name: "歩道" },
-  crosswalk: { width: 86, height: 32, name: "横断歩道" },
-  building: { width: 240, height: 150, name: "建物" },
-  buildingEntrance: { width: 22, height: 22, name: "店舗入口" },
-  parkingEntrance: { width: 26, height: 26, name: "駐車場出入口" },
-  stopLine: { width: 86, height: 8, name: "停止線" },
-  speedBump: { width: 86, height: 12, name: "速度抑制ハンプ" },
-  noEntry: { width: 26, height: 26, name: "進入禁止" },
-  cartCorral: { width: 72, height: 44, name: "カート置き場" },
-  bicycleParking: { width: 110, height: 48, name: "駐輪場" },
-  motorcycleParking: { width: 84, height: 48, name: "二輪車置場" },
-  loadingZone: { width: 150, height: 78, name: "荷捌きスペース" },
-  evCharger: { width: 22, height: 22, name: "EV充電器" },
-  roadSign: { width: 48, height: 58, name: "道路標識" },
+  parkingLot: { width: 420, height: 300, name: "駐車場敷地" },
+  excludedParkingLot: { width: 240, height: 160, name: "対象外駐車場" },
+  nationalRoad: { width: 600, height: 72, name: "国道" },
+  prefecturalRoad: { width: 540, height: 60, name: "県道" },
+  publicRoad: { width: 440, height: 48, name: "公道" },
+  parkingSpace: { width: 20, height: 40, name: "駐車区画" },
+  road: { width: 220, height: 46, name: "場内車道" },
+  sidewalk: { width: 190, height: 18, name: "歩道" },
+  crosswalk: { width: 64, height: 24, name: "横断歩道" },
+  building: { width: 200, height: 120, name: "建物" },
+  buildingEntrance: { width: 16, height: 16, name: "店舗入口" },
+  parkingEntrance: { width: 18, height: 18, name: "駐車場出入口" },
+  stopLine: { width: 64, height: 6, name: "停止線" },
+  speedBump: { width: 64, height: 9, name: "速度抑制ハンプ" },
+  noEntry: { width: 18, height: 18, name: "進入禁止" },
+  cartCorral: { width: 54, height: 32, name: "カート置き場" },
+  bicycleParking: { width: 84, height: 36, name: "駐輪場" },
+  motorcycleParking: { width: 64, height: 36, name: "二輪車置場" },
+  loadingZone: { width: 112, height: 58, name: "荷捌きスペース" },
+  evCharger: { width: 16, height: 16, name: "EV充電器" },
+  roadSign: { width: 34, height: 42, name: "道路標識" },
 };
 
 /*
@@ -225,6 +250,9 @@ const STRUCTURE_SNAP_OBJECT_TYPES = new Set([
   "prefecturalRoad",
   "publicRoad",
 ]);
+
+/* 形変更時の吸着距離は画面上8pxを基準にし、拡大率に左右されないようにする。 */
+const RESHAPE_SNAP_SCREEN_DISTANCE = 8;
 
 /*
  * 外周道路・敷地・建物などは、実際の配置に合わせてキャンバス端をまたげる。
@@ -436,13 +464,15 @@ function migrateLegacyObjectDefaults(layout) {
   }
 
   const previousVersion = Number(layout.objectDefaultsVersion) || 1;
-  const previousDefaults = previousVersion >= 4
-    ? V4_OBJECT_DEFAULTS
-    : previousVersion >= 3
-      ? V3_OBJECT_DEFAULTS
-      : previousVersion >= 2
-        ? V2_OBJECT_DEFAULTS
-        : LEGACY_OBJECT_DEFAULTS;
+  const previousDefaults = previousVersion >= 5
+    ? V5_OBJECT_DEFAULTS
+    : previousVersion >= 4
+      ? V4_OBJECT_DEFAULTS
+      : previousVersion >= 3
+        ? V3_OBJECT_DEFAULTS
+        : previousVersion >= 2
+          ? V2_OBJECT_DEFAULTS
+          : LEGACY_OBJECT_DEFAULTS;
   let changed = false;
 
   (layout.objects ?? []).forEach((item) => {
@@ -499,8 +529,8 @@ function migrateLegacyObjectDefaults(layout) {
 
     item.width = current.width;
     item.height = current.height;
-    item.x = Math.round(centerX - current.width / 2);
-    item.y = Math.round(centerY - current.height / 2);
+    item.x = Math.round((centerX - current.width / 2) * 100) / 100;
+    item.y = Math.round((centerY - current.height / 2) * 100) / 100;
     changed = true;
   });
 
@@ -540,21 +570,21 @@ function ensureLayout(facilityId) {
   }
 
   /*
-   * 軽・車いす用は種類の意味だけを残し、管理画面上の外形は普通車と統一する。
-   * 既存の中井町店レイアウトも中心位置を保ったまま25×50pxへ合わせる。
+   * 旧版の標準25×50pxの駐車枠だけを20×40pxへ移行する。
+   * 手動で大きさを変えた駐車枠はそのまま残す。
    */
   (layout.objects ?? []).forEach((item) => {
     if (item.objectType !== "parkingSpace"
-        || !["compact", "accessible", "ev"].includes(item.spaceType)
-        || (Number(item.width) === 25 && Number(item.height) === 50)) {
+        || Number(item.width) !== 25
+        || Number(item.height) !== 50) {
       return;
     }
-    const centerX = Number(item.x || 0) + Number(item.width || 25) / 2;
-    const centerY = Number(item.y || 0) + Number(item.height || 50) / 2;
-    item.width = 25;
-    item.height = 50;
-    item.x = Math.round(centerX - 12.5);
-    item.y = Math.round(centerY - 25);
+    const centerX = Number(item.x || 0) + 12.5;
+    const centerY = Number(item.y || 0) + 25;
+    item.width = 20;
+    item.height = 40;
+    item.x = Math.round((centerX - 10) * 100) / 100;
+    item.y = Math.round((centerY - 20) * 100) / 100;
   });
 
   return layout;
@@ -612,7 +642,7 @@ function getBuildingLabelFontSize(item) {
   }
   const width = Math.max(3, Number(item?.width) || OBJECT_DEFAULTS.building.width);
   const height = Math.max(3, Number(item?.height) || OBJECT_DEFAULTS.building.height);
-  return Math.max(6, Math.min(32, Math.round(Math.min(width / 18, height / 7))));
+  return Math.max(5, Math.min(24, Math.round(Math.min(width / 22, height / 8))));
 }
 
 /**
@@ -1181,7 +1211,7 @@ function changeViewScale(delta) {
 const EDIT_MODE_HELP = Object.freeze({
   move: "移動モード：オブジェクトをドラッグして位置を調整します。",
   resize: "拡大縮小モード：選択中のオブジェクトだけを操作します。重なった他の図形はクリックを通過します。別の図形を選ぶときは「移動」に切り替えます。",
-  reshape: "形変更モード：選択中の建物・敷地・車道・歩道・外周道路だけを操作します。重なった他の図形はクリックを通過します。",
+  reshape: "形変更モード：選択中の図形だけを操作します。頂点は他の建物・敷地・道路の頂点や辺へ自動吸着します。Altを押しながら動かすと吸着を一時解除できます。",
 });
 
 /** 「敷地・道路をロック」の対象で、現在ロック中か判定する。 */
@@ -1861,6 +1891,145 @@ function startVertexDrag(event) {
   event.currentTarget.setPointerCapture(event.pointerId);
 }
 
+/** 点Pから線分AB上の最短点を返す。 */
+function getClosestPointOnSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= Number.EPSILON) {
+    return { x: ax, y: ay };
+  }
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  return {
+    x: ax + dx * t,
+    y: ay + dy * t,
+  };
+}
+
+/**
+ * 形変更中の頂点を、他の建物・敷地・道路の頂点・辺・揃い位置へ吸着する。
+ * 頂点/辺への直接吸着を最優先し、少し離れている場合はX/Yだけを揃える。
+ */
+function snapReshapeVertex(item, vertexIndex, localX, localY) {
+  const layout = getCurrentLayout();
+  if (!layout
+      || elements.siteSnapStrong?.checked === false
+      || !STRUCTURE_SNAP_OBJECT_TYPES.has(item?.objectType)) {
+    return null;
+  }
+
+  const currentGlobal = objectLocalPointToGlobal(item, localX, localY);
+  const threshold = Math.max(0.2, RESHAPE_SNAP_SCREEN_DISTANCE / Math.max(0.25, state.viewScale));
+
+  let bestPoint = null;
+  let bestPointScore = Infinity;
+  let bestX = null;
+  let bestXDistance = Infinity;
+  let bestY = null;
+  let bestYDistance = Infinity;
+
+  const considerFullPoint = (candidate, priority = 0) => {
+    const distance = Math.hypot(candidate.x - currentGlobal.x, candidate.y - currentGlobal.y);
+    if (distance > threshold) return;
+    const score = distance + priority * threshold * 0.12;
+    if (score < bestPointScore) {
+      bestPoint = candidate;
+      bestPointScore = score;
+    }
+  };
+
+  const considerX = (candidate) => {
+    const distance = Math.abs(candidate - currentGlobal.x);
+    if (distance <= threshold && distance < bestXDistance) {
+      bestX = candidate;
+      bestXDistance = distance;
+    }
+  };
+
+  const considerY = (candidate) => {
+    const distance = Math.abs(candidate - currentGlobal.y);
+    if (distance <= threshold && distance < bestYDistance) {
+      bestY = candidate;
+      bestYDistance = distance;
+    }
+  };
+
+  (layout.objects ?? []).forEach((other) => {
+    if (other.uid === item.uid || !STRUCTURE_SNAP_OBJECT_TYPES.has(other.objectType)) return;
+
+    const otherPoints = getPolygonPoints(other);
+    if (!otherPoints?.length) return;
+
+    const globalPoints = otherPoints.map((point) =>
+      objectLocalPointToGlobal(other, Number(point.x), Number(point.y))
+    );
+
+    globalPoints.forEach((point) => {
+      considerFullPoint(point, 0);
+      considerX(point.x);
+      considerY(point.y);
+    });
+
+    for (let i = 0; i < globalPoints.length; i += 1) {
+      const a = globalPoints[i];
+      const b = globalPoints[(i + 1) % globalPoints.length];
+      const closest = getClosestPointOnSegment(
+        currentGlobal.x,
+        currentGlobal.y,
+        a.x,
+        a.y,
+        b.x,
+        b.y,
+      );
+      considerFullPoint(closest, 1);
+    }
+
+    const xs = globalPoints.map((point) => point.x);
+    const ys = globalPoints.map((point) => point.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    considerX(minX);
+    considerX((minX + maxX) / 2);
+    considerX(maxX);
+    considerY(minY);
+    considerY((minY + maxY) / 2);
+    considerY(maxY);
+  });
+
+  let snappedGlobalX = currentGlobal.x;
+  let snappedGlobalY = currentGlobal.y;
+  let guideX = null;
+  let guideY = null;
+
+  if (bestPoint) {
+    snappedGlobalX = bestPoint.x;
+    snappedGlobalY = bestPoint.y;
+    guideX = bestPoint.x;
+    guideY = bestPoint.y;
+  } else {
+    if (bestX !== null) {
+      snappedGlobalX = bestX;
+      guideX = bestX;
+    }
+    if (bestY !== null) {
+      snappedGlobalY = bestY;
+      guideY = bestY;
+    }
+  }
+
+  if (guideX === null && guideY === null) return null;
+
+  const local = globalPointToObjectLocal(item, snappedGlobalX, snappedGlobalY);
+  return {
+    x: local.x,
+    y: local.y,
+    guideX,
+    guideY,
+  };
+}
+
 function moveVertexDrag(event) {
   if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return;
   const item = getSelectedObject();
@@ -1941,6 +2110,18 @@ function moveVertexDrag(event) {
     }
   }
 
+  let reshapeGuideX = null;
+  let reshapeGuideY = null;
+  if (!event.altKey) {
+    const reshapeSnap = snapReshapeVertex(item, index, x, y);
+    if (reshapeSnap) {
+      x = reshapeSnap.x;
+      y = reshapeSnap.y;
+      reshapeGuideX = reshapeSnap.guideX;
+      reshapeGuideY = reshapeSnap.guideY;
+    }
+  }
+
   const point = points[index];
   point.x = Math.max(0, Math.min(item.width, Math.round(x * 100) / 100));
   point.y = Math.max(0, Math.min(item.height, Math.round(y * 100) / 100));
@@ -1953,8 +2134,13 @@ function moveVertexDrag(event) {
     state.vertexDrag.handle.style.top = `${point.y}px`;
   }
 
-  /* 回転していない図形では、水平・垂直吸着位置をキャンバス全体へガイド表示する。 */
-  if ((Number(item.rotation) || 0) % 360 === 0) {
+  /*
+   * 他オブジェクトへの吸着は回転の有無に関係なくキャンバス座標で表示する。
+   * 自図形内の直角補正だけの場合は、従来どおり未回転時にガイドを表示する。
+   */
+  if (reshapeGuideX !== null || reshapeGuideY !== null) {
+    showSnapGuides(reshapeGuideX, reshapeGuideY);
+  } else if ((Number(item.rotation) || 0) % 360 === 0) {
     showSnapGuides(
       guideLocalX === null ? null : item.x + guideLocalX,
       guideLocalY === null ? null : item.y + guideLocalY,
