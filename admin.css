@@ -1486,12 +1486,29 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
     0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 32%);
 }
 .polygon-handle--add {
-  width: var(--ui-polygon-add-handle-size, 10px) !important;
-  min-width: var(--ui-polygon-add-handle-size, 10px) !important;
-  height: var(--ui-polygon-add-handle-size, 10px) !important;
-  min-height: var(--ui-polygon-add-handle-size, 10px) !important;
-  border-width: var(--ui-polygon-handle-border, 1px);
-  font-size: var(--ui-handle-font-size, 6px);
+  width: var(--ui-polygon-add-hit-size, 10px) !important;
+  min-width: var(--ui-polygon-add-hit-size, 10px) !important;
+  height: var(--ui-polygon-add-hit-size, 10px) !important;
+  min-height: var(--ui-polygon-add-hit-size, 10px) !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  box-shadow: none !important;
+}
+.polygon-handle--add::before {
+  content: "+";
+  display: grid;
+  width: var(--ui-polygon-add-visual-size, 5px);
+  height: var(--ui-polygon-add-visual-size, 5px);
+  place-items: center;
+  border: var(--ui-polygon-handle-border, 1px) solid #64748b;
+  border-radius: 50%;
+  background: #fff;
+  color: #334155;
+  font-size: var(--ui-polygon-add-font-size, 4px);
+  font-weight: 800;
+  line-height: 1;
   box-shadow:
     0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 25%);
 }
