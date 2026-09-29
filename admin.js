@@ -1182,6 +1182,20 @@ const EDIT_MODE_HELP = Object.freeze({
   reshape: "形変更モード：選択中の建物・敷地・車道・歩道・外周道路だけを操作します。重なった他の図形はクリックを通過します。",
 });
 
+/** 現在のモードで選択中オブジェクトを実際に編集できるか判定する。 */
+function canEditSelectionInCurrentMode(item = getSelectedObject()) {
+  if (!item) return false;
+
+  const locked =
+    BASE_LAYER_OBJECT_TYPES.has(item.objectType)
+    && elements.baseLayerLock?.checked === true;
+  if (locked) return false;
+
+  if (state.editMode === "resize") return true;
+  if (state.editMode === "reshape") return POLYGON_OBJECT_TYPES.has(item.objectType);
+  return false;
+}
+
 /** 編集モードのボタン表示・キャンバス状態・説明文を同期する。 */
 function updateEditModeUi() {
   document.querySelectorAll("[data-edit-mode]").forEach((button) => {
@@ -2466,6 +2480,7 @@ function render() {
   syncRoadTrafficControls(layout);
   elements.canvas.replaceChildren();
   elements.canvas.classList.toggle("has-selection", Boolean(state.selectedUid));
+  elements.canvas.classList.toggle("has-editable-selection", canEditSelectionInCurrentMode());
   updateEditModeUi();
   elements.canvas.classList.toggle("base-layers-locked", elements.baseLayerLock?.checked === true);
   updateGridAppearance();
@@ -3542,6 +3557,12 @@ elements.canvas.addEventListener("click", (event) => {
   if (state.backgroundEdit || event.target.closest(".map-object")) {
     return;
   }
+
+  /* 拡大縮小・形変更中は、空白クリックで選択を失わない。 */
+  if (state.editMode !== "move") {
+    return;
+  }
+
   state.selectedUid = null;
   render();
 });
