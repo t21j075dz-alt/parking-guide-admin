@@ -1416,3 +1416,171 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   line-height: 0.95;
   letter-spacing: -0.5px;
 }
+
+
+/* =========================================================
+   形編集仕様の統一（建物・敷地基準）
+   ========================================================= */
+
+/*
+ * 建物・駐車場敷地・道路・歩道は同じSVG多角形で編集する。
+ * 種類は塗り色で区別し、輪郭の太さ・実線・選択表現は統一する。
+ */
+.polygon-object {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.polygon-object .polygon-fill {
+  stroke: #334155 !important;
+  stroke-width: var(--ui-polygon-stroke, 1px) !important;
+  stroke-dasharray: none !important;
+  vector-effect: non-scaling-stroke;
+}
+
+.polygon-object.selected .polygon-fill {
+  stroke: #f59e0b !important;
+  stroke-width: var(--ui-polygon-selected-stroke, 1.5px) !important;
+  stroke-dasharray: none !important;
+}
+
+/* 歩道も建物・敷地と同じ多角形表示へ統一する。 */
+.polygon-object[data-object-type="sidewalk"] .polygon-fill {
+  fill: rgb(214 211 209 / 58%);
+}
+
+/* 種類の判別に必要な塗りだけ残し、輪郭仕様は全て共通にする。 */
+.polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: rgb(75 80 85 / 24%);
+}
+.polygon-object[data-object-type="excludedParkingLot"] .polygon-fill {
+  fill: rgb(114 119 125 / 32%);
+}
+.polygon-object[data-object-type="building"] .polygon-fill {
+  fill: rgb(219 228 234 / 52%);
+}
+.polygon-object[data-object-type="road"] .polygon-fill {
+  fill: rgb(100 116 139 / 48%);
+}
+.polygon-object[data-object-type="nationalRoad"] .polygon-fill {
+  fill: rgb(100 116 139 / 44%);
+}
+.polygon-object[data-object-type="prefecturalRoad"] .polygon-fill {
+  fill: rgb(113 113 122 / 44%);
+}
+.polygon-object[data-object-type="publicRoad"] .polygon-fill {
+  fill: rgb(115 123 132 / 44%);
+}
+
+/* 形変更をしやすくするため、頂点と頂点追加ハンドルを従来より大きくする。 */
+.polygon-handle {
+  width: var(--ui-polygon-handle-size, 11px) !important;
+  min-width: var(--ui-polygon-handle-size, 11px) !important;
+  height: var(--ui-polygon-handle-size, 11px) !important;
+  min-height: var(--ui-polygon-handle-size, 11px) !important;
+}
+.polygon-handle--vertex {
+  border-width: 2px;
+  box-shadow: 0 0 0 1px #1e3a8a, 0 1px 3px rgb(15 23 42 / 35%);
+}
+.polygon-handle--add {
+  width: 13px !important;
+  min-width: 13px !important;
+  height: 13px !important;
+  min-height: 13px !important;
+  font-size: 9px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 28%);
+}
+
+/* 旧来の文字矢印を廃止し、道路上に白い進行方向矢印を描く。 */
+.map-object[data-object-type="road"][data-traffic-direction="oneWay"]::after {
+  content: none !important;
+}
+
+.road-direction-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 16;
+  width: 54px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 45%));
+}
+.road-direction-mark__shaft {
+  position: absolute;
+  left: 5px;
+  right: 13px;
+  top: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: #fff;
+}
+.road-direction-mark__head {
+  position: absolute;
+  right: 4px;
+  top: 3px;
+  width: 11px;
+  height: 11px;
+  border-top: 3px solid #fff;
+  border-right: 3px solid #fff;
+  transform: rotate(45deg);
+}
+
+/* 道路へ関連付けた一時停止から、停止線＋「止まれ」を自動描画する。 */
+.road-surface-stop-mark {
+  position: absolute;
+  z-index: 17;
+  display: grid;
+  width: min(72px, 75%);
+  justify-items: center;
+  gap: 3px;
+  transform-origin: center;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 45%));
+}
+.road-surface-stop-line {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 1px;
+  background: #fff;
+}
+.road-surface-stop-text {
+  display: block;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* 現行の一時停止標識は「止まれ」の下に英字STOPを併記する。 */
+.road-sign-stop-inner {
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  padding: 4px 3px 9px;
+}
+.road-sign-stop-jp {
+  display: block;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+.road-sign-stop-en {
+  display: block;
+  font-size: 5px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+/* 固定表示時も歩道は他の多角形と同じ描画方式を使う。 */
+.map-canvas.base-layers-locked .polygon-object[data-object-type="sidewalk"] .polygon-fill {
+  fill: #d6d3d1;
+  stroke: #334155 !important;
+}
