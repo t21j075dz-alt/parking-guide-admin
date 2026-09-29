@@ -1184,14 +1184,18 @@ const EDIT_MODE_HELP = Object.freeze({
   reshape: "形変更モード：選択中の建物・敷地・車道・歩道・外周道路だけを操作します。重なった他の図形はクリックを通過します。",
 });
 
+/** 「敷地・道路をロック」の対象で、現在ロック中か判定する。 */
+function isObjectLocked(item) {
+  return Boolean(
+    item
+    && BASE_LAYER_OBJECT_TYPES.has(item.objectType)
+    && elements.baseLayerLock?.checked === true
+  );
+}
+
 /** 現在のモードで選択中オブジェクトを実際に編集できるか判定する。 */
 function canEditSelectionInCurrentMode(item = getSelectedObject()) {
-  if (!item) return false;
-
-  const locked =
-    BASE_LAYER_OBJECT_TYPES.has(item.objectType)
-    && elements.baseLayerLock?.checked === true;
-  if (locked) return false;
+  if (!item || isObjectLocked(item)) return false;
 
   if (state.editMode === "resize") return true;
   if (state.editMode === "reshape") return POLYGON_OBJECT_TYPES.has(item.objectType);
@@ -2143,7 +2147,7 @@ function createAdjacentSpaces(direction) {
 function rotateSelected(delta) {
   const item = getSelectedObject();
   const layout = getCurrentLayout();
-  if (!item || !layout) {
+  if (!item || !layout || isObjectLocked(item)) {
     return;
   }
   item.rotation = ((Number(item.rotation) || 0) + delta + 360) % 360;
@@ -2596,8 +2600,7 @@ function render() {
     label.title = item.name || item.uid;
     node.append(label);
 
-    if (item.uid === state.selectedUid
-        && !(BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false)) {
+    if (item.uid === state.selectedUid && !isObjectLocked(item)) {
       if (state.editMode === "resize") {
         addResizeHandles(node, item);
       } else if (state.editMode === "reshape" && POLYGON_OBJECT_TYPES.has(item.objectType)) {
@@ -2630,7 +2633,7 @@ function startDrag(event) {
   if (!item) {
     return;
   }
-  if (BASE_LAYER_OBJECT_TYPES.has(item.objectType) && elements.baseLayerLock?.checked !== false) {
+  if (isObjectLocked(item)) {
     state.selectedUid = item.uid;
     render();
     return;
@@ -2848,6 +2851,10 @@ function updateSelectedFromForm() {
   if (!item || !layout) {
     return;
   }
+  if (isObjectLocked(item)) {
+    updateSettings();
+    return;
+  }
   item.name = elements.name.value.trim() || item.uid;
   const requestedPosition = clampObjectPosition(
     item,
@@ -2994,7 +3001,7 @@ function updateSelectedFromForm() {
 function duplicateSelected() {
   const item = getSelectedObject();
   const layout = getCurrentLayout();
-  if (!item || !layout) {
+  if (!item || !layout || isObjectLocked(item)) {
     return;
   }
 
@@ -3043,6 +3050,9 @@ function deleteSelected() {
   }
 
   const deleted = layout.objects.find((item) => item.uid === state.selectedUid) ?? null;
+  if (isObjectLocked(deleted)) {
+    return;
+  }
   layout.objects = layout.objects.filter((item) => item.uid !== state.selectedUid);
 
   if (deleted?.objectType === "building" && deleted.buildingId) {
@@ -3807,6 +3817,7 @@ document.addEventListener("keydown", (event) => {
   const item = getSelectedObject();
   if (state.editMode !== "move"
       || !item
+      || isObjectLocked(item)
       || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
     return;
   }
@@ -3819,6 +3830,15 @@ document.addEventListener("keydown", (event) => {
   const keyboardPosition = clampObjectPosition(item, item.x, item.y, getCurrentLayout());
   item.x = Math.round(keyboardPosition.x * 100) / 100;
   item.y = Math.round(keyboardPosition.y * 100) / 100;
+
+  const layout = getCurrentLayout();
+  if (item.objectType === "roadSign") {
+    attachRoadSignToSurface(item, layout);
+  }
+  if (ROAD_SURFACE_TYPES.has(item.objectType)) {
+    syncLinkedRoadSigns(layout);
+  }
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 });
