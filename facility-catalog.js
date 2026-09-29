@@ -15,9 +15,11 @@ window.ADMIN_FACILITY_CATALOG = {
   metadata: {
     "total": 121,
     "researchTargetCount": 120,
+  "activeResearchSampleCount": 49,
+  "archivedCandidateCount": 71,
     "testFacilityCount": 1,
     "prefectures": 12,
-    "note": "研究対象120施設＋自宅テスト用。2026-09-29に大型駐車場偏重を見直し、各県1施設を大型比較枠とし、ドラッグストア・ファミレス・道の駅などを追加。複合施設は敷地単位で管理。",
+    "note": "研究候補120施設を保持しつつ、通常表示は49施設に整理。各県は大型比較1＋ドラッグストア1＋ファミレス1＋道の駅1を基本とし、岡山県のみ既存研究対象のマルナカ中井町店を追加。旧候補71件は予備として非表示。",
     "locationAuditDate": "2026-09-28",
     "locationVerifiedCount": 120,
     "fixedCoordinateCount": 120,
@@ -449,7 +451,8 @@ window.ADMIN_FACILITY_CATALOG = {
     "operatingStatus": "active",
     "layoutId": "target_021",
     "targetBuildingId": null,
-    "isDemo": false
+    "isDemo": false,
+  "sampleRole": "small-medium-core"
   },
   {
     "id": "target_022",
