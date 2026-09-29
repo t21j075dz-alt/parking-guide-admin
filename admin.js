@@ -294,6 +294,9 @@ const elements = {
   buildingSettings: document.querySelector("#building-settings"),
   buildingDestination: document.querySelector("#building-destination"),
   buildingObjectId: document.querySelector("#building-object-id"),
+  buildingLabelAutoScale: document.querySelector("#building-label-auto-scale"),
+  buildingLabelFontSize: document.querySelector("#building-label-font-size"),
+  buildingLabelFontSizeOutput: document.querySelector("#building-label-font-size-output"),
   roadSignSettings: document.querySelector("#road-sign-settings"),
   roadSignType: document.querySelector("#road-sign-type"),
   roadSignRouteNumber: document.querySelector("#road-sign-route-number"),
@@ -542,6 +545,16 @@ function getParkingSpaceLabel(spaceType) {
       : spaceType === "ev" ? "EV" : "普通車";
 }
 
+/** 建物外形に合わせた名称ラベルの文字サイズを返す。手動指定時は保存値を優先する。 */
+function getBuildingLabelFontSize(item) {
+  if (item?.labelAutoScale === false) {
+    return Math.max(5, Math.min(40, Number(item.labelFontSize) || 12));
+  }
+  const width = Math.max(3, Number(item?.width) || OBJECT_DEFAULTS.building.width);
+  const height = Math.max(3, Number(item?.height) || OBJECT_DEFAULTS.building.height);
+  return Math.max(6, Math.min(32, Math.round(Math.min(width / 18, height / 7))));
+}
+
 /**
  * 現在レイアウトで未使用の最小の駐車枠番号を返す。
  * 内部UIDとは分離し、削除後の作り直しで001から再利用できるようにする。
@@ -650,6 +663,8 @@ function addObject(type, options = {}) {
   if (type === "building") {
     const destination = options.destination;
     item.buildingId = destination?.buildingId ?? "";
+    item.labelAutoScale = true;
+    item.labelFontSize = getBuildingLabelFontSize(item);
     if (destination?.name) {
       item.name = destination.name;
     }
@@ -1103,7 +1118,7 @@ function fitViewScale() {
 /** 現在選択中の方眼グリッド間隔（論理px）を返す。1m=10px。 */
 function getGridSize() {
   const value = Number(elements.gridSize?.value);
-  return Number.isFinite(value) && value > 0 ? value : 5;
+  return Number.isFinite(value) && value > 0 ? value : 2;
 }
 
 /** 方眼グリッドの表示・間隔をCSS変数へ反映する。 */
@@ -1855,6 +1870,9 @@ function render() {
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "roadSign") appendRoadSignFace(node, item);
+    if (item.objectType === "building") {
+      node.style.setProperty("--building-label-font-size", `${getBuildingLabelFontSize(item)}px`);
+    }
     if (item.objectType === "parkingSpace") {
       node.dataset.spaceType = item.spaceType ?? "standard";
       node.dataset.markingStyle = item.markingStyle ?? "uShape";
@@ -2057,6 +2075,12 @@ function updateSettings() {
       .some((option) => option.value === (item.buildingId ?? ""))
       ? (item.buildingId ?? "")
       : "";
+    elements.buildingLabelAutoScale.checked = item.labelAutoScale !== false;
+    const labelFontSize = getBuildingLabelFontSize(item);
+    elements.buildingLabelFontSize.value = String(labelFontSize);
+    elements.buildingLabelFontSize.disabled = elements.buildingLabelAutoScale.checked;
+    elements.buildingLabelFontSizeOutput.value = `${labelFontSize}px`;
+    elements.buildingLabelFontSizeOutput.textContent = `${labelFontSize}px`;
   }
 
   elements.roadSignSettings.hidden = item.objectType !== "roadSign";
@@ -2151,6 +2175,10 @@ function updateSelectedFromForm() {
       elements.buildingObjectId.value = item.buildingId;
     } else {
       item.buildingId = elements.buildingObjectId.value.trim();
+    }
+    item.labelAutoScale = elements.buildingLabelAutoScale.checked;
+    if (!item.labelAutoScale) {
+      item.labelFontSize = Math.max(5, Math.min(40, Number(elements.buildingLabelFontSize.value) || 12));
     }
   }
   if (item.objectType === "roadSign") {
@@ -2894,13 +2922,18 @@ elements.facilitySelect.addEventListener("change", changeFacility);
   elements.spaceType, elements.spaceStatus, elements.spaceMarkingStyle, elements.spaceMarkingColor,
   elements.spaceMarkingWidth, elements.entranceType, elements.publicAccess,
   elements.wheelchairAccessible, elements.guideTarget, elements.buildingId,
-  elements.buildingDestination, elements.roadSignType,
+  elements.buildingDestination, elements.buildingLabelAutoScale, elements.buildingLabelFontSize,
+  elements.roadSignType,
   elements.roadSignRouteNumber, elements.roadSignPrefecture].forEach((control) => {
   control.addEventListener("change", updateSelectedFromForm);
 });
 elements.buildingObjectId.addEventListener("change", () => {
   elements.buildingDestination.value = "";
   updateSelectedFromForm();
+});
+elements.buildingLabelFontSize.addEventListener("input", () => {
+  elements.buildingLabelFontSizeOutput.value = `${elements.buildingLabelFontSize.value}px`;
+  elements.buildingLabelFontSizeOutput.textContent = `${elements.buildingLabelFontSize.value}px`;
 });
 
 /* 線の太さはスライダー操作中にも数値を表示する。 */

@@ -189,7 +189,8 @@
             <label class="toolbar-check"><input id="orthogonal-snap" type="checkbox" checked> 直角・直線補正</label>
             <label class="grid-size-label">グリッド
               <select id="grid-size">
-                <option value="5" selected>0.5m</option>
+                <option value="2" selected>0.2m</option>
+                <option value="5">0.5m</option>
                 <option value="10">1m</option>
                 <option value="25">2.5m</option>
                 <option value="50">5m</option>
@@ -295,6 +296,13 @@
             <legend>建物</legend>
             <label>店舗・建物<select id="building-destination"></select></label>
             <label>建物ID<input id="building-object-id" type="text" list="building-id-options" placeholder="building_001"></label>
+            <label class="check-row"><input id="building-label-auto-scale" type="checkbox" checked> 建物サイズに合わせて文字を自動調整</label>
+            <label id="building-label-size-field">文字サイズ
+              <span class="building-label-size-control">
+                <input id="building-label-font-size" type="range" min="5" max="40" step="1" value="12">
+                <output id="building-label-font-size-output">12px</output>
+              </span>
+            </label>
             <p class="muted">複合施設の店舗を選ぶと、名称と建物IDをまとめて反映します。</p>
           </fieldset>
 

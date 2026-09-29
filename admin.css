@@ -386,24 +386,24 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
 .resize-handle {
   position: absolute;
   z-index: 40;
-  width: 7px !important;
-  min-width: 7px;
-  height: 7px !important;
-  min-height: 7px;
+  width: 5px !important;
+  min-width: 5px;
+  height: 5px !important;
+  min-height: 5px;
   padding: 0;
-  border: 2px solid #2563eb;
-  border-radius: 2px;
+  border: 1px solid #2563eb;
+  border-radius: 1px;
   background: #ffffff;
 }
 
-.resize-handle--nw { left: -7px; top: -7px; cursor: nwse-resize; }
-.resize-handle--n  { left: calc(50% - 6px); top: -7px; cursor: ns-resize; }
-.resize-handle--ne { right: -7px; top: -7px; cursor: nesw-resize; }
-.resize-handle--e  { right: -7px; top: calc(50% - 6px); cursor: ew-resize; }
-.resize-handle--se { right: -7px; bottom: -7px; cursor: nwse-resize; }
-.resize-handle--s  { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
-.resize-handle--sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
-.resize-handle--w  { left: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+.resize-handle--nw { left: -4px; top: -4px; cursor: nwse-resize; }
+.resize-handle--n  { left: calc(50% - 3px); top: -4px; cursor: ns-resize; }
+.resize-handle--ne { right: -4px; top: -4px; cursor: nesw-resize; }
+.resize-handle--e  { right: -4px; top: calc(50% - 3px); cursor: ew-resize; }
+.resize-handle--se { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.resize-handle--s  { left: calc(50% - 3px); bottom: -4px; cursor: ns-resize; }
+.resize-handle--sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
+.resize-handle--w  { left: -4px; top: calc(50% - 3px); cursor: ew-resize; }
 
 .snap-guide {
   position: absolute;
@@ -625,6 +625,7 @@ html[data-theme="dark"] .map-object[data-object-type="loadingZone"] {
    白紙模式図・自由多角形編集
    ========================================================= */
 .map-canvas {
+  --grid-size: 2px;
   background-color: #f8fafc;
   background-image:
     linear-gradient(rgb(148 163 184 / 18%) 1px, transparent 1px),
@@ -704,16 +705,16 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
 .polygon-handle {
   position: absolute;
   z-index: 60;
-  width: 12px !important;
-  min-width: 12px;
-  height: 12px !important;
-  min-height: 12px;
+  width: 7px !important;
+  min-width: 7px;
+  height: 7px !important;
+  min-height: 7px;
   padding: 0;
   transform: translate(-50%, -50%);
   touch-action: none;
 }
 .polygon-handle--vertex {
-  border: 2px solid #fff;
+  border: 1px solid #fff;
   border-radius: 50%;
   background: #2563eb;
   box-shadow: 0 0 0 1px #1e3a8a;
@@ -725,7 +726,7 @@ html[data-theme="dark"] .map-canvas { background-color: #111827; }
   border-radius: 50%;
   background: #fff;
   color: #334155;
-  font-size: 10px;
+  font-size: 6px;
   font-weight: 800;
   line-height: 1;
 }
@@ -1008,12 +1009,12 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   z-index: 1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgb(148 163 184 / 20%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(148 163 184 / 20%) 1px, transparent 1px),
-    linear-gradient(rgb(71 85 105 / 30%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(71 85 105 / 30%) 1px, transparent 1px),
-    linear-gradient(rgb(30 41 59 / 42%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(30 41 59 / 42%) 1px, transparent 1px);
+    linear-gradient(rgb(148 163 184 / 14%) 0.5px, transparent 0.5px),
+    linear-gradient(90deg, rgb(148 163 184 / 14%) 0.5px, transparent 0.5px),
+    linear-gradient(rgb(71 85 105 / 24%) 0.75px, transparent 0.75px),
+    linear-gradient(90deg, rgb(71 85 105 / 24%) 0.75px, transparent 0.75px),
+    linear-gradient(rgb(30 41 59 / 34%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(30 41 59 / 34%) 1px, transparent 1px);
   background-position:
     var(--grid-origin-x) var(--grid-origin-y),
     var(--grid-origin-x) var(--grid-origin-y),
@@ -1037,8 +1038,12 @@ html[data-theme="dark"] .map-canvas::before {
 
 /* 写真が見えるよう、敷地・道路・建物は輪郭を保ちながら半透明にする。 */
 .polygon-object[data-object-type="parkingLot"] .polygon-fill {
-  fill: rgb(75 80 85 / 38%);
+  fill: rgb(75 80 85 / 24%);
   stroke: #2563eb;
+}
+html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-fill {
+  fill: rgb(63 68 72 / 30%);
+  stroke: #93c5fd;
 }
 .polygon-object[data-object-type="excludedParkingLot"] .polygon-fill {
   fill: rgb(114 119 125 / 32%);
@@ -1090,6 +1095,39 @@ html[data-theme="dark"] .map-canvas::before {
 .layout-scale label { font-size: 12px; font-weight: 600; }
 .layout-scale input { width: 58px; min-height: 30px; padding: 3px 5px; }
 .layout-scale button { min-height: 30px; padding: 3px 8px; }
+
+.building-label-size-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.2rem;
+  align-items: center;
+  gap: 8px;
+}
+.building-label-size-control output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.building-label-size-control input:disabled { opacity: 0.48; }
+
+/* 建物ラベルは外形変更に追従し、選択中も建物中央の実寸表示を保つ。 */
+.map-object[data-object-type="building"] > .object-label,
+.map-object[data-object-type="building"].selected > .object-label {
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  display: block !important;
+  width: max-content;
+  max-width: 88%;
+  padding: 0.12em 0.28em;
+  overflow: hidden;
+  background: rgb(255 255 255 / 72%);
+  color: #111827;
+  font-size: var(--building-label-font-size, 10px);
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
 
 /* 編集可能な国道・都道府県道・規制標識。 */
 .map-object[data-object-type="roadSign"] {
