@@ -2123,8 +2123,8 @@ function createAdjacentSpaces(direction) {
     copy.uid = createUid("parkingSpace");
     delete copy.spaceNumber;
     assignParkingSpaceNumber(copy, layout);
-    copy.x = Math.round(source.x + stepX * index);
-    copy.y = Math.round(source.y + stepY * index);
+    copy.x = Math.round((source.x + stepX * index) * 100) / 100;
+    copy.y = Math.round((source.y + stepY * index) * 100) / 100;
     if (copy.x < 0 || copy.y < 0
         || copy.x + copy.width > layout.canvas.width
         || copy.y + copy.height > layout.canvas.height) {
@@ -2142,10 +2142,19 @@ function createAdjacentSpaces(direction) {
 /** 選択オブジェクトを90度単位で回転する。 */
 function rotateSelected(delta) {
   const item = getSelectedObject();
-  if (!item) {
+  const layout = getCurrentLayout();
+  if (!item || !layout) {
     return;
   }
   item.rotation = ((Number(item.rotation) || 0) + delta + 360) % 360;
+
+  if (item.objectType === "roadSign") {
+    attachRoadSignToSurface(item, layout);
+  }
+  if (ROAD_SURFACE_TYPES.has(item.objectType)) {
+    syncLinkedRoadSigns(layout);
+  }
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 }
@@ -2173,10 +2182,10 @@ function scaleEntireLayout() {
   ));
 
   objects.forEach((item) => {
-    item.x = Math.round(centerX + ((Number(item.x) || 0) - centerX) * factor);
-    item.y = Math.round(centerY + ((Number(item.y) || 0) - centerY) * factor);
-    item.width = Math.max(3, Math.round((Number(item.width) || 3) * factor));
-    item.height = Math.max(3, Math.round((Number(item.height) || 3) * factor));
+    item.x = Math.round((centerX + ((Number(item.x) || 0) - centerX) * factor) * 100) / 100;
+    item.y = Math.round((centerY + ((Number(item.y) || 0) - centerY) * factor) * 100) / 100;
+    item.width = Math.max(3, Math.round((Number(item.width) || 3) * factor * 100) / 100);
+    item.height = Math.max(3, Math.round((Number(item.height) || 3) * factor * 100) / 100);
     if (Array.isArray(item.polygonPoints)) {
       item.polygonPoints = item.polygonPoints.map((point) => ({
         x: Number((Number(point.x) * factor).toFixed(2)),
@@ -2201,6 +2210,8 @@ function scaleEntireLayout() {
   layout.canvas.width = Math.min(6000, Math.max(layout.canvas.width, Math.ceil(contentMaxX + 50)));
   layout.canvas.height = Math.min(6000, Math.max(layout.canvas.height, Math.ceil(contentMaxY + 50)));
   percentInput.value = "100";
+  syncLinkedRoadSigns(layout);
+  syncRoadTrafficControls(layout);
   saveLocal();
   render();
 }
@@ -2279,6 +2290,7 @@ function attachRoadSignToSurface(sign, layout) {
     delete sign.linkedRoadUid;
     delete sign.roadAnchorX;
     delete sign.roadAnchorY;
+    delete sign.roadRotationOffset;
     return false;
   }
 
@@ -2286,6 +2298,9 @@ function attachRoadSignToSurface(sign, layout) {
   sign.linkedRoadUid = road.uid;
   sign.roadAnchorX = Math.max(0, Math.min(1, local.x / Math.max(1, Number(road.width) || 1)));
   sign.roadAnchorY = Math.max(0, Math.min(1, local.y / Math.max(1, Number(road.height) || 1)));
+  sign.roadRotationOffset = (
+    (Number(sign.rotation) || 0) - (Number(road.rotation) || 0) + 540
+  ) % 360 - 180;
 
   /* 旧式の国道・県道標識を道路上へ置いた場合も道路側へ情報を引き継ぐ。 */
   if (sign.signType === "nationalRoute" && road.objectType === "nationalRoad") {
@@ -2313,14 +2328,24 @@ function syncLinkedRoadSigns(layout) {
       delete sign.linkedRoadUid;
       delete sign.roadAnchorX;
       delete sign.roadAnchorY;
+      delete sign.roadRotationOffset;
       return;
     }
 
     const localX = (Number(sign.roadAnchorX) || 0) * Math.max(1, Number(road.width) || 1);
     const localY = (Number(sign.roadAnchorY) || 0) * Math.max(1, Number(road.height) || 1);
     const global = objectLocalPointToGlobal(road, localX, localY);
-    sign.x = Math.round(global.x - (Number(sign.width) || 48) / 2);
-    sign.y = Math.round(global.y - (Number(sign.height) || 58) / 2);
+    sign.x = Math.round((global.x - (Number(sign.width) || 48) / 2) * 100) / 100;
+    sign.y = Math.round((global.y - (Number(sign.height) || 58) / 2) * 100) / 100;
+
+    if (!Number.isFinite(Number(sign.roadRotationOffset))) {
+      sign.roadRotationOffset = (
+        (Number(sign.rotation) || 0) - (Number(road.rotation) || 0) + 540
+      ) % 360 - 180;
+    }
+    sign.rotation = (
+      (Number(road.rotation) || 0) + Number(sign.roadRotationOffset) + 360
+    ) % 360;
   });
 }
 
@@ -2836,8 +2861,25 @@ function updateSelectedFromForm() {
   elements.y.value = String(item.y);
   item.rotation = Number(elements.rotation.value) || 0;
   if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
-    item.width = Math.max(3, Number(elements.width.value) || 3);
-    item.height = Math.max(3, Number(elements.height.value) || 3);
+    const previousWidth = Math.max(3, Number(item.width) || 3);
+    const previousHeight = Math.max(3, Number(item.height) || 3);
+    const nextWidth = Math.max(3, Number(elements.width.value) || 3);
+    const nextHeight = Math.max(3, Number(elements.height.value) || 3);
+
+    if (POLYGON_OBJECT_TYPES.has(item.objectType)
+        && (Math.abs(nextWidth - previousWidth) > 0.0001
+          || Math.abs(nextHeight - previousHeight) > 0.0001)) {
+      const points = structuredClone(getPolygonPoints(item) ?? []);
+      const scaleX = nextWidth / previousWidth;
+      const scaleY = nextHeight / previousHeight;
+      item.polygonPoints = points.map((point) => ({
+        x: Math.max(0, Math.min(nextWidth, Number(point.x) * scaleX)),
+        y: Math.max(0, Math.min(nextHeight, Number(point.y) * scaleY)),
+      }));
+    }
+
+    item.width = nextWidth;
+    item.height = nextHeight;
   }
   if (item.objectType === "road") {
     const previousDirection = item.trafficDirection ?? "twoWay";
@@ -2936,8 +2978,9 @@ function updateSelectedFromForm() {
     item.guideTarget = elements.guideTarget.checked;
     item.buildingId = elements.buildingId.value.trim();
   }
-  item.x = Math.min(item.x, layout.canvas.width - (item.width ?? 34));
-  item.y = Math.min(item.y, layout.canvas.height - (item.height ?? 34));
+  const finalPosition = clampObjectPosition(item, item.x, item.y, layout);
+  item.x = Math.round(finalPosition.x * 100) / 100;
+  item.y = Math.round(finalPosition.y * 100) / 100;
   if (item.objectType === "roadSign") {
     attachRoadSignToSurface(item, layout);
   }
@@ -2969,6 +3012,7 @@ function duplicateSelected() {
     delete copy.linkedRoadUid;
     delete copy.roadAnchorX;
     delete copy.roadAnchorY;
+    delete copy.roadRotationOffset;
   }
 
   if (item.objectType === "building") {
