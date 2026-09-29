@@ -194,7 +194,9 @@
             <label class="toolbar-check"><input id="orthogonal-snap" type="checkbox" checked> 直角・直線補正</label>
             <label class="grid-size-label">グリッド
               <select id="grid-size">
-                <option value="2" selected>0.2m</option>
+                <option value="0.5">0.05m（5cm）</option>
+                <option value="1">0.1m（10cm）</option>
+                <option value="2" selected>0.2m（20cm）</option>
                 <option value="5">0.5m</option>
                 <option value="10">1m</option>
                 <option value="25">2.5m</option>
@@ -202,7 +204,7 @@
               </select>
             </label>
           </div>
-          <span class="muted grid-help">薄線＝設定間隔、太線＝1m、最太線＝5m。頂点はグリッドの1/2刻み・小数座標で動き、Altを押しながらだと吸着を一時解除してさらに細かく調整できます。固定すると敷地・道路を不透明表示に戻し、建物名以外の名称を隠します。</span>
+          <span class="muted grid-help">薄線＝設定間隔、太線＝1m、最太線＝5m。最小5cmグリッドまで選択できます。矢印キーは5cm、Shift＋矢印は50cmずつ移動します。頂点はさらに細かく動き、Altを押しながらだと吸着を一時解除できます。固定すると敷地・道路を不透明表示に戻し、建物名以外の名称を隠します。</span>
           <span class="toolbar-spacer"></span>
           <div class="layout-scale" aria-label="配置全体のサイズ変更">
             <label>配置全体 <input id="layout-scale-percent" type="number" min="25" max="400" step="5" value="100">%</label>
@@ -237,8 +239,8 @@
             <div class="settings-grid">
               <label>内部ID<input id="object-uid" type="text" readonly></label>
               <label>種類<input id="object-type" type="text" readonly></label>
-              <label>X<input id="object-x" type="number" step="1"></label>
-              <label>Y<input id="object-y" type="number" step="1"></label>
+              <label>X<input id="object-x" type="number" step="0.1"></label>
+              <label>Y<input id="object-y" type="number" step="0.1"></label>
               <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
               <label id="width-field">幅<input id="object-width" type="number" min="3" step="1"></label>
               <label id="height-field">高さ<input id="object-height" type="number" min="3" step="1"></label>
