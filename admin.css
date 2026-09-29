@@ -167,8 +167,8 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .map-object[data-object-type="crosswalk"] { border-color: #475569; background: repeating-linear-gradient(90deg,#fff 0 8px,#64748b 8px 16px); }
 .map-object[data-object-type="building"] { border-color: #1e40af; background: var(--building); }
 .map-object[data-object-type="buildingEntrance"],.map-object[data-object-type="parkingEntrance"] { border-radius: 50%; border-color: #7c3aed; background: #f5f3ff; }
-.map-object[data-object-type="buildingEntrance"]::before { content: "入口"; font-size: 9px; }
-.map-object[data-object-type="parkingEntrance"]::before { content: "P出入口"; font-size: 8px; }
+.map-object[data-object-type="buildingEntrance"]::before { content: "入口"; font-size: 6px; }
+.map-object[data-object-type="parkingEntrance"]::before { content: "P出入口"; font-size: 5px; }
 .map-object[data-object-type="buildingEntrance"] span,.map-object[data-object-type="parkingEntrance"] span { display: none; }
 /* 右側のオブジェクト設定フォーム。 */
 .empty-settings { padding: 16px 0; color: var(--muted); }
@@ -984,7 +984,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   border: 0;
   background: transparent;
   color: #fff;
-  font-size: 12px;
+  font-size: 8px;
   font-weight: 800;
   line-height: 1;
   text-shadow: 0 1px 2px rgb(0 0 0 / 75%);
@@ -1003,7 +1003,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   border: 0;
   background: transparent;
   color: rgb(255 255 255 / 88%);
-  font-size: 6px;
+  font-size: 4px;
   font-weight: 700;
   line-height: 1;
   text-shadow: 0 1px 1px rgb(0 0 0 / 75%);
@@ -1025,19 +1025,19 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   max-width: none;
   padding: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: 8px;
   transform: translate(-50%, -50%);
 }
 .map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
   left: 50%;
   top: auto;
-  bottom: 3px;
+  bottom: 2px;
   display: block !important;
   width: auto;
   max-width: none;
   padding: 0;
   background: transparent;
-  font-size: 6px;
+  font-size: 4px;
   transform: translateX(-50%);
 }
 
@@ -1398,8 +1398,8 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   left: 50%;
   top: 50%;
   z-index: 18;
-  width: 32px;
-  height: 36px;
+  width: 18px;
+  height: 21px;
   pointer-events: none;
   filter: drop-shadow(0 1px 1px rgb(15 23 42 / 35%));
   transform-origin: center;
@@ -1417,7 +1417,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 .embedded-route-shield__inner {
   position: absolute;
-  inset: 3px;
+  inset: 2px;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -1426,10 +1426,10 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 }
 
 .embedded-route-shield__heading {
-  max-width: 27px;
+  max-width: 15px;
   overflow: hidden;
   color: #1769aa;
-  font-size: 5px;
+  font-size: 3.5px;
   font-weight: 800;
   line-height: 1;
   text-overflow: ellipsis;
@@ -1438,7 +1438,7 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 
 .embedded-route-shield__number {
   color: #1769aa;
-  font-size: 14px;
+  font-size: 9px;
   font-weight: 900;
   line-height: 0.95;
   letter-spacing: -0.5px;
