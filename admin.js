@@ -180,6 +180,12 @@ const ROAD_SURFACE_TYPES = new Set([
   "publicRoad",
 ]);
 
+/* 駐車場敷地同士を強吸着させる対象。 */
+const SITE_OBJECT_TYPES = new Set([
+  "parkingLot",
+  "excludedParkingLot",
+]);
+
 /*
  * 外周道路・敷地・建物などは、実際の配置に合わせてキャンバス端をまたげる。
  * 完全に見失わないよう、最低20pxだけはキャンバス内へ残す。
@@ -261,6 +267,7 @@ const elements = {
   backgroundEditButton: document.querySelector("#background-edit-button"),
   snapEnabled: document.querySelector("#snap-enabled"),
   parkingSnapStrong: document.querySelector("#parking-snap-strong"),
+  siteSnapStrong: document.querySelector("#site-snap-strong"),
   baseLayerLock: document.querySelector("#base-layer-lock"),
   gridVisible: document.querySelector("#grid-visible"),
   gridSize: document.querySelector("#grid-size"),
@@ -1353,6 +1360,76 @@ function snapParkingSpacePosition(item, x, y) {
   return best;
 }
 
+/**
+ * 駐車場敷地・対象外駐車場敷地同士を強く吸着させる。
+ * 左右・上下の辺をぴったり接続する位置と、同じ辺・中心を揃える位置を候補にする。
+ */
+function snapSitePosition(item, x, y) {
+  const layout = getCurrentLayout();
+  if (!layout
+      || !SITE_OBJECT_TYPES.has(item.objectType)
+      || elements.siteSnapStrong?.checked === false) {
+    return null;
+  }
+
+  const threshold = Math.max(12, getGridSize() * 2);
+  const width = Number(item.width) || 100;
+  const height = Number(item.height) || 100;
+  let bestX = null;
+  let bestY = null;
+
+  function considerX(value, guide, priority = 0) {
+    const distance = Math.abs(value - x);
+    if (distance > threshold) return;
+    const score = distance + priority * 1.5;
+    if (!bestX || score < bestX.score) {
+      bestX = { value, guide, distance, score };
+    }
+  }
+
+  function considerY(value, guide, priority = 0) {
+    const distance = Math.abs(value - y);
+    if (distance > threshold) return;
+    const score = distance + priority * 1.5;
+    if (!bestY || score < bestY.score) {
+      bestY = { value, guide, distance, score };
+    }
+  }
+
+  (layout.objects ?? []).forEach((other) => {
+    if (other.uid === item.uid || !SITE_OBJECT_TYPES.has(other.objectType)) return;
+
+    const ow = Number(other.width) || 100;
+    const oh = Number(other.height) || 100;
+
+    /*
+     * priority 0 = 辺同士を接続
+     * priority 1 = 同じ外周辺を揃える
+     * priority 2 = 中心を揃える
+     */
+    considerX(other.x + ow, other.x + ow, 0);          // 相手の右辺へ自分の左辺
+    considerX(other.x - width, other.x, 0);            // 相手の左辺へ自分の右辺
+    considerX(other.x, other.x, 1);                    // 左辺同士
+    considerX(other.x + ow - width, other.x + ow, 1); // 右辺同士
+    considerX(other.x + ow / 2 - width / 2, other.x + ow / 2, 2);
+
+    considerY(other.y + oh, other.y + oh, 0);           // 相手の下辺へ自分の上辺
+    considerY(other.y - height, other.y, 0);            // 相手の上辺へ自分の下辺
+    considerY(other.y, other.y, 1);                     // 上辺同士
+    considerY(other.y + oh - height, other.y + oh, 1); // 下辺同士
+    considerY(other.y + oh / 2 - height / 2, other.y + oh / 2, 2);
+  });
+
+  if (!bestX && !bestY) return null;
+
+  return {
+    x: bestX?.value ?? snapToGrid(x),
+    y: bestY?.value ?? snapToGrid(y),
+    guideX: bestX?.guide ?? null,
+    guideY: bestY?.guide ?? null,
+  };
+}
+
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
 function snapObjectPosition(item, x, y) {
   if (!elements.snapEnabled?.checked) {
@@ -1367,6 +1444,12 @@ function snapObjectPosition(item, x, y) {
       guideY: parkingSnap.guideY,
     };
   }
+
+  const siteSnap = snapSitePosition(item, x, y);
+  if (siteSnap) {
+    return siteSnap;
+  }
+
   const threshold = Math.max(3, getGridSize() * 0.65);
   const layout = getCurrentLayout();
   const width = item.width ?? 34;
@@ -3214,6 +3297,9 @@ elements.baseLayerLock?.addEventListener("change", () => {
   render();
 });
 elements.parkingSnapStrong?.addEventListener("change", () => {
+  elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
+});
+elements.siteSnapStrong?.addEventListener("change", () => {
   elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
 });
 elements.gridVisible?.addEventListener("change", () => {
