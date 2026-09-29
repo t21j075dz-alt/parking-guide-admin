@@ -1652,3 +1652,179 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   fill: #d6d3d1;
   stroke: #334155 !important;
 }
+
+
+/* 最終コンパクト表示基準 v7 */
+/* 古い個別指定が残っていても、この末尾ルールを最終表示仕様として使う。 */
+.map-canvas {
+  --object-font-size: 4px;
+  --object-font-small: 3px;
+  --object-font-tiny: 2.5px;
+  --object-stroke-width: 0.6px;
+  --object-dashed-stroke-width: 0.8px;
+}
+
+.map-object {
+  border-width: var(--object-stroke-width) !important;
+  font-size: var(--object-font-size) !important;
+  line-height: 1 !important;
+}
+
+/* 建物・敷地・道路・歩道の輪郭仕様を完全に共通化。 */
+.polygon-object .polygon-fill,
+.polygon-object.selected .polygon-fill {
+  stroke-width: var(--object-stroke-width) !important;
+}
+
+/* 建物名だけを残し、余白も最小限にする。 */
+.map-object[data-object-type="building"] > .object-label,
+.map-object[data-object-type="building"].selected > .object-label {
+  padding: 0.08em 0.2em !important;
+  line-height: 1 !important;
+  border-radius: 2px !important;
+}
+
+/* 駐車枠は10×20pxでも白線や文字が図形を覆わない大きさに統一。 */
+.map-object[data-object-type="parkingSpace"] {
+  --space-line-width: 1px;
+}
+.map-object[data-object-type="parkingSpace"] > .space-type-mark,
+.map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
+  font-size: 4px !important;
+  text-shadow: 0 0.5px 0.5px rgb(0 0 0 / 70%) !important;
+}
+.map-object[data-object-type="parkingSpace"] > .space-number-mark,
+.map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
+  bottom: 1px !important;
+  font-size: 2.5px !important;
+  text-shadow: 0 0.5px 0.5px rgb(0 0 0 / 70%) !important;
+}
+
+/* 入口・出入口は同じ文字基準にする。 */
+.map-object[data-object-type="buildingEntrance"]::before,
+.map-object[data-object-type="parkingEntrance"]::before {
+  font-size: 3px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+/* 線・設備類は小型図形に合わせて線幅を統一。 */
+.map-object[data-object-type="stopLine"] {
+  border: 0 !important;
+  border-top: 2px solid #f8fafc !important;
+}
+.map-object[data-object-type="speedBump"] {
+  border-width: var(--object-stroke-width) !important;
+  background: repeating-linear-gradient(
+    90deg,
+    #fbbf24 0 4px,
+    #78350f 4px 8px
+  ) !important;
+}
+.map-object[data-object-type="cartCorral"],
+.map-object[data-object-type="loadingZone"] {
+  border-width: var(--object-dashed-stroke-width) !important;
+}
+.map-object[data-object-type="bicycleParking"],
+.map-object[data-object-type="motorcycleParking"],
+.map-object[data-object-type="noEntry"],
+.map-object[data-object-type="evCharger"] {
+  border-width: var(--object-stroke-width) !important;
+}
+
+/* 一方通行矢印も新しい道路サイズに合わせる。 */
+.road-direction-mark {
+  width: 22px !important;
+  height: 8px !important;
+  filter: none !important;
+}
+.road-direction-mark__shaft {
+  left: 2px !important;
+  right: 6px !important;
+  top: 3.4px !important;
+  height: 1.2px !important;
+  border-radius: 1px !important;
+}
+.road-direction-mark__head {
+  right: 2px !important;
+  top: 1.5px !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-top-width: 1px !important;
+  border-right-width: 1px !important;
+}
+
+/* 道路上の停止線・止まれ表示も同じ縮尺へ。 */
+.road-surface-stop-mark {
+  width: min(30px, 70%) !important;
+  gap: 1px !important;
+  filter: none !important;
+}
+.road-surface-stop-line {
+  height: 1.2px !important;
+  border-radius: 0 !important;
+}
+.road-surface-stop-text {
+  font-size: 3.5px !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* 国道・県道の道路内標識。 */
+.embedded-route-shield {
+  width: 10px !important;
+  height: 12px !important;
+  filter: none !important;
+}
+.embedded-route-shield__inner {
+  inset: 1px !important;
+}
+.embedded-route-shield__heading {
+  max-width: 8px !important;
+  font-size: 2px !important;
+}
+.embedded-route-shield__number {
+  font-size: 5px !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* 独立した道路標識も同じ文字階層・線幅へ。 */
+.map-object[data-object-type="roadSign"]::after {
+  left: calc(50% - 0.5px) !important;
+  width: 1px !important;
+  height: 42% !important;
+  border-width: 0.4px !important;
+  border-radius: 0.5px !important;
+}
+.road-sign-face {
+  filter: none !important;
+}
+.road-sign-heading {
+  max-width: 12px !important;
+  font-size: 2.5px !important;
+}
+.road-sign-number {
+  font-size: 6px !important;
+  letter-spacing: -0.3px !important;
+}
+.map-object[data-sign-type="noEntry"] .road-sign-face {
+  border-width: 1px !important;
+  box-shadow: 0 0 0 0.7px #dc2626 !important;
+}
+.road-sign-no-entry-bar {
+  top: calc(50% - 1.25px) !important;
+  height: 2.5px !important;
+  border-radius: 0.5px !important;
+}
+.road-sign-stop-inner {
+  inset: 1.5px 2px 2px !important;
+  gap: 0.4px !important;
+  padding: 1.5px 1px 3px !important;
+  font-size: 3px !important;
+}
+.road-sign-stop-jp {
+  font-size: 3.5px !important;
+}
+.road-sign-stop-en {
+  font-size: 2.5px !important;
+  letter-spacing: 0 !important;
+}
