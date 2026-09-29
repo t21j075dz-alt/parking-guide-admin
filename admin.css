@@ -83,7 +83,11 @@ h2 { margin: 0 0 10px; font-size: 15px; }
 .map-canvas { position: relative; width: 1000px; height: 700px; background-color: var(--canvas); background-image: linear-gradient(var(--border) 1px, transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 25px 25px; border: 1px solid var(--strong-border); transform-origin: top left; }
 /* キャンバス上の全オブジェクトに共通する見た目とドラッグ操作用設定。 */
 .map-object { position: absolute; display: grid; place-items: center; min-width: 3px; min-height: 3px; border: 1px solid #334155; background: #fff; color: #111827; user-select: none; touch-action: none; cursor: move; overflow: visible; font-size: 6px; line-height: 1; font-weight: 600; text-align: center; }
-.map-object.selected { outline: 1px solid #f59e0b; outline-offset: 1px; z-index: 20; }
+.map-object.selected {
+  outline: none !important;
+  box-shadow: none !important;
+  z-index: 20;
+}
 .map-object[data-object-type="parkingSpace"] {
   --space-line-color: #ffffff;
   --space-line-width: 3px;
@@ -1290,14 +1294,15 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   stroke-width: var(--ui-polygon-stroke, 0.8px) !important;
 }
 .map-object.selected {
-  outline-width: var(--ui-selection-stroke, 1px);
-  outline-offset: var(--ui-selection-stroke, 1px);
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
 .polygon-object.selected {
   outline: none !important;
 }
 .polygon-object.selected .polygon-fill {
-  stroke: #f59e0b;
+  stroke: #334155 !important;
 }
 
 /*
@@ -1439,8 +1444,8 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 }
 
 .polygon-object.selected .polygon-fill {
-  stroke: #f59e0b !important;
-  stroke-width: var(--ui-polygon-selected-stroke, 1.5px) !important;
+  stroke: #334155 !important;
+  stroke-width: var(--ui-polygon-stroke, 1px) !important;
   stroke-dasharray: none !important;
 }
 
@@ -1472,45 +1477,63 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   fill: rgb(115 123 132 / 44%);
 }
 
-/* 形変更ハンドルは、編集倍率を上げても画面上の大きさを一定に保つ。 */
+/* 形変更ハンドルは見た目を極小化し、透明の当たり判定だけ広く残す。 */
 .polygon-handle {
-  width: var(--ui-polygon-handle-size, 7px) !important;
-  min-width: var(--ui-polygon-handle-size, 7px) !important;
-  height: var(--ui-polygon-handle-size, 7px) !important;
-  min-height: var(--ui-polygon-handle-size, 7px) !important;
-}
-.polygon-handle--vertex {
-  border-width: var(--ui-polygon-handle-border, 1px);
-  box-shadow:
-    0 0 0 var(--ui-polygon-handle-border, 1px) #1e3a8a,
-    0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 32%);
-}
-.polygon-handle--add {
-  width: var(--ui-polygon-add-hit-size, 10px) !important;
-  min-width: var(--ui-polygon-add-hit-size, 10px) !important;
-  height: var(--ui-polygon-add-hit-size, 10px) !important;
-  min-height: var(--ui-polygon-add-hit-size, 10px) !important;
+  width: var(--ui-polygon-hit-size, 8px) !important;
+  min-width: var(--ui-polygon-hit-size, 8px) !important;
+  height: var(--ui-polygon-hit-size, 8px) !important;
+  min-height: var(--ui-polygon-hit-size, 8px) !important;
   border: 0 !important;
   background: transparent !important;
+  box-shadow: none !important;
+}
+
+.polygon-handle--vertex {
+  border-radius: 50%;
+  background: transparent !important;
+}
+.polygon-handle--vertex::before {
+  content: "";
+  display: block;
+  width: var(--ui-polygon-vertex-visual-size, 1px);
+  height: var(--ui-polygon-vertex-visual-size, 1px);
+  border: 0;
+  border-radius: 50%;
+  background: #1d4ed8;
+  box-shadow: none;
+}
+
+.polygon-handle--add {
   color: transparent !important;
   font-size: 0 !important;
-  box-shadow: none !important;
 }
 .polygon-handle--add::before {
   content: "+";
   display: grid;
-  width: var(--ui-polygon-add-visual-size, 5px);
-  height: var(--ui-polygon-add-visual-size, 5px);
+  width: var(--ui-polygon-add-visual-size, 0.5px);
+  height: var(--ui-polygon-add-visual-size, 0.5px);
   place-items: center;
-  border: var(--ui-polygon-handle-border, 1px) solid #64748b;
+  border: 0;
   border-radius: 50%;
   background: #fff;
   color: #334155;
-  font-size: var(--ui-polygon-add-font-size, 4px);
-  font-weight: 800;
+  font-size: var(--ui-polygon-add-font-size, 0.5px);
+  font-weight: 700;
   line-height: 1;
-  box-shadow:
-    0 var(--ui-polygon-shadow-y, 1px) var(--ui-polygon-shadow-blur, 2px) rgb(15 23 42 / 25%);
+  box-shadow: 0 0 0 var(--ui-polygon-add-outline, 0.25px) #64748b;
+}
+
+/* 極小表示でも位置を見失わないよう、ポインターを合わせた時だけ少し拡大する。 */
+.polygon-handle--vertex:hover::before,
+.polygon-handle--vertex:focus-visible::before {
+  width: var(--ui-polygon-hover-size, 3px);
+  height: var(--ui-polygon-hover-size, 3px);
+}
+.polygon-handle--add:hover::before,
+.polygon-handle--add:focus-visible::before {
+  width: var(--ui-polygon-add-hover-size, 3px);
+  height: var(--ui-polygon-add-hover-size, 3px);
+  font-size: var(--ui-polygon-add-hover-font-size, 2px);
 }
 
 /* 旧来の文字矢印を廃止し、道路上に白い進行方向矢印を描く。 */
