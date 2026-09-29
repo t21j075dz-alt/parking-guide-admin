@@ -1929,3 +1929,123 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   transform-origin: center !important;
   z-index: 30 !important;
 }
+
+
+/* version 11: 交通規制・連続駐車枠の最終調整 */
+
+/* 写真風駐車枠は隣接枠と共有境界を完全一致させる。 */
+.parking-photo-marking {
+  overflow: visible !important;
+}
+.parking-photo-marking__path {
+  stroke-linecap: butt !important;
+  stroke-linejoin: miter !important;
+  shape-rendering: geometricPrecision !important;
+}
+
+/* 独立標識を20px道路に対して過大にならない縮尺へ統一。 */
+.map-object[data-object-type="roadSign"]::after {
+  left: calc(50% - 0.3px) !important;
+  top: 60% !important;
+  width: 0.6px !important;
+  height: 36% !important;
+  border-width: 0.25px !important;
+  border-radius: 0.3px !important;
+}
+.road-sign-face {
+  left: 8% !important;
+  top: 0 !important;
+  width: 84% !important;
+  height: 72% !important;
+  filter: none !important;
+}
+.map-object[data-sign-type="nationalRoute"] .road-sign-inner,
+.map-object[data-sign-type="prefecturalRoute"] .road-sign-inner {
+  inset: 0.7px !important;
+}
+.road-sign-heading {
+  max-width: 8px !important;
+  font-size: 1.5px !important;
+}
+.road-sign-number {
+  font-size: 3.8px !important;
+  letter-spacing: -0.15px !important;
+}
+.map-object[data-sign-type="noEntry"] .road-sign-face {
+  top: 1px !important;
+  height: 68% !important;
+  border-width: 0.6px !important;
+  box-shadow: 0 0 0 0.4px #dc2626 !important;
+}
+.road-sign-no-entry-bar {
+  left: 14% !important;
+  right: 14% !important;
+  top: calc(50% - 0.6px) !important;
+  height: 1.2px !important;
+  border-radius: 0.2px !important;
+}
+.road-sign-stop-inner {
+  inset: 0.7px 0.9px 1px !important;
+  gap: 0.15px !important;
+  padding: 0.4px 0.25px 1px !important;
+  font-size: 1.8px !important;
+}
+.road-sign-stop-jp {
+  font-size: 2px !important;
+}
+.road-sign-stop-en {
+  font-size: 1.4px !important;
+  letter-spacing: 0 !important;
+}
+
+/* 道路上の停止線＋止まれも小型道路に合わせる。 */
+.road-surface-stop-mark {
+  width: min(18px, 52%) !important;
+  gap: 0.45px !important;
+  filter: none !important;
+}
+.road-surface-stop-line {
+  height: 0.6px !important;
+  border-radius: 0 !important;
+}
+.road-surface-stop-text {
+  font-size: 2.3px !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+}
+
+/* 一方通行矢印も同じ道路縮尺へ。 */
+.road-direction-mark {
+  width: 14px !important;
+  height: 5px !important;
+}
+.road-direction-mark__shaft {
+  left: 1px !important;
+  right: 4px !important;
+  top: 2.15px !important;
+  height: 0.7px !important;
+  border-radius: 0.4px !important;
+}
+.road-direction-mark__head {
+  right: 1px !important;
+  top: 1px !important;
+  width: 3px !important;
+  height: 3px !important;
+  border-top-width: 0.7px !important;
+  border-right-width: 0.7px !important;
+}
+
+/* 停止線は実寸データの高さ2px以下でも太く見えないようにする。 */
+.map-object[data-object-type="stopLine"] {
+  min-height: 0.5px !important;
+  border: 0 !important;
+  border-top: 0.6px solid #f8fafc !important;
+}
+.map-object[data-object-type="speedBump"] {
+  min-height: 1px !important;
+  background: repeating-linear-gradient(
+    90deg,
+    #fbbf24 0 2px,
+    #78350f 2px 4px
+  ) !important;
+}
