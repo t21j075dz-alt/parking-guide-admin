@@ -180,10 +180,25 @@ const ROAD_SURFACE_TYPES = new Set([
   "publicRoad",
 ]);
 
-/* 駐車場敷地同士を強吸着させる対象。 */
+/* 駐車場敷地グループの一括拡大縮小に使う対象。 */
 const SITE_OBJECT_TYPES = new Set([
   "parkingLot",
   "excludedParkingLot",
+]);
+
+/*
+ * 配置時に辺・中心を強く吸着させる面オブジェクト。
+ * 建物・歩道・車道・駐車場敷地・外周道路を同じ基準で揃える。
+ */
+const STRUCTURE_SNAP_OBJECT_TYPES = new Set([
+  "parkingLot",
+  "excludedParkingLot",
+  "building",
+  "road",
+  "sidewalk",
+  "nationalRoad",
+  "prefecturalRoad",
+  "publicRoad",
 ]);
 
 /*
@@ -1361,13 +1376,13 @@ function snapParkingSpacePosition(item, x, y) {
 }
 
 /**
- * 駐車場敷地・対象外駐車場敷地同士を強く吸着させる。
+ * 建物・歩道・車道・駐車場敷地・外周道路などの面オブジェクト同士を強く吸着させる。
  * 左右・上下の辺をぴったり接続する位置と、同じ辺・中心を揃える位置を候補にする。
  */
 function snapSitePosition(item, x, y) {
   const layout = getCurrentLayout();
   if (!layout
-      || !SITE_OBJECT_TYPES.has(item.objectType)
+      || !STRUCTURE_SNAP_OBJECT_TYPES.has(item.objectType)
       || elements.siteSnapStrong?.checked === false) {
     return null;
   }
@@ -1397,7 +1412,7 @@ function snapSitePosition(item, x, y) {
   }
 
   (layout.objects ?? []).forEach((other) => {
-    if (other.uid === item.uid || !SITE_OBJECT_TYPES.has(other.objectType)) return;
+    if (other.uid === item.uid || !STRUCTURE_SNAP_OBJECT_TYPES.has(other.objectType)) return;
 
     const ow = Number(other.width) || 100;
     const oh = Number(other.height) || 100;
