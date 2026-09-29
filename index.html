@@ -111,7 +111,7 @@
             <button type="button" data-add-object="roadSign" data-sign-type="noEntry">車両進入禁止</button>
             <button type="button" data-add-object="roadSign" data-sign-type="stop">一時停止</button>
           </div>
-          <p class="tool-help">一時停止・進入禁止は道路上へ置くと自動でその道路に関連付けます。国道・県道の標識は道路オブジェクト側へ路線番号を設定すると道路内へ自動表示します。</p>
+          <p class="tool-help">一時停止・進入禁止は道路上へ置くと自動でその道路に関連付けます。一時停止は道路上に停止線と「止まれ」表示も自動生成します。国道・県道は道路側へ路線番号を設定すると路線標識を自動表示します。</p>
         </section>
 
         <!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
@@ -323,7 +323,7 @@
             </label>
             <label id="route-number-field">路線番号<input id="road-sign-route-number" type="text" inputmode="numeric" maxlength="4" placeholder="53"></label>
             <label id="route-prefecture-field">都道府県名<input id="road-sign-prefecture" type="text" maxlength="8" placeholder="岡山県"></label>
-            <p id="road-sign-help" class="muted">一時停止・進入禁止は道路上へ置くと自動で関連付けます。国道・県道を選択した場合は、路線番号を設定すると道路内へ標識を自動表示します。</p>
+            <p id="road-sign-help" class="muted">一時停止は赤い逆三角形の「止まれ / STOP」で表示し、道路へ関連付けると停止線と「止まれ」の路面表示を自動生成します。車両進入禁止は赤地に白い横帯で表示します。</p>
           </fieldset>
 
           <fieldset id="parking-entrance-settings" hidden>
