@@ -285,7 +285,9 @@
             <label class="check-row"><input id="public-access" type="checkbox"> 利用者が使用可能</label>
             <label class="check-row"><input id="wheelchair-accessible" type="checkbox"> 車椅子で利用可能</label>
             <label class="check-row"><input id="guide-target" type="checkbox"> 案内基準として使用</label>
-            <label>関連建物ID<input id="building-id" type="text" placeholder="building_001"></label>
+            <label>関連建物ID<input id="building-id" type="text" list="building-id-options" placeholder="building_001"></label>
+            <datalist id="building-id-options"></datalist>
+            <p id="building-id-help" class="muted">複合施設では、目的店舗に対応する建物IDを選択してください。</p>
           </fieldset>
 
           <div class="object-actions">
