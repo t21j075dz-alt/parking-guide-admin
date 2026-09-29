@@ -2127,8 +2127,14 @@ function moveVertexDrag(event) {
   }
 
   const point = points[index];
-  point.x = Math.max(0, Math.min(item.width, Math.round(x * 100) / 100));
-  point.y = Math.max(0, Math.min(item.height, Math.round(y * 100) / 100));
+
+  /*
+   * 形変更では現在のwidth/heightを制限枠として使わない。
+   * 吸着した実輪郭線が元の外接矩形より外側でも、その位置をそのまま保持する。
+   * ドラッグ終了時に実際の多角形から新しい外接矩形を再計算する。
+   */
+  point.x = Math.round(x * 100) / 100;
+  point.y = Math.round(y * 100) / 100;
 
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   updatePolygonSvg(node, item);
@@ -2152,10 +2158,73 @@ function moveVertexDrag(event) {
   }
 }
 
+/**
+ * 形変更後の実際の多角形を基準に、オブジェクトのx/y/width/heightを再構築する。
+ * 回転中でも画面上の多角形位置が変わらないよう、中心位置を回転座標で補正する。
+ */
+function normalizePolygonBoundsToActualShape(item) {
+  const points = getPolygonPoints(item);
+  if (!item || !points?.length) return false;
+
+  const oldWidth = Math.max(0.1, Number(item.width) || 0.1);
+  const oldHeight = Math.max(0.1, Number(item.height) || 0.1);
+  const minX = Math.min(...points.map((point) => Number(point.x)));
+  const maxX = Math.max(...points.map((point) => Number(point.x)));
+  const minY = Math.min(...points.map((point) => Number(point.y)));
+  const maxY = Math.max(...points.map((point) => Number(point.y)));
+
+  const newWidth = Math.max(0.1, maxX - minX);
+  const newHeight = Math.max(0.1, maxY - minY);
+
+  /*
+   * ローカル座標の原点を(minX,minY)へ移す。
+   * そのままだと回転中心が変わるため、旧中心→新中心のローカル差分を
+   * 回転させてグローバル位置へ加算する。
+   */
+  const localCenterShiftX = minX + newWidth / 2 - oldWidth / 2;
+  const localCenterShiftY = minY + newHeight / 2 - oldHeight / 2;
+  const radians = (Number(item.rotation) || 0) * Math.PI / 180;
+  const globalCenterShiftX =
+    localCenterShiftX * Math.cos(radians)
+    - localCenterShiftY * Math.sin(radians);
+  const globalCenterShiftY =
+    localCenterShiftX * Math.sin(radians)
+    + localCenterShiftY * Math.cos(radians);
+
+  const oldCenterX = (Number(item.x) || 0) + oldWidth / 2;
+  const oldCenterY = (Number(item.y) || 0) + oldHeight / 2;
+  const newCenterX = oldCenterX + globalCenterShiftX;
+  const newCenterY = oldCenterY + globalCenterShiftY;
+
+  item.polygonPoints = points.map((point) => ({
+    x: Math.round((Number(point.x) - minX) * 100) / 100,
+    y: Math.round((Number(point.y) - minY) * 100) / 100,
+  }));
+  item.width = Math.round(newWidth * 100) / 100;
+  item.height = Math.round(newHeight * 100) / 100;
+  item.x = Math.round((newCenterX - newWidth / 2) * 100) / 100;
+  item.y = Math.round((newCenterY - newHeight / 2) * 100) / 100;
+
+  return true;
+}
+
 function endVertexDrag(event) {
   if (!state.vertexDrag || event.pointerId !== state.vertexDrag.pointerId) return false;
+
+  const item = getSelectedObject();
   state.vertexDrag = null;
   elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
+
+  /*
+   * ここで初めて外接矩形を更新する。
+   * 形変更中の吸着先は常に実際の輪郭線で、拡大縮小枠は結果として後から追従する。
+   */
+  if (item && POLYGON_OBJECT_TYPES.has(item.objectType)) {
+    normalizePolygonBoundsToActualShape(item);
+  }
+
+  syncLinkedRoadSigns(getCurrentLayout());
+  syncRoadTrafficControls(getCurrentLayout());
   saveLocal();
   render();
   return true;
