@@ -1081,8 +1081,8 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
   z-index: 1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgb(148 163 184 / 14%) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
-    linear-gradient(90deg, rgb(148 163 184 / 14%) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
+    linear-gradient(var(--ui-grid-fine-color, rgb(148 163 184 / 14%)) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
+    linear-gradient(90deg, var(--ui-grid-fine-color, rgb(148 163 184 / 14%)) var(--ui-grid-fine-line, 0.45px), transparent var(--ui-grid-fine-line, 0.45px)),
     linear-gradient(rgb(71 85 105 / 24%) var(--ui-grid-meter-line, 0.65px), transparent var(--ui-grid-meter-line, 0.65px)),
     linear-gradient(90deg, rgb(71 85 105 / 24%) var(--ui-grid-meter-line, 0.65px), transparent var(--ui-grid-meter-line, 0.65px)),
     linear-gradient(rgb(30 41 59 / 34%) var(--ui-grid-major-line, 0.9px), transparent var(--ui-grid-major-line, 0.9px)),
