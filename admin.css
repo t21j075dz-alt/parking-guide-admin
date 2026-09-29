@@ -1519,8 +1519,8 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .polygon-handle--vertex::before {
   content: "";
   display: block;
-  width: var(--ui-polygon-vertex-visual-size, 1px);
-  height: var(--ui-polygon-vertex-visual-size, 1px);
+  width: var(--ui-polygon-vertex-visual-size, 2px);
+  height: var(--ui-polygon-vertex-visual-size, 2px);
   border: 0;
   border-radius: 50%;
   background: #1d4ed8;
@@ -1534,30 +1534,30 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .polygon-handle--add::before {
   content: "+";
   display: grid;
-  width: var(--ui-polygon-add-visual-size, 0.5px);
-  height: var(--ui-polygon-add-visual-size, 0.5px);
+  width: var(--ui-polygon-add-visual-size, 1.25px);
+  height: var(--ui-polygon-add-visual-size, 1.25px);
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: #fff;
   color: #334155;
-  font-size: var(--ui-polygon-add-font-size, 0.5px);
+  font-size: var(--ui-polygon-add-font-size, 1.1px);
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 0 0 var(--ui-polygon-add-outline, 0.25px) #64748b;
+  box-shadow: 0 0 0 var(--ui-polygon-add-outline, 0.4px) #64748b;
 }
 
 /* 極小表示でも位置を見失わないよう、ポインターを合わせた時だけ少し拡大する。 */
 .polygon-handle--vertex:hover::before,
 .polygon-handle--vertex:focus-visible::before {
-  width: var(--ui-polygon-hover-size, 3px);
-  height: var(--ui-polygon-hover-size, 3px);
+  width: var(--ui-polygon-hover-size, 3.5px);
+  height: var(--ui-polygon-hover-size, 3.5px);
 }
 .polygon-handle--add:hover::before,
 .polygon-handle--add:focus-visible::before {
-  width: var(--ui-polygon-add-hover-size, 3px);
-  height: var(--ui-polygon-add-hover-size, 3px);
-  font-size: var(--ui-polygon-add-hover-font-size, 2px);
+  width: var(--ui-polygon-add-hover-size, 3.5px);
+  height: var(--ui-polygon-add-hover-size, 3.5px);
+  font-size: var(--ui-polygon-add-hover-font-size, 2.5px);
 }
 
 /* 旧来の文字矢印を廃止し、道路上に白い進行方向矢印を描く。 */
