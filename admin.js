@@ -1241,7 +1241,7 @@ function changeViewScale(delta) {
 const EDIT_MODE_HELP = Object.freeze({
   move: "移動モード：オブジェクトをドラッグして位置を調整します。",
   resize: "拡大縮小モード：選択中のオブジェクトだけを操作します。重なった他の図形はクリックを通過します。別の図形を選ぶときは「移動」に切り替えます。",
-  reshape: "形変更モード：選択中の図形だけを操作します。頂点は他の建物・敷地・道路の頂点や辺へ自動吸着します。Altを押しながら動かすと吸着を一時解除できます。",
+  reshape: "形変更モード：選択中の図形だけを操作します。頂点は他の図形の形変更後の実際の輪郭線・頂点へ吸着します。Altを押しながら動かすと吸着を一時解除できます。",
 });
 
 /** 「敷地・道路をロック」の対象で、現在ロック中か判定する。 */
@@ -1937,8 +1937,9 @@ function getClosestPointOnSegment(px, py, ax, ay, bx, by) {
 }
 
 /**
- * 形変更中の頂点を、他の建物・敷地・道路の頂点・辺・揃い位置へ吸着する。
- * 頂点/辺への直接吸着を最優先し、少し離れている場合はX/Yだけを揃える。
+ * 形変更中の頂点を、他の建物・敷地・道路の「現在の実際の輪郭線」へ吸着する。
+ * 拡大縮小用の外接矩形・中心線・仮想的なX/Y揃え位置は形変更では使わない。
+ * そのため、斜めに形変更した辺にも、その斜め線上へ正確に吸着できる。
  */
 function snapReshapeVertex(item, vertexIndex, localX, localY) {
   const layout = getCurrentLayout();
@@ -1949,57 +1950,60 @@ function snapReshapeVertex(item, vertexIndex, localX, localY) {
   }
 
   const currentGlobal = objectLocalPointToGlobal(item, localX, localY);
-  const threshold = Math.max(0.2, RESHAPE_SNAP_SCREEN_DISTANCE / Math.max(0.25, state.viewScale));
+  const threshold = Math.max(
+    0.2,
+    RESHAPE_SNAP_SCREEN_DISTANCE / Math.max(0.25, state.viewScale),
+  );
 
   let bestPoint = null;
-  let bestPointScore = Infinity;
-  let bestX = null;
-  let bestXDistance = Infinity;
-  let bestY = null;
-  let bestYDistance = Infinity;
+  let bestScore = Infinity;
 
-  const considerFullPoint = (candidate, priority = 0) => {
-    const distance = Math.hypot(candidate.x - currentGlobal.x, candidate.y - currentGlobal.y);
+  const considerPoint = (candidate, priority = 0) => {
+    const distance = Math.hypot(
+      candidate.x - currentGlobal.x,
+      candidate.y - currentGlobal.y,
+    );
     if (distance > threshold) return;
-    const score = distance + priority * threshold * 0.12;
-    if (score < bestPointScore) {
+
+    /*
+     * 頂点をわずかに優先しつつ、最も近い実線上の点へ吸着する。
+     * priority: 0 = 実頂点 / 1 = 実際の辺上
+     */
+    const score = distance + priority * threshold * 0.05;
+    if (score < bestScore) {
       bestPoint = candidate;
-      bestPointScore = score;
-    }
-  };
-
-  const considerX = (candidate) => {
-    const distance = Math.abs(candidate - currentGlobal.x);
-    if (distance <= threshold && distance < bestXDistance) {
-      bestX = candidate;
-      bestXDistance = distance;
-    }
-  };
-
-  const considerY = (candidate) => {
-    const distance = Math.abs(candidate - currentGlobal.y);
-    if (distance <= threshold && distance < bestYDistance) {
-      bestY = candidate;
-      bestYDistance = distance;
+      bestScore = score;
     }
   };
 
   (layout.objects ?? []).forEach((other) => {
-    if (other.uid === item.uid || !STRUCTURE_SNAP_OBJECT_TYPES.has(other.objectType)) return;
+    if (other.uid === item.uid
+        || !STRUCTURE_SNAP_OBJECT_TYPES.has(other.objectType)) {
+      return;
+    }
 
+    /*
+     * getPolygonPoints() は形変更後の保存中頂点をそのまま返す。
+     * ここから現在の実輪郭線を毎回再計算するため、
+     * 元の長方形や拡大縮小ハンドル位置には吸着しない。
+     */
     const otherPoints = getPolygonPoints(other);
     if (!otherPoints?.length) return;
 
     const globalPoints = otherPoints.map((point) =>
-      objectLocalPointToGlobal(other, Number(point.x), Number(point.y))
+      objectLocalPointToGlobal(
+        other,
+        Number(point.x),
+        Number(point.y),
+      )
     );
 
+    /* 実際の頂点へ吸着。 */
     globalPoints.forEach((point) => {
-      considerFullPoint(point, 0);
-      considerX(point.x);
-      considerY(point.y);
+      considerPoint(point, 0);
     });
 
+    /* 形変更後の各辺そのものへ、最短点で吸着。 */
     for (let i = 0; i < globalPoints.length; i += 1) {
       const a = globalPoints[i];
       const b = globalPoints[(i + 1) % globalPoints.length];
@@ -2011,52 +2015,22 @@ function snapReshapeVertex(item, vertexIndex, localX, localY) {
         b.x,
         b.y,
       );
-      considerFullPoint(closest, 1);
+      considerPoint(closest, 1);
     }
-
-    const xs = globalPoints.map((point) => point.x);
-    const ys = globalPoints.map((point) => point.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    considerX(minX);
-    considerX((minX + maxX) / 2);
-    considerX(maxX);
-    considerY(minY);
-    considerY((minY + maxY) / 2);
-    considerY(maxY);
   });
 
-  let snappedGlobalX = currentGlobal.x;
-  let snappedGlobalY = currentGlobal.y;
-  let guideX = null;
-  let guideY = null;
+  if (!bestPoint) return null;
 
-  if (bestPoint) {
-    snappedGlobalX = bestPoint.x;
-    snappedGlobalY = bestPoint.y;
-    guideX = bestPoint.x;
-    guideY = bestPoint.y;
-  } else {
-    if (bestX !== null) {
-      snappedGlobalX = bestX;
-      guideX = bestX;
-    }
-    if (bestY !== null) {
-      snappedGlobalY = bestY;
-      guideY = bestY;
-    }
-  }
-
-  if (guideX === null && guideY === null) return null;
-
-  const local = globalPointToObjectLocal(item, snappedGlobalX, snappedGlobalY);
+  const local = globalPointToObjectLocal(
+    item,
+    bestPoint.x,
+    bestPoint.y,
+  );
   return {
     x: local.x,
     y: local.y,
-    guideX,
-    guideY,
+    guideX: bestPoint.x,
+    guideY: bestPoint.y,
   };
 }
 
