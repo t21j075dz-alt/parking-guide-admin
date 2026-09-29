@@ -1494,6 +1494,180 @@ function snapObjectPosition(item, x, y) {
   return { x: bestX.value, y: bestY.value, guideX: bestX.guide, guideY: bestY.guide };
 }
 
+/**
+ * 2つの敷地が辺同士で接しているかを判定する。
+ * 強吸着でぴったり接続した敷地を、拡大縮小時の同一グループとして扱う。
+ */
+function areSiteObjectsConnected(a, b) {
+  if (!SITE_OBJECT_TYPES.has(a?.objectType) || !SITE_OBJECT_TYPES.has(b?.objectType)) {
+    return false;
+  }
+
+  const epsilon = Math.max(0.75, getGridSize() * 0.15);
+  const aLeft = Number(a.x) || 0;
+  const aTop = Number(a.y) || 0;
+  const aRight = aLeft + (Number(a.width) || 0);
+  const aBottom = aTop + (Number(a.height) || 0);
+  const bLeft = Number(b.x) || 0;
+  const bTop = Number(b.y) || 0;
+  const bRight = bLeft + (Number(b.width) || 0);
+  const bBottom = bTop + (Number(b.height) || 0);
+
+  const verticalOverlap = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
+  const horizontalOverlap = Math.min(aRight, bRight) - Math.max(aLeft, bLeft);
+
+  const touchesVertically =
+    verticalOverlap > epsilon
+    && (Math.abs(aRight - bLeft) <= epsilon || Math.abs(bRight - aLeft) <= epsilon);
+
+  const touchesHorizontally =
+    horizontalOverlap > epsilon
+    && (Math.abs(aBottom - bTop) <= epsilon || Math.abs(bBottom - aTop) <= epsilon);
+
+  return touchesVertically || touchesHorizontally;
+}
+
+/** 選択した敷地から、辺で連結している敷地を再帰的にすべて取得する。 */
+function getConnectedSiteGroup(source, layout = getCurrentLayout()) {
+  if (!source || !layout || !SITE_OBJECT_TYPES.has(source.objectType)) {
+    return [];
+  }
+
+  const sites = (layout.objects ?? []).filter((item) => SITE_OBJECT_TYPES.has(item.objectType));
+  const byUid = new Map(sites.map((item) => [item.uid, item]));
+  const visited = new Set([source.uid]);
+  const queue = [source.uid];
+
+  while (queue.length > 0) {
+    const uid = queue.shift();
+    const current = byUid.get(uid);
+    if (!current) continue;
+
+    sites.forEach((candidate) => {
+      if (visited.has(candidate.uid)) return;
+      if (areSiteObjectsConnected(current, candidate)) {
+        visited.add(candidate.uid);
+        queue.push(candidate.uid);
+      }
+    });
+  }
+
+  return [...visited].map((uid) => byUid.get(uid)).filter(Boolean);
+}
+
+/** 敷地グループをリサイズ開始時の基準座標から一括で伸縮する。 */
+function resizeConnectedSiteGroup(item, layout, newWidth, newHeight) {
+  const resize = state.resize;
+  const group = resize?.siteGroup;
+  if (!resize || !Array.isArray(group) || group.length <= 1) {
+    return false;
+  }
+
+  const direction = resize.direction;
+  const sx = direction.includes("e") ? 1 : direction.includes("w") ? -1 : 0;
+  const sy = direction.includes("s") ? 1 : direction.includes("n") ? -1 : 0;
+
+  let scaleX = sx === 0 ? 1 : newWidth / Math.max(1, resize.width);
+  let scaleY = sy === 0 ? 1 : newHeight / Math.max(1, resize.height);
+
+  /*
+   * グループ内のどの敷地も3px未満にならない倍率へ制限する。
+   * これにより小さい敷地を含む場合も図形が消えない。
+   */
+  if (sx !== 0) {
+    const minimumScaleX = Math.max(
+      ...group.map((snapshot) => 3 / Math.max(3, snapshot.width)),
+    );
+    scaleX = Math.max(minimumScaleX, scaleX);
+  }
+  if (sy !== 0) {
+    const minimumScaleY = Math.max(
+      ...group.map((snapshot) => 3 / Math.max(3, snapshot.height)),
+    );
+    scaleY = Math.max(minimumScaleY, scaleY);
+  }
+
+  /*
+   * 選択敷地の反対側の辺を固定点にする。
+   * 例：右ハンドルなら選択敷地の左辺を固定したまま、連結敷地全体を横方向へ伸縮する。
+   */
+  const anchorX = sx < 0 ? resize.x + resize.width : resize.x;
+  const anchorY = sy < 0 ? resize.y + resize.height : resize.y;
+
+  const updated = [];
+  group.forEach((snapshot) => {
+    const target = layout.objects.find((object) => object.uid === snapshot.uid);
+    if (!target) return;
+
+    target.x = sx === 0
+      ? snapshot.x
+      : anchorX + (snapshot.x - anchorX) * scaleX;
+    target.y = sy === 0
+      ? snapshot.y
+      : anchorY + (snapshot.y - anchorY) * scaleY;
+    target.width = Math.max(3, snapshot.width * scaleX);
+    target.height = Math.max(3, snapshot.height * scaleY);
+
+    if (snapshot.polygonPoints) {
+      target.polygonPoints = snapshot.polygonPoints.map((point) => ({
+        x: Math.max(0, Math.min(target.width, Number(point.x) * scaleX)),
+        y: Math.max(0, Math.min(target.height, Number(point.y) * scaleY)),
+      }));
+    }
+
+    updated.push(target);
+  });
+
+  if (updated.length === 0) return false;
+
+  /*
+   * 左上へはみ出した場合はグループ全体をまとめて戻す。
+   * 右下側へ広がった場合はキャンバスを必要な分だけ拡張し、吸着関係を壊さない。
+   */
+  const minX = Math.min(...updated.map((object) => object.x));
+  const minY = Math.min(...updated.map((object) => object.y));
+  const shiftX = minX < 0 ? -minX : 0;
+  const shiftY = minY < 0 ? -minY : 0;
+
+  if (shiftX || shiftY) {
+    updated.forEach((object) => {
+      object.x += shiftX;
+      object.y += shiftY;
+    });
+  }
+
+  const maxX = Math.max(...updated.map((object) => object.x + object.width));
+  const maxY = Math.max(...updated.map((object) => object.y + object.height));
+  layout.canvas.width = Math.min(6000, Math.max(layout.canvas.width, Math.ceil(maxX + 20)));
+  layout.canvas.height = Math.min(6000, Math.max(layout.canvas.height, Math.ceil(maxY + 20)));
+
+  updated.forEach((object) => {
+    object.x = Number(object.x.toFixed(2));
+    object.y = Number(object.y.toFixed(2));
+    object.width = Number(object.width.toFixed(2));
+    object.height = Number(object.height.toFixed(2));
+
+    const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(object.uid)}"]`);
+    if (node) {
+      node.style.left = `${object.x}px`;
+      node.style.top = `${object.y}px`;
+      node.style.width = `${object.width}px`;
+      node.style.height = `${object.height}px`;
+      updatePolygonSvg(node, object);
+    }
+  });
+
+  const selected = layout.objects.find((object) => object.uid === item.uid);
+  if (selected) {
+    elements.x.value = Math.round(selected.x);
+    elements.y.value = Math.round(selected.y);
+    elements.width.value = Math.round(selected.width);
+    elements.height.value = Math.round(selected.height);
+  }
+
+  return true;
+}
+
 /** 吸着位置を示す補助線をキャンバス上へ表示する。 */
 function showSnapGuides(guideX, guideY) {
   elements.canvas.querySelectorAll(".snap-guide").forEach((node) => node.remove());
@@ -1749,6 +1923,12 @@ function startResize(event) {
     return;
   }
   state.selectedUid = item.uid;
+
+  const connectedSites =
+    SITE_OBJECT_TYPES.has(item.objectType) && elements.siteSnapStrong?.checked !== false
+      ? getConnectedSiteGroup(item)
+      : [];
+
   state.resize = {
     pointerId: event.pointerId,
     direction: event.currentTarget.dataset.resizeDirection,
@@ -1760,6 +1940,14 @@ function startResize(event) {
     height: item.height ?? 34,
     rotation: Number(item.rotation) || 0,
     polygonPoints: getPolygonPoints(item) ? structuredClone(item.polygonPoints) : null,
+    siteGroup: connectedSites.map((site) => ({
+      uid: site.uid,
+      x: Number(site.x) || 0,
+      y: Number(site.y) || 0,
+      width: Number(site.width) || 3,
+      height: Number(site.height) || 3,
+      polygonPoints: getPolygonPoints(site) ? structuredClone(site.polygonPoints) : null,
+    })),
   };
   event.currentTarget.setPointerCapture(event.pointerId);
 }
@@ -1787,6 +1975,10 @@ function moveResize(event) {
   const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
   const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
   const newHeight = Math.max(minSize, snapToGrid(requestedHeight));
+
+  if (resizeConnectedSiteGroup(item, layout, newWidth, newHeight)) {
+    return;
+  }
 
   const actualLocalShiftX = sx === 0 ? 0 : sx * (newWidth - state.resize.width) / 2;
   const actualLocalShiftY = sy === 0 ? 0 : sy * (newHeight - state.resize.height) / 2;
@@ -1827,6 +2019,8 @@ function endResize(event) {
     return false;
   }
   state.resize = null;
+  syncLinkedRoadSigns(getCurrentLayout());
+  syncRoadTrafficControls(getCurrentLayout());
   saveLocal();
   render();
   return true;
