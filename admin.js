@@ -20,15 +20,6 @@
    駐車場マップ管理：状態と定義
    ========================================================= */
 
-/* 建物出入口の内部値と画面表示の対応。保存値は英字で固定し、表示文言と分離する。 */
-const ENTRANCE_LABELS = {
-  main: "正面入口",
-  sub: "その他の一般入口",
-  accessible: "バリアフリー入口",
-  staff: "従業員入口",
-  other: "その他",
-};
-
 /* オブジェクト追加時の初期寸法と名称。寸法はキャンバス上の論理ピクセル。 */
 const LEGACY_OBJECT_DEFAULTS = Object.freeze({
   parkingSpace: { width: 70, height: 130 },
@@ -136,7 +127,7 @@ const V5_OBJECT_DEFAULTS = Object.freeze({
   evCharger: { width: 22, height: 22 },
   roadSign: { width: 48, height: 58 },
 });
-  
+
 /* version 6で使っていた小型初期寸法。未調整のものだけversion 7へ縮小する。 */
 const V6_OBJECT_DEFAULTS = Object.freeze({
   parkingLot: { width: 420, height: 300 },
@@ -442,10 +433,14 @@ const state = {
   viewScale: 1,
   remoteAccessToken: null,
   remoteSyncTimers: new Map(),
+  remoteSyncQueues: new Map(),
+  localRevision: 0,
+  remoteSessionRevision: 0,
 };
 
 /* 頻繁に参照するDOM要素を初期化時にまとめて保持する。 */
 const elements = {
+  localSaveStatus: document.querySelector("#local-save-status"),
   prefectureSelect: document.querySelector("#prefecture-select"),
   facilitySelect: document.querySelector("#facility-select"),
   facilityId: document.querySelector("#facility-id"),
@@ -712,8 +707,10 @@ function ensureLayout(facilityId) {
   const layout = state.layouts[facilityId];
   layout.objects = Array.isArray(layout.objects) ? layout.objects : [];
   layout.canvas ??= {};
+  layout.canvas.width = Number(layout.canvas.width) > 0 ? Number(layout.canvas.width) : DEFAULT_CANVAS_WIDTH;
+  layout.canvas.height = Number(layout.canvas.height) > 0 ? Number(layout.canvas.height) : DEFAULT_CANVAS_HEIGHT;
   migrateLegacyObjectDefaults(layout);
-  if (Number(layout.canvasSizeVersion) < CANVAS_SIZE_VERSION) {
+  if ((Number(layout.canvasSizeVersion) || 1) < CANVAS_SIZE_VERSION) {
     if ((Number(layout.canvas.width) || 1000) <= 1000) {
       layout.canvas.width = DEFAULT_CANVAS_WIDTH;
     }
@@ -727,29 +724,7 @@ function ensureLayout(facilityId) {
     layout.canvas.scaleMetersPerPixel = SCHEMATIC_METERS_PER_PIXEL;
   }
 
-  /*
-   * 旧版の標準サイズだけを6×12pxへ統一する。
-   * 手動で独自サイズに変更した駐車枠は変更しない。
-   */
-  (layout.objects ?? []).forEach((item) => {
-    if (item.objectType !== "parkingSpace") return;
-    const oldWidth = Number(item.width);
-    const oldHeight = Number(item.height);
-    const isLegacyDefault =
-      (oldWidth === 25 && oldHeight === 50)
-      || (oldWidth === 20 && oldHeight === 40)
-      || (oldWidth === 10 && oldHeight === 20)
-      || (oldWidth === 8 && oldHeight === 16);
-    if (!isLegacyDefault) return;
-
-    const centerX = Number(item.x || 0) + oldWidth / 2;
-    const centerY = Number(item.y || 0) + oldHeight / 2;
-    item.width = 6;
-    item.height = 12;
-    item.x = Math.round((centerX - 3) * 100) / 100;
-    item.y = Math.round((centerY - 6) * 100) / 100;
-  });
-
+  // 寸法の移行は上のバージョン付き処理だけで行う。再描画で手動編集を戻さない。
   return layout;
 }
 
@@ -3559,34 +3534,65 @@ async function remoteLogin() {
   }
 
   updateCloudStatus("ログインしています…");
-  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: {
-      apikey: config.publishableKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.access_token) {
-    updateCloudStatus("ログインできませんでした。メール・パスワードとSupabase設定を確認してください。");
-    return;
-  }
+  const sessionRevision = ++state.remoteSessionRevision;
+  try {
+    const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: config.publishableKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (sessionRevision !== state.remoteSessionRevision) return;
+    if (!response.ok || !data.access_token) {
+      updateCloudStatus("ログインできませんでした。メール・パスワードとSupabase設定を確認してください。");
+      return;
+    }
 
-  state.remoteAccessToken = data.access_token;
-  sessionStorage.setItem("parkingAdminRemoteToken", state.remoteAccessToken);
-  elements.cloudPassword.value = "";
-  updateCloudStatus("ログインしました。以後の編集は自動反映されます。");
+    state.remoteAccessToken = data.access_token;
+    try {
+      sessionStorage.setItem("parkingAdminRemoteToken", state.remoteAccessToken);
+    } catch {
+      // 保存が禁止されている環境では、このページを開いている間だけログインする。
+    }
+    elements.cloudPassword.value = "";
+    updateCloudStatus("ログインしました。以後の編集は自動反映されます。");
+  } catch {
+    if (sessionRevision === state.remoteSessionRevision) {
+      updateCloudStatus("ログインできませんでした。ネットワーク接続を確認してください。");
+    }
+  }
+}
+
+/** 同一施設への保存を直列化し、遅い古い通信が新しい編集を上書きするのを防ぐ。 */
+function syncLayoutByFacilityId(facilityId) {
+  const sessionRevision = state.remoteSessionRevision;
+  const previous = state.remoteSyncQueues.get(facilityId) ?? Promise.resolve();
+  const pending = previous.catch(() => false).then(() => {
+    if (sessionRevision !== state.remoteSessionRevision) return false;
+    return uploadLayoutByFacilityId(facilityId);
+  });
+  state.remoteSyncQueues.set(facilityId, pending);
+  void pending.finally(() => {
+    if (state.remoteSyncQueues.get(facilityId) === pending) {
+      state.remoteSyncQueues.delete(facilityId);
+    }
+  });
+  return pending;
 }
 
 /** 指定施設のレイアウトをクラウドへ保存する。 */
-async function syncLayoutByFacilityId(facilityId) {
+async function uploadLayoutByFacilityId(facilityId) {
   const config = getRemoteConfig();
   const layout = state.layouts[facilityId] ?? null;
   if (!config.enabled || !state.remoteAccessToken || !layout) {
     return false;
   }
 
+  const sessionRevision = state.remoteSessionRevision;
   try {
     const response = await fetch(`${config.url}/rest/v1/parking_layouts?on_conflict=facility_id`, {
       method: "POST",
@@ -3601,7 +3607,10 @@ async function syncLayoutByFacilityId(facilityId) {
         layout_data: layout,
         updated_at: new Date().toISOString(),
       }),
+      signal: AbortSignal.timeout(10000),
     });
+
+    if (sessionRevision !== state.remoteSessionRevision) return false;
 
     if (response.ok) {
       updateCloudStatus(`自動反映済み：${new Date().toLocaleTimeString("ja-JP")}`);
@@ -3610,13 +3619,15 @@ async function syncLayoutByFacilityId(facilityId) {
 
     if (response.status === 401) {
       state.remoteAccessToken = null;
-      sessionStorage.removeItem("parkingAdminRemoteToken");
+      try { sessionStorage.removeItem("parkingAdminRemoteToken"); } catch {}
       updateCloudStatus("ログインの有効期限が切れました。もう一度ログインしてください。");
     } else {
       updateCloudStatus("クラウド保存に失敗しました。SupabaseのRLS設定を確認してください。");
     }
   } catch {
-    updateCloudStatus("クラウド保存に失敗しました。ネットワーク接続を確認してください。");
+    if (sessionRevision === state.remoteSessionRevision) {
+      updateCloudStatus("クラウド保存に失敗しました。ネットワーク接続を確認してください。");
+    }
   }
   return false;
 }
@@ -3653,29 +3664,46 @@ async function loadRemoteLayouts() {
     return;
   }
   updateCloudStatus("クラウドから読み込んでいます…");
-  const response = await fetch(`${config.url}/rest/v1/parking_layouts?select=facility_id,layout_data`, {
-    headers: {
-      apikey: config.publishableKey,
-      Authorization: `Bearer ${state.remoteAccessToken}`,
-    },
-  });
-  if (!response.ok) {
-    updateCloudStatus("クラウドから読み込めませんでした。");
-    return;
-  }
-  const rows = await response.json();
-  rows.forEach((row) => {
-    if (row?.facility_id && row.layout_data && Array.isArray(row.layout_data.objects)) {
-      state.layouts[row.facility_id] = row.layout_data;
-    }
-  });
+  const localRevision = state.localRevision;
+  const sessionRevision = state.remoteSessionRevision;
   try {
-    localStorage.setItem("parkingAdminLayoutsV1", JSON.stringify(state.layouts));
-  } catch {}
-  ensureLayout(state.facilityId);
-  state.selectedUid = null;
-  render();
-  updateCloudStatus(`クラウドから${rows.length}件読み込みました。`);
+    const response = await fetch(`${config.url}/rest/v1/parking_layouts?select=facility_id,layout_data`, {
+      headers: {
+        apikey: config.publishableKey,
+        Authorization: `Bearer ${state.remoteAccessToken}`,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (sessionRevision !== state.remoteSessionRevision) return;
+    if (!response.ok) {
+      updateCloudStatus("クラウドから読み込めませんでした。");
+      return;
+    }
+    const rows = await response.json();
+    if (sessionRevision !== state.remoteSessionRevision) return;
+    if (!Array.isArray(rows)) throw new Error("レイアウト一覧が不正です。");
+    const incoming = Object.fromEntries(rows.map((row) => [row.facility_id, row.layout_data]));
+    validateLayoutCollection(incoming);
+    // 読み込み待ち中の編集を古いクラウドデータで消さない。
+    if (localRevision !== state.localRevision) {
+      updateCloudStatus("読み込み中に編集されたため反映を中止しました。編集を保存してから再読込してください。");
+      return;
+    }
+    rows.forEach((row) => {
+      if (row?.facility_id && row.layout_data && Array.isArray(row.layout_data.objects)) {
+        state.layouts[row.facility_id] = row.layout_data;
+      }
+    });
+    ensureLayout(state.facilityId);
+    state.selectedUid = null;
+    persistLocalLayouts();
+    render();
+    updateCloudStatus(`クラウドから${rows.length}件読み込みました。`);
+  } catch {
+    if (sessionRevision === state.remoteSessionRevision) {
+      updateCloudStatus("クラウドから読み込めませんでした。接続とレイアウトデータを確認してください。");
+    }
+  }
 }
 
 /** 保存済みセッションがあれば自動反映を再開する。 */
@@ -3684,14 +3712,21 @@ function restoreRemoteSession() {
     updateCloudStatus();
     return;
   }
-  state.remoteAccessToken = sessionStorage.getItem("parkingAdminRemoteToken");
+  try {
+    state.remoteAccessToken = sessionStorage.getItem("parkingAdminRemoteToken");
+  } catch {
+    state.remoteAccessToken = null;
+  }
   updateCloudStatus();
 }
 
 /** 管理者ログアウト。端末内レイアウトは消さない。 */
 function remoteLogout() {
+  state.remoteSessionRevision += 1;
   state.remoteAccessToken = null;
-  sessionStorage.removeItem("parkingAdminRemoteToken");
+  state.remoteSyncTimers.forEach(clearTimeout);
+  state.remoteSyncTimers.clear();
+  try { sessionStorage.removeItem("parkingAdminRemoteToken"); } catch {}
   updateCloudStatus("クラウドからログアウトしました。端末内の編集データは残っています。");
 }
 
@@ -3700,12 +3735,22 @@ function remoteLogout() {
    保存・入出力
    ========================================================= */
 
-function saveLocal() {
+/** 端末保存の成功・失敗を表示し、保存できたという誤認を防ぐ。 */
+function persistLocalLayouts() {
+  state.localRevision += 1;
   try {
     localStorage.setItem("parkingAdminLayoutsV1", JSON.stringify(state.layouts));
+    elements.localSaveStatus.textContent = "端末に保存しました。";
+    return true;
   } catch {
-    /* 保存できない環境でも編集は継続する。 */
+    elements.localSaveStatus.textContent = "端末に保存できませんでした。ページを閉じる前にJSON出力でバックアップしてください。";
+    return false;
   }
+}
+
+/** 編集を端末に保存し、ログイン中ならクラウド保存を予約する。 */
+function saveLocal() {
+  persistLocalLayouts();
   scheduleRemoteSync();
 }
 
@@ -3749,19 +3794,67 @@ async function importJson(file) {
     return;
   }
   const data = JSON.parse(await file.text());
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error("レイアウトJSONの形式が正しくありません。");
-  }
-  Object.values(data).forEach((layout) => {
-    if (!layout || typeof layout !== "object" || !layout.facilityId || !Array.isArray(layout.objects)) {
-      throw new Error("facilityId または objects が不足しています。");
-    }
-  });
+  validateLayoutCollection(data);
   state.layouts = data;
   ensureLayout(state.facilityId);
   state.selectedUid = null;
   saveLocal();
   render();
+}
+
+/** 全件を検証してから置き換える。不正な1件のために編集済みデータを失わない。 */
+function validateLayoutCollection(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("レイアウトJSONの形式が正しくありません。");
+  }
+  Object.entries(data).forEach(([facilityId, layout]) => {
+    if (["__proto__", "constructor", "prototype"].includes(facilityId)
+        || !layout || typeof layout !== "object" || Array.isArray(layout)
+        || layout.facilityId !== facilityId || !Array.isArray(layout.objects)) {
+      throw new Error("施設IDが一致しないか、objects が不足しています。");
+    }
+    if (layout.canvas != null && (typeof layout.canvas !== "object" || Array.isArray(layout.canvas))) {
+      throw new Error("canvas は幅・高さを持つオブジェクトで指定してください。");
+    }
+    for (const key of ["width", "height", "scaleMetersPerPixel"]) {
+      const value = layout.canvas?.[key];
+      if (value != null && (!Number.isFinite(value) || value <= 0)) {
+        throw new Error("キャンバスの寸法・縮尺には正の数値が必要です。");
+      }
+    }
+    if (layout.background != null) {
+      const background = layout.background;
+      if (typeof background !== "object" || Array.isArray(background)
+          || !Number.isFinite(background.centerLat) || Math.abs(background.centerLat) > 90
+          || !Number.isFinite(background.centerLng) || Math.abs(background.centerLng) > 180
+          || !Number.isInteger(background.zoom) || background.zoom < 0 || background.zoom > 22) {
+        throw new Error("航空写真の緯度・経度・ズームが不正です。");
+      }
+    }
+    const uids = new Set();
+    layout.objects.forEach((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)
+          || typeof item.uid !== "string" || !item.uid || uids.has(item.uid)
+          || typeof item.objectType !== "string" || !item.objectType
+          || !Number.isFinite(item.x) || !Number.isFinite(item.y)) {
+        throw new Error("オブジェクトのID・種類・座標が不正か、IDが重複しています。");
+      }
+      uids.add(item.uid);
+      for (const key of ["width", "height"]) {
+        if (item[key] != null && (!Number.isFinite(item[key]) || item[key] <= 0)) {
+          throw new Error("オブジェクトの幅・高さには正の数値が必要です。");
+        }
+      }
+      if (item.rotation != null && !Number.isFinite(item.rotation)) {
+        throw new Error("回転角度には数値が必要です。");
+      }
+      if (item.polygonPoints != null && (!Array.isArray(item.polygonPoints)
+          || item.polygonPoints.length < 3
+          || item.polygonPoints.some((point) => !point || !Number.isFinite(point.x) || !Number.isFinite(point.y)))) {
+        throw new Error("多角形には数値座標の頂点が3個以上必要です。");
+      }
+    });
+  });
 }
 
 /* =========================================================

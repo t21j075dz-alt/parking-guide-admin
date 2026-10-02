@@ -7,11 +7,11 @@
     <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
     <title>駐車場マップ管理｜卒業研究</title>
     <!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
-    <link rel="stylesheet" href="./admin.css">
+    <link rel="stylesheet" href="./admin.css?v=20261002-1">
     <!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
     <script src="./sync-config.js" defer></script>
     <script src="./facility-catalog.js" defer></script>
-    <script src="./admin.js" defer></script>
+    <script src="./admin.js?v=20261002-1" defer></script>
   </head>
   <body>
     <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
@@ -28,6 +28,8 @@
         <label class="file-button">JSON読込<input id="import-file" type="file" accept="application/json,.json"></label>
       </div>
     </header>
+
+    <p id="local-save-status" role="status" aria-live="polite"></p>
 
     <main class="admin-layout">
       <!-- 左ペイン：編集対象施設の選択と、新しいオブジェクトの追加を行う。 -->

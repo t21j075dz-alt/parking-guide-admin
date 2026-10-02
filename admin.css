@@ -2049,3 +2049,13 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
     #78350f 2px 4px
   ) !important;
 }
+/* 保存結果をクラウド同期状態と分けて表示する。 */
+#local-save-status {
+  margin: 0;
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+}
+
+#local-save-status:empty {
+  display: none;
+}
