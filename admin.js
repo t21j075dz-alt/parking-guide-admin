@@ -412,9 +412,8 @@ function clampObjectPosition(item, x, y, layout) {
 
 /* 画面全体で共有する編集状態。layouts は facilityId をキーにしたレイアウト辞書。 */
 const state = {
-  facilities: (window.ADMIN_FACILITY_CATALOG?.facilities ?? []).filter(
-    (facility) => Boolean(facility.sampleRole) || facility.id === "home-test-001",
-  ),
+  // 研究サンプルの分類にかかわらず、登録済み施設をすべて選択できる。
+  facilities: [...(window.ADMIN_FACILITY_CATALOG?.facilities ?? [])],
   layouts: {},
   facilityId: null,
   selectedUid: null,
