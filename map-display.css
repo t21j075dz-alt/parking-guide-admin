@@ -1,0 +1,39 @@
+
+/* 共通の図形はSVGで寸法に追従し、固定pxの古い標識文字を使わない。 */
+.shared-sign-graphic, .shared-road-markings, .shared-photo-marking { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+.shared-sign-graphic { font-family: sans-serif; }
+.shared-route-shield { position:absolute; left:50%; top:50%; pointer-events:none; z-index:5; }
+.shared-route-shield .shared-sign-graphic rect:first-child { display:none; }
+.map-object[data-object-type="roadSign"]::before,
+.map-object[data-object-type="roadSign"]::after,
+.map-object[data-object-type="road"][data-traffic-direction="oneWay"]::after { content:none !important; }
+.map-object[data-object-type="parkingSpace"][data-marking-style="photoStall"]::before { border:0 !important; background:none !important; box-shadow:none !important; }
+.map-object[data-object-type="parkingSpace"] > .object-label { display:none !important; }
+html body .map-object[data-object-type] > .object-label, html body .map-object[data-object-type] > .map-object-label { font-size:var(--map-label-size, 8px) !important; line-height:1.2 !important; max-width:80% !important; width:80% !important; white-space:pre-line !important; overflow:hidden; overflow-wrap:anywhere; text-align:center; box-sizing:border-box; padding:0 !important; border:0 !important; background:transparent !important; }
+html body .map-object.map-object[data-object-type="parkingSpace"] > .space-number-mark,
+html body .map-object.map-object[data-object-type="parkingSpace"].selected > .space-number-mark {
+  display:block !important; position:absolute !important; left:5% !important; top:var(--number-top, 20%) !important; bottom:auto !important; width:90% !important; height:var(--number-height, 60%) !important; max-width:90% !important;
+  font-size:var(--space-number-size, 2px) !important; line-height:1.2 !important; text-align:center; white-space:pre-line !important; overflow:hidden; padding:0 !important; margin:0 !important; min-width:0 !important; border:0 !important; background:transparent !important; color:var(--map-number-color, #fff) !important; text-shadow:none !important; transform:none !important; box-shadow:none !important;
+}
+html body .map-object.map-object[data-object-type="parkingSpace"] > .space-type-mark,
+html body .map-object.map-object[data-object-type="parkingSpace"].selected > .space-type-mark {
+  display:block !important; left:5% !important; top:8% !important; bottom:auto !important; width:90% !important; height:30% !important; font-size:var(--space-type-size, 2px) !important; line-height:1.1 !important; padding:0 !important; background:transparent !important; border:0 !important; color:var(--map-number-color, #fff) !important; text-align:center; transform:none !important; text-shadow:none !important; overflow:hidden;
+}
+.map-object[data-object-type="roadSign"] { background:transparent !important; border:0 !important; }
+.map-object[data-object-type="building"] > .object-label { inset:10% !important; width:80% !important; max-width:80% !important; height:80%; display:flex; align-items:center; justify-content:center; transform:none !important; }
+
+/* 入り口・禁止標識と駐車ますは共通SVGを一度だけ描画する。 */
+html body .map-object[data-object-type="parkingSpace"]::before,
+html body .map-object[data-object-type="buildingEntrance"]::before,
+html body .map-object[data-object-type="buildingEntrance"]::after,
+html body .map-object[data-object-type="parkingEntrance"]::before,
+html body .map-object[data-object-type="parkingEntrance"]::after,
+html body .map-object[data-object-type="noEntry"]::before,
+html body .map-object[data-object-type="noEntry"]::after { content:none !important; }
+html body .map-object[data-object-type="roadSign"],
+html body .map-object[data-object-type="noEntry"],
+html body .map-object[data-object-type="buildingEntrance"],
+html body .map-object[data-object-type="parkingEntrance"] { background:transparent !important; border:0 !important; padding:0 !important; }
+html body .map-object[data-object-type] > .map-object-label { inset:10% !important; height:80%; display:grid; place-items:center; transform:none !important; color:var(--color-text, #fff); }
+html body .map-object[data-object-type="building"] > .object-label { color:var(--color-text, #111827); }
+html body .map-object[data-object-type="parkingEntrance"] > .map-object-label { display:none !important; }

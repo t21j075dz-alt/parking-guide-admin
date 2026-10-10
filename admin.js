@@ -1,4 +1,5 @@
 "use strict";
+const mapDisplay = window.ParkingMapDisplay;
 
 /* =========================================================
    【このファイルの役割】
@@ -485,6 +486,11 @@ const elements = {
   widthField: document.querySelector("#width-field"),
   heightField: document.querySelector("#height-field"),
   parkingSpaceSettings: document.querySelector("#parking-space-settings"),
+  spaceNumber: document.querySelector("#space-number"),
+  spaceGroup: document.querySelector("#space-group"),
+  spaceGroupKind: document.querySelector("#space-group-kind"),
+  spacePreview: document.querySelector("#space-display-preview"),
+  spaceNumberError: document.querySelector("#space-number-error"),
   spaceType: document.querySelector("#space-type"),
   spaceStatus: document.querySelector("#space-status"),
   spaceMarkingStyle: document.querySelector("#space-marking-style"),
@@ -774,23 +780,19 @@ function getParkingSpaceLabel(spaceType) {
 
 /** 建物外形に合わせた名称ラベルの文字サイズを返す。手動指定時は保存値を優先する。 */
 function getBuildingLabelFontSize(item) {
-  if (item?.labelAutoScale === false) {
-    return Math.max(3, Math.min(18, Number(item.labelFontSize) || 6));
-  }
-  const width = Math.max(3, Number(item?.width) || OBJECT_DEFAULTS.building.width);
-  const height = Math.max(3, Number(item?.height) || OBJECT_DEFAULTS.building.height);
-  return Math.max(3, Math.min(12, Math.round(Math.min(width / 20, height / 7))));
+  const fitted = mapDisplay.fitLabel(item?.name || "建物", Number(item?.width)*.8, Number(item?.height)*.8, 18);
+  return item?.labelAutoScale === false ? Math.min(fitted, Math.max(3, Math.min(18, Number(item.labelFontSize) || 6))) : fitted;
 }
 
 /**
  * 現在レイアウトで未使用の最小の駐車枠番号を返す。
  * 内部UIDとは分離し、削除後の作り直しで001から再利用できるようにする。
  */
-function getNextParkingSpaceNumber(layout) {
+function getNextParkingSpaceNumber(layout, group = "", kind = "row") {
   const used = new Set();
 
   (layout?.objects ?? []).forEach((object) => {
-    if (object.objectType !== "parkingSpace") return;
+    if (object.objectType !== "parkingSpace" || mapDisplay.groupKey(object) !== mapDisplay.groupName({spaceGroup:group,spaceGroupKind:kind})) return;
 
     const explicit = Number.parseInt(String(object.spaceNumber ?? ""), 10);
     if (Number.isInteger(explicit) && explicit > 0) {
@@ -813,9 +815,9 @@ function getNextParkingSpaceNumber(layout) {
 
 /** 駐車枠へ表示番号を付与し、標準名称を更新する。 */
 function assignParkingSpaceNumber(item, layout) {
-  const number = getNextParkingSpaceNumber(layout);
+  const number = getNextParkingSpaceNumber(layout, item.spaceGroup, item.spaceGroupKind);
   item.spaceNumber = String(number).padStart(3, "0");
-  item.name = `${getParkingSpaceLabel(item.spaceType)} ${item.spaceNumber}`;
+  item.name = `${getParkingSpaceLabel(item.spaceType)} ${mapDisplay.spaceName(item)}`;
 }
 
 
@@ -2453,6 +2455,7 @@ function moveResize(event) {
     node.style.top = `${item.y}px`;
     node.style.width = `${item.width}px`;
     node.style.height = `${item.height}px`;
+    mapDisplay.applyTypography(node,item,1,item.objectType === "building" ? getBuildingLabelFontSize(item) : undefined);
   }
   elements.x.value = String(Math.round(item.x * 100) / 100);
   elements.y.value = String(Math.round(item.y * 100) / 100);
@@ -2761,146 +2764,24 @@ function syncRoadTrafficControls(layout) {
 }
 
 /** 国道・県道オブジェクト内へ路線標識を自動表示する。 */
-function appendEmbeddedRouteShield(node, item) {
-  if (!["nationalRoad", "prefecturalRoad"].includes(item.objectType)) return;
-  const routeNumber = String(item.routeNumber ?? "").trim();
-  if (!routeNumber) return;
-
-  const signType = item.objectType === "nationalRoad" ? "nationalRoute" : "prefecturalRoute";
-  const shield = document.createElement("div");
-  shield.className = "embedded-route-shield";
-  shield.dataset.signType = signType;
-  shield.style.transform =
-    `translate(-50%, -50%) rotate(${-(Number(item.rotation) || 0)}deg)`;
-
-  const inner = document.createElement("div");
-  inner.className = "embedded-route-shield__inner";
-  const heading = document.createElement("div");
-  heading.className = "embedded-route-shield__heading";
-  heading.textContent = signType === "nationalRoute"
-    ? "国道"
-    : (item.prefectureName || getCurrentFacilityRecord()?.prefecture || "県道");
-  const number = document.createElement("div");
-  number.className = "embedded-route-shield__number";
-  number.textContent = routeNumber;
-
-  inner.append(heading, number);
-  shield.append(inner);
-  node.append(shield);
-}
+function appendEmbeddedRouteShield(node, item) { mapDisplay.appendRoute(node, item, getCurrentLayout()); }
 
 /**
  * 道路面へ、保存データから分かる交通情報を簡潔に描画する。
  * 一時停止は、警察庁の交通規制基準に合わせて停止線と「止まれ」を組み合わせる。
  * 車両進入禁止は道路標識で示すため、誤解を避けて路面記号は自動生成しない。
  */
-function appendRoadSurfaceMarkings(node, item, layout) {
-  if (!ROAD_SURFACE_TYPES.has(item.objectType)) return;
-
-  if (item.objectType === "road" && item.trafficDirection === "oneWay") {
-    const arrow = document.createElement("div");
-    arrow.className = "road-direction-mark";
-    arrow.setAttribute("aria-hidden", "true");
-    arrow.innerHTML = '<span class="road-direction-mark__shaft"></span><span class="road-direction-mark__head"></span>';
-    node.append(arrow);
-  }
-
-  const linkedStops = (layout?.objects ?? []).filter(
-    (candidate) =>
-      candidate.objectType === "roadSign"
-      && candidate.signType === "stop"
-      && candidate.linkedRoadUid === item.uid,
-  );
-
-  linkedStops.forEach((sign) => {
-    const mark = document.createElement("div");
-    mark.className = "road-surface-stop-mark";
-    mark.setAttribute("aria-hidden", "true");
-
-    const anchorX = Math.max(0, Math.min(1, Number(sign.roadAnchorX) || 0.5));
-    const anchorY = Math.max(0, Math.min(1, Number(sign.roadAnchorY) || 0.5));
-    const localRotation = (Number(sign.rotation) || 0) - (Number(item.rotation) || 0);
-
-    mark.style.left = `${anchorX * 100}%`;
-    mark.style.top = `${anchorY * 100}%`;
-    mark.style.transform = `translate(-50%, -50%) rotate(${localRotation}deg)`;
-
-    const stopLine = document.createElement("span");
-    stopLine.className = "road-surface-stop-line";
-
-    const text = document.createElement("span");
-    text.className = "road-surface-stop-text";
-    text.textContent = "止まれ";
-
-    mark.append(stopLine, text);
-    node.append(mark);
-  });
-}
+function appendRoadSurfaceMarkings(node, item, layout) { mapDisplay.appendSurface(node, item, layout); }
 
 /** 道路標識の保存属性から、国道・県道・規制標識の図形を生成する。 */
-function appendRoadSignFace(node, item) {
-  const signType = item.signType ?? "nationalRoute";
-  node.dataset.signType = signType;
-  const face = document.createElement("div");
-  face.className = "road-sign-face";
-
-  if (["nationalRoute", "prefecturalRoute"].includes(signType)) {
-    const inner = document.createElement("div");
-    inner.className = "road-sign-inner";
-    const heading = document.createElement("div");
-    heading.className = "road-sign-heading";
-    heading.textContent = signType === "nationalRoute"
-      ? "国道"
-      : (item.prefectureName || "都道府県");
-    const number = document.createElement("div");
-    number.className = "road-sign-number";
-    number.textContent = item.routeNumber || "?";
-    inner.append(heading, number);
-    face.append(inner);
-  } else if (signType === "noEntry") {
-    const bar = document.createElement("div");
-    bar.className = "road-sign-no-entry-bar";
-    face.append(bar);
-  } else {
-    const inner = document.createElement("div");
-    inner.className = "road-sign-stop-inner";
-    const japanese = document.createElement("span");
-    japanese.className = "road-sign-stop-jp";
-    japanese.textContent = "止まれ";
-    const english = document.createElement("span");
-    english.className = "road-sign-stop-en";
-    english.textContent = "STOP";
-    inner.append(japanese, english);
-    face.append(inner);
-  }
-  node.append(face);
-}
+function appendRoadSignFace(node, item) { mapDisplay.appendSign(node, item); }
 
 /* =========================================================
    描画・選択・ドラッグ
    ========================================================= */
 
 /** 写真風駐車枠を、欠けにくいSVGの連続3辺線として描画する。 */
-function appendPhotoParkingMarking(node) {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.classList.add("parking-photo-marking");
-  svg.setAttribute("viewBox", "0 0 100 100");
-  svg.setAttribute("preserveAspectRatio", "none");
-  svg.setAttribute("aria-hidden", "true");
-
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.classList.add("parking-photo-marking__path");
-
-  /*
-   * 左下→左上→右上→右下を1本のパスで描く。
-   * 外形境界そのものを通し、連続設置した隣接枠の共有線を完全一致させる。
-   */
-  path.setAttribute("d", "M 0 100 V 0 H 100 V 100");
-  path.setAttribute("vector-effect", "non-scaling-stroke");
-
-  svg.append(path);
-  node.append(svg);
-}
+function appendPhotoParkingMarking(node) { mapDisplay.appendPhoto(node); }
 
 /** 背景と全オブジェクトを現在の編集状態から描画する。 */
 function render() {
@@ -2952,6 +2833,9 @@ function render() {
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "roadSign") appendRoadSignFace(node, item);
+    if (item.objectType === "noEntry") mapDisplay.appendSign(node, {...item, signType:"noEntry"});
+    mapDisplay.applyTypography(node,item,1,item.objectType === "building" ? getBuildingLabelFontSize(item) : undefined);
+    if (["buildingEntrance","parkingEntrance"].includes(item.objectType)) mapDisplay.appendEntrance(node,item);
     if (["nationalRoad", "prefecturalRoad"].includes(item.objectType)) {
       appendEmbeddedRouteShield(node, item);
     }
@@ -2970,9 +2854,7 @@ function render() {
       node.style.setProperty("--space-screen-line-width", `${parkingLineWidth}px`);
       node.style.setProperty("--space-counter-rotation", `${-(Number(item.rotation) || 0)}deg`);
 
-      if ((item.markingStyle ?? "photoStall") === "photoStall") {
-        appendPhotoParkingMarking(node);
-      }
+      mapDisplay.appendParking(node,item);
 
       const typeMark = document.createElement("span");
       typeMark.className = "space-type-mark";
@@ -2980,15 +2862,18 @@ function render() {
       if (item.spaceType === "compact") typeMark.textContent = "軽";
       if (item.spaceType === "accessible") typeMark.textContent = "♿";
       if (item.spaceType === "ev") typeMark.textContent = "EV";
-      if (typeMark.textContent) node.append(typeMark);
+      const hasType = Boolean(typeMark.textContent);
+      node.style.setProperty("--space-type-size", `${mapDisplay.fitLabel(typeMark.textContent,item.width*.9,item.height*.28,14)}px`);
+      if (hasType) node.append(typeMark);
+      node.style.setProperty("--number-top", hasType ? "48%" : "18%");
+      node.style.setProperty("--number-height", hasType ? "45%" : "65%");
 
-      const displayNumber = item.spaceNumber
-        ?? String(item.name ?? "").match(/(\d{1,4})$/)?.[1]
-        ?? "";
+      const displayNumber = [mapDisplay.groupName(item),mapDisplay.spaceNumber(item)].filter(Boolean).join("\n");
+      node.style.setProperty("--space-number-size", `${mapDisplay.fitLabel(displayNumber,item.width*.9,item.height*(hasType?.45:.65),18)}px`);
       if (displayNumber) {
         const numberMark = document.createElement("span");
         numberMark.className = "space-number-mark";
-        numberMark.textContent = String(displayNumber).padStart(3, "0");
+        numberMark.textContent = displayNumber;
         node.append(numberMark);
       }
     }
@@ -3004,7 +2889,12 @@ function render() {
     label.className = "object-label";
     label.textContent = item.name || item.uid;
     label.title = item.name || item.uid;
-    node.append(label);
+    const graphical = ["parkingSpace","roadSign","noEntry","crosswalk","stopLine","speedBump","buildingEntrance","parkingEntrance"].includes(item.objectType)
+      || (item.objectType === "road" && item.trafficDirection === "oneWay")
+      || (["nationalRoad","prefecturalRoad"].includes(item.objectType) && item.routeNumber);
+    if (!graphical) node.append(label);
+    node.setAttribute("aria-label", item.objectType === "parkingSpace" ? mapDisplay.spaceName(item) : item.name || item.uid);
+    node.title = item.objectType === "parkingSpace" ? mapDisplay.spaceName(item) : item.name || item.uid;
 
     if (item.uid === state.selectedUid && !isObjectLocked(item)) {
       if (state.editMode === "resize") {
@@ -3169,9 +3059,8 @@ function updateSettings() {
   elements.rotation.value = item.rotation ?? 0;
   elements.width.value = item.width ?? 34;
   elements.height.value = item.height ?? 34;
-  const fixedMarker = ["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType);
-  elements.widthField.hidden = fixedMarker;
-  elements.heightField.hidden = fixedMarker;
+  elements.widthField.hidden = false;
+  elements.heightField.hidden = false;
 
   elements.roadSettings.hidden = item.objectType !== "road";
   if (item.objectType === "road") {
@@ -3231,6 +3120,12 @@ function updateSettings() {
 
   elements.parkingSpaceSettings.hidden = item.objectType !== "parkingSpace";
   if (item.objectType === "parkingSpace") {
+    elements.spaceNumber.value = mapDisplay.spaceNumber(item);
+    elements.spaceGroup.value = item.spaceGroup ?? "";
+    elements.spaceGroupKind.value = item.spaceGroupKind === "area" ? "area" : "row";
+    elements.spacePreview.textContent = mapDisplay.spaceName(item);
+    elements.spaceNumberError.textContent = "";
+    elements.spaceNumber.setCustomValidity?.("");
     elements.spaceType.value = item.spaceType ?? "standard";
     elements.spaceStatus.value = item.status ?? "available";
     elements.spaceMarkingStyle.value = item.markingStyle ?? "photoStall";
@@ -3261,6 +3156,25 @@ function updateSelectedFromForm() {
     updateSettings();
     return;
   }
+  const originalName = item.name || "";
+  const originalGeneratedName = `${getParkingSpaceLabel(item.spaceType)} ${mapDisplay.spaceName(item)}`;
+  const generatedParkingName = originalName === originalGeneratedName || /^(普通車|軽|車椅子|EV|駐車区画)\s+\d+$/.test(originalName);
+  const preserveCustomParkingName = elements.name.value.trim() !== originalName || !generatedParkingName;
+  if (item.objectType === "parkingSpace") {
+    const raw = String(elements.spaceNumber.value ?? "").normalize("NFKC").trim();
+    const group = String(elements.spaceGroup.value ?? "").normalize("NFKC").trim().replace(/(?:区画|列)$/u, "").slice(0,8);
+    const kind = elements.spaceGroupKind.value === "area" ? "area" : "row";
+    const valid = /^\d{1,8}$/.test(raw);
+    const conflict = valid && mapDisplay.numberConflict(item,layout,raw,group,kind);
+    const error = !valid ? "番号は1〜8桁の数字で入力してください。" : conflict ? "同じ列・区画内で番号が重複しています。別の番号を入力してください。" : "";
+    elements.spaceNumberError.textContent = error;
+    elements.spaceNumber.setCustomValidity?.(error);
+    if (error) { elements.spaceNumber.reportValidity?.(); return; }
+    item.spaceNumber = mapDisplay.normalizeNumber(raw);
+    item.spaceGroup = group;
+    item.spaceGroupKind = kind;
+    elements.spacePreview.textContent = mapDisplay.spaceName(item);
+  }
   item.name = elements.name.value.trim() || item.uid;
   const requestedPosition = clampObjectPosition(
     item,
@@ -3273,7 +3187,7 @@ function updateSelectedFromForm() {
   elements.x.value = String(item.x);
   elements.y.value = String(item.y);
   item.rotation = Number(elements.rotation.value) || 0;
-  if (!["buildingEntrance", "parkingEntrance", "noEntry", "evCharger", "roadSign"].includes(item.objectType)) {
+  {
     const minimumSize = getMinimumObjectSize(item);
     const previousWidth = Math.max(minimumSize, Number(item.width) || minimumSize);
     const previousHeight = Math.max(minimumSize, Number(item.height) || minimumSize);
@@ -3332,7 +3246,7 @@ function updateSelectedFromForm() {
     }
     item.labelAutoScale = elements.buildingLabelAutoScale.checked;
     if (!item.labelAutoScale) {
-      item.labelFontSize = Math.max(5, Math.min(40, Number(elements.buildingLabelFontSize.value) || 12));
+      item.labelFontSize = Math.max(3, Math.min(18, Number(elements.buildingLabelFontSize.value) || 6));
     }
   }
   if (["nationalRoad", "prefecturalRoad"].includes(item.objectType)) {
@@ -3375,12 +3289,16 @@ function updateSelectedFromForm() {
         const legacyMatch = String(item.name ?? "").match(/(\d{1,4})$/);
         item.spaceNumber = legacyMatch ? String(Number(legacyMatch[1])).padStart(3, "0") : null;
       }
-      if (item.spaceNumber) {
-        item.name = `${getParkingSpaceLabel(item.spaceType)} ${item.spaceNumber}`;
+      if (item.spaceNumber && !preserveCustomParkingName) {
+        item.name = `${getParkingSpaceLabel(item.spaceType)} ${mapDisplay.spaceName(item)}`;
         elements.name.value = item.name;
       }
     }
 
+    if (!preserveCustomParkingName) {
+      item.name = `${getParkingSpaceLabel(item.spaceType)} ${mapDisplay.spaceName(item)}`;
+      elements.name.value = item.name;
+    }
     item.markingStyle = elements.spaceMarkingStyle.value;
     item.markingColor = elements.spaceMarkingColor.value;
     item.markingWidth = Math.max(0.2, Number(elements.spaceMarkingWidth.value) || 0.35);
@@ -4280,6 +4198,7 @@ elements.prefectureSelect.addEventListener("change", changePrefecture);
 elements.facilitySelect.addEventListener("change", changeFacility);
 [elements.name, elements.x, elements.y, elements.rotation, elements.width, elements.height,
   elements.roadDirection, elements.parkingAccessType,
+  elements.spaceNumber, elements.spaceGroup, elements.spaceGroupKind,
   elements.spaceType, elements.spaceStatus, elements.spaceMarkingStyle, elements.spaceMarkingColor,
   elements.spaceMarkingWidth, elements.entranceType, elements.publicAccess,
   elements.wheelchairAccessible, elements.guideTarget, elements.buildingId,
