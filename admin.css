@@ -2059,3 +2059,11 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 #local-save-status:empty {
   display: none;
 }
+
+.space-identity-settings { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+.space-identity-settings label:last-child { grid-column:1/-1; }
+.space-display-preview { padding:.6rem .8rem; background:var(--surface, #f1f5f9); border-radius:.6rem; font-weight:700; }
+.inline-error:empty { display:none; }
+.inline-error { color:#b91c1c; font-size:.85rem; }
+.right-panel input, .right-panel select { min-height:2.6rem; }
+.right-panel fieldset { border-radius:.65rem; }

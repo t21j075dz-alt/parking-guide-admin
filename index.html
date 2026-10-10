@@ -7,11 +7,13 @@
     <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
     <title>駐車場マップ管理｜卒業研究</title>
     <!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
-    <link rel="stylesheet" href="./admin.css?v=20261002-1">
+    <link rel="stylesheet" href="./admin.css?v=20261011-map-display">
+    <link rel="stylesheet" href="./map-display.css?v=20261011-map-display">
+    <script src="./map-display.js?v=20261011-map-display" defer></script>
     <!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
     <script src="./sync-config.js" defer></script>
     <script src="./facility-catalog.js?v=20261009-all-facilities" defer></script>
-    <script src="./admin.js?v=20261009-all-facilities" defer></script>
+    <script src="./admin.js?v=20261011-map-display" defer></script>
   </head>
   <body>
     <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
@@ -237,7 +239,7 @@
         <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
         <form id="object-form" hidden>
           <label class="primary-setting">名称<input id="object-name" type="text"></label>
-          <p class="direct-edit-help">上部の編集モードを切り替えて操作します。移動＝位置調整、拡大縮小＝周囲の白いハンドル、形変更＝多角形の青い頂点を編集します。</p>
+          <p class="direct-edit-help">移動・サイズ・形を上部のモードで切り替えます。文字はサイズに合わせて調整します。</p>
           <details class="numeric-settings">
             <summary>数値で微調整</summary>
             <div class="settings-grid">
@@ -253,6 +255,13 @@
 
           <fieldset id="parking-space-settings" hidden>
             <legend>駐車区画</legend>
+            <div class="space-identity-settings">
+              <label>番号<input id="space-number" type="text" inputmode="numeric" maxlength="8" pattern="[0-9０-９]{1,8}" required placeholder="1"></label>
+              <label>列・区画名<input id="space-group" type="text" maxlength="8" placeholder="A"></label>
+              <label>呼び方<select id="space-group-kind"><option value="row">列（A列）</option><option value="area">区画（A区画）</option></select></label>
+            </div>
+            <p class="space-display-preview">表示：<output id="space-display-preview"></output></p>
+            <p id="space-number-error" class="inline-error" role="status" aria-live="polite"></p>
             <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
             <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
 
@@ -309,7 +318,7 @@
             <label>店舗・建物<select id="building-destination"></select></label>
             <label>建物ID<input id="building-object-id" type="text" list="building-id-options" placeholder="building_001"></label>
             <label class="check-row"><input id="building-label-auto-scale" type="checkbox" checked> 建物サイズに合わせて文字を自動調整</label>
-            <label id="building-label-size-field">文字サイズ
+            <label id="building-label-size-field">文字サイズの上限
               <span class="building-label-size-control">
                 <input id="building-label-font-size" type="range" min="3" max="18" step="1" value="6">
                 <output id="building-label-font-size-output">6px</output>
