@@ -2,6 +2,18 @@
 /* 編集補助。施設ごとの履歴・実寸・一覧は既存の保存形式をそのまま使う。 */
 window.ParkingEditor = (() => {
   const $=id=>document.getElementById(id);
+  for(const id of ['new-parking-space-type','space-type']){
+    const select=$(id),selected=select.value,groups=new Map();select.replaceChildren();
+    for(const [key,preset] of Object.entries(mapDisplay.spacePresets)){
+      if(!groups.has(preset.group)){const g=document.createElement('optgroup');g.label=preset.group;groups.set(preset.group,g);select.append(g);}
+      const option=new Option(preset.label,key);groups.get(preset.group).append(option);
+    }
+    select.value=selected||'standard';
+  }
+  function presetNote(type){const p=mapDisplay.spacePresets[type];return p?`${p.widthMeters} × ${p.lengthMeters} m（幅×長さ） · ${p.basis}${p.guidable?'':' · 空き枠案内の対象外'}`:'';}
+  $('new-parking-space-type').addEventListener('change',()=>{$('new-space-preset-note').textContent=presetNote($('new-parking-space-type').value);});
+  $('new-space-preset-note').textContent=presetNote($('new-parking-space-type').value);
+  $('space-custom-label').addEventListener('change',()=>{const item=getSelectedObject();if(item?.spaceType!=='custom')return;item.customSpaceLabel=$('space-custom-label').value.trim().slice(0,24)||'専用';saveLocal();render();});
   const histories=new Map();let restoring=false,pan=null,lastFacility=null;
   function snapshot(){return JSON.stringify(getCurrentLayout());}
   function history(){
@@ -42,6 +54,9 @@ window.ParkingEditor = (() => {
       button.className='object-list-item';button.setAttribute('aria-pressed',String(obj.uid===state.selectedUid));
       button.addEventListener('click',()=>{state.selectedUid=obj.uid;state.editMode='move';render();focusSelected();});list.append(button);
     }
+    $('space-preset-note').textContent=item?.objectType==='parkingSpace'?presetNote(item.spaceType):'';
+    $('space-custom-label-field').hidden=item?.objectType!=='parkingSpace'||item.spaceType!=='custom';
+    if(item?.spaceType==='custom')$('space-custom-label').value=item.customSpaceLabel||'専用';
     $('pavement-settings').hidden=item?.objectType!=='pavementMarking';
     if(item?.objectType==='pavementMarking'){$('pavement-kind').value=item.pavementKind||'straight';$('pavement-color').value=item.markingColor||'#ffffff';}
   }

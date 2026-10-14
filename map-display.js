@@ -2,6 +2,475 @@
 /* 両アプリで同じ番号・文字寸法・標識／路面標示を使う。保存データは書き換えない。 */
 window.ParkingMapDisplay = (() => {
   const types = ["parkingLot","excludedParkingLot","nationalRoad","prefecturalRoad","publicRoad","parkingSpace","road","sidewalk","crosswalk","building","buildingEntrance","parkingEntrance","stopLine","speedBump","noEntry","cartCorral","bicycleParking","motorcycleParking","loadingZone","evCharger","roadSign","pavementMarking"];
+  // 全国共通の全分類ではなく、資料確認済みの用途と編集用プリセット。寸法根拠は各項目で区別する。
+  const spacePresets = Object.freeze(Object.fromEntries(Object.entries({
+  "standard": {
+    "label": "普通車",
+    "en": "Standard car",
+    "mark": "",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "乗用車",
+    "basis": "既存アプリ初期値",
+    "guidable": true
+  },
+  "compact": {
+    "label": "軽自動車",
+    "en": "Kei car",
+    "mark": "軽",
+    "widthMeters": 2,
+    "lengthMeters": 3.6,
+    "group": "乗用車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "smallCar": {
+    "label": "小型乗用車",
+    "en": "Small passenger car",
+    "mark": "小型",
+    "widthMeters": 2.3,
+    "lengthMeters": 5,
+    "group": "乗用車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "passengerLong": {
+    "label": "普通乗用車・長さ6m",
+    "en": "Passenger car (6 m bay)",
+    "mark": "普通",
+    "widthMeters": 2.5,
+    "lengthMeters": 6,
+    "group": "乗用車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "large": {
+    "label": "大型車用",
+    "en": "Large vehicle",
+    "mark": "大型",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "大型車・貨物車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "smallTruck": {
+    "label": "小型貨物車用",
+    "en": "Small truck",
+    "mark": "小型\n貨物",
+    "widthMeters": 3,
+    "lengthMeters": 7.7,
+    "group": "大型車・貨物車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "mediumTruck": {
+    "label": "中型貨物車用",
+    "en": "Medium truck",
+    "mark": "中型\n貨物",
+    "widthMeters": 3.3,
+    "lengthMeters": 10,
+    "group": "大型車・貨物車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "largeTruck": {
+    "label": "大型貨物車専用",
+    "en": "Heavy truck only",
+    "mark": "大型\n貨物",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "大型車・貨物車",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "trailer": {
+    "label": "トレーラー専用",
+    "en": "Trailer only",
+    "mark": "トレーラー",
+    "widthMeters": 3.5,
+    "lengthMeters": 18,
+    "group": "大型車・貨物車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "doubleTrailer": {
+    "label": "ダブル連結トラック専用・優先",
+    "en": "Double-trailer truck",
+    "mark": "ダブル\n連結",
+    "widthMeters": 3.5,
+    "lengthMeters": 27,
+    "group": "大型車・貨物車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "combined": {
+    "label": "普通車・大型車兼用",
+    "en": "Shared car / large vehicle bay",
+    "mark": "兼用",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "大型車・貨物車",
+    "basis": "大型車指針を初期値に採用",
+    "guidable": true,
+    "markingStyle": "dashed",
+    "markingColor": "#4ca3ff"
+  },
+  "bus": {
+    "label": "バス専用",
+    "en": "Bus only",
+    "mark": "バス\n専用",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "バス",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "busPriority": {
+    "label": "バス優先",
+    "en": "Bus priority",
+    "mark": "バス\n優先",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "バス",
+    "basis": "国交省指針",
+    "guidable": true
+  },
+  "minibus": {
+    "label": "マイクロバス専用",
+    "en": "Minibus only",
+    "mark": "マイクロ\nバス",
+    "widthMeters": 3,
+    "lengthMeters": 7.7,
+    "group": "バス",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "rv": {
+    "label": "キャンピングカー・RV",
+    "en": "Camper / RV",
+    "mark": "RV",
+    "widthMeters": 4,
+    "lengthMeters": 7,
+    "group": "乗用車",
+    "basis": "日本RV協会の推奨寸法",
+    "guidable": true
+  },
+  "motorcycle": {
+    "label": "自動二輪車用",
+    "en": "Motorcycle",
+    "mark": "二輪",
+    "widthMeters": 1,
+    "lengthMeters": 2.3,
+    "group": "二輪・自転車",
+    "basis": "福岡市の基準を参考",
+    "guidable": true
+  },
+  "moped": {
+    "label": "原付用",
+    "en": "Moped",
+    "mark": "原付",
+    "widthMeters": 0.8,
+    "lengthMeters": 2,
+    "group": "二輪・自転車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "bicycle": {
+    "label": "自転車用",
+    "en": "Bicycle",
+    "mark": "自転車",
+    "widthMeters": 0.6,
+    "lengthMeters": 1.9,
+    "group": "二輪・自転車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "scooter": {
+    "label": "特定小型原付・シェアモビリティ",
+    "en": "Small mobility / scooter",
+    "mark": "小型\nモビリティ",
+    "widthMeters": 0.8,
+    "lengthMeters": 2,
+    "group": "二輪・自転車",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "accessible": {
+    "label": "車いす使用者用",
+    "en": "Wheelchair accessible",
+    "mark": "車いす",
+    "widthMeters": 3.5,
+    "lengthMeters": 6,
+    "group": "優先・配慮",
+    "basis": "国交省幅・福岡市推奨長さ",
+    "guidable": true
+  },
+  "priority": {
+    "label": "優先・思いやり・パーキングパーミット",
+    "en": "Priority / parking permit",
+    "mark": "優先",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "優先・配慮",
+    "basis": "既存アプリ初期値・現地条件",
+    "guidable": true
+  },
+  "maternity": {
+    "label": "妊産婦優先",
+    "en": "Maternity priority",
+    "mark": "妊産婦",
+    "widthMeters": 3.5,
+    "lengthMeters": 5,
+    "group": "優先・配慮",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "senior": {
+    "label": "高齢者優先",
+    "en": "Senior priority",
+    "mark": "高齢者",
+    "widthMeters": 3.5,
+    "lengthMeters": 5,
+    "group": "優先・配慮",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "family": {
+    "label": "子育て・ベビーカー優先",
+    "en": "Family / stroller priority",
+    "mark": "子育て",
+    "widthMeters": 3.5,
+    "lengthMeters": 5,
+    "group": "優先・配慮",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "ev": {
+    "label": "EV・PHEV充電用",
+    "en": "EV / PHEV charging",
+    "mark": "EV",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "充電",
+    "basis": "既存アプリ初期値",
+    "guidable": true
+  },
+  "evFast": {
+    "label": "EV急速充電専用",
+    "en": "EV rapid charging",
+    "mark": "EV\n急速",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "充電",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "evAccessible": {
+    "label": "車いす対応EV充電用",
+    "en": "Accessible EV charging",
+    "mark": "EV\n車いす",
+    "widthMeters": 3.5,
+    "lengthMeters": 6,
+    "group": "充電",
+    "basis": "車いす用初期値を採用",
+    "guidable": true
+  },
+  "taxi": {
+    "label": "タクシー専用駐車",
+    "en": "Taxi parking",
+    "mark": "タクシー",
+    "widthMeters": 2.5,
+    "lengthMeters": 6,
+    "group": "専用・契約",
+    "basis": "普通乗用車指針を初期値に採用",
+    "guidable": true
+  },
+  "reserved": {
+    "label": "予約専用",
+    "en": "Reserved",
+    "mark": "予約",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "monthly": {
+    "label": "月極・契約者専用",
+    "en": "Monthly / permit holder",
+    "mark": "契約者",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "visitor": {
+    "label": "来客・来庁者用",
+    "en": "Visitor",
+    "mark": "来客",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "customer": {
+    "label": "店舗利用者専用",
+    "en": "Customer only",
+    "mark": "お客様",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "employee": {
+    "label": "従業員・職員専用",
+    "en": "Staff only",
+    "mark": "職員",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "company": {
+    "label": "社用車・公用車専用",
+    "en": "Company / official vehicle",
+    "mark": "公用車",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "carShare": {
+    "label": "カーシェア専用",
+    "en": "Car sharing only",
+    "mark": "カー\nシェア",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "rental": {
+    "label": "レンタカー専用",
+    "en": "Rental car only",
+    "mark": "レンタカー",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "hotel": {
+    "label": "宿泊者専用",
+    "en": "Hotel guest only",
+    "mark": "宿泊者",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "shortStay": {
+    "label": "短時間専用",
+    "en": "Short stay only",
+    "mark": "短時間",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "専用・契約",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": true
+  },
+  "loading": {
+    "label": "荷さばき専用駐車",
+    "en": "Loading / unloading parking",
+    "mark": "荷さばき",
+    "widthMeters": 3,
+    "lengthMeters": 7.7,
+    "group": "荷さばき",
+    "basis": "福岡市基準・小型貨物車指針",
+    "guidable": true
+  },
+  "delivery": {
+    "label": "集配・配送車専用",
+    "en": "Delivery vehicle",
+    "mark": "集配",
+    "widthMeters": 3,
+    "lengthMeters": 7.7,
+    "group": "荷さばき",
+    "basis": "小型貨物車指針を初期値に採用",
+    "guidable": true
+  },
+  "taxiStand": {
+    "label": "タクシー乗降・待機",
+    "en": "Taxi boarding / queue",
+    "mark": "タクシー\n乗降",
+    "widthMeters": 2.5,
+    "lengthMeters": 6,
+    "group": "乗降・管理専用（案内対象外）",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": false
+  },
+  "pickup": {
+    "label": "送迎・乗降専用",
+    "en": "Pick-up / drop-off",
+    "mark": "送迎\n乗降",
+    "widthMeters": 2.5,
+    "lengthMeters": 6,
+    "group": "乗降・管理専用（案内対象外）",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": false
+  },
+  "busBoarding": {
+    "label": "バス乗降・乗り場",
+    "en": "Bus boarding",
+    "mark": "バス\n乗降",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "乗降・管理専用（案内対象外）",
+    "basis": "大型車指針を初期値に採用",
+    "guidable": false
+  },
+  "emergency": {
+    "label": "緊急車両専用",
+    "en": "Emergency vehicle only",
+    "mark": "緊急車",
+    "widthMeters": 3.3,
+    "lengthMeters": 13,
+    "group": "乗降・管理専用（案内対象外）",
+    "basis": "編集用仮寸法・現地確認",
+    "guidable": false
+  },
+  "fireAccess": {
+    "label": "消防活動用空地・駐車禁止",
+    "en": "Fire access / no parking",
+    "mark": "消防活動\n駐車禁止",
+    "widthMeters": 6,
+    "lengthMeters": 12,
+    "group": "乗降・管理専用（案内対象外）",
+    "basis": "魚沼市の例・地域基準を確認",
+    "guidable": false,
+    "markingStyle": "hatched",
+    "markingColor": "#facc15"
+  },
+  "custom": {
+    "label": "カスタム・施設独自区画",
+    "en": "Custom / site-specific",
+    "mark": "専用",
+    "widthMeters": 2.5,
+    "lengthMeters": 5,
+    "group": "カスタム（案内対象外）",
+    "basis": "名称・寸法を現地に合わせて編集",
+    "guidable": false
+  }
+}).map(([key,value])=>[key,Object.freeze(value)])));
+  function spaceTypeLabel(type,english=false){const p=spacePresets[type];return p?(english?p.en:p.label):String(type||"普通車");}
+  function isGuidableType(type){return spacePresets[type]?.guidable===true;}
   const roads = new Set(["road","nationalRoad","prefecturalRoad","publicRoad"]);
   function normalizeNumber(value) {
     return String(value ?? "").normalize("NFKC").trim().replace(/\d+/g, n => n.replace(/^0+(?=\d)/,""));
@@ -120,7 +589,7 @@ window.ParkingMapDisplay = (() => {
     svg.append(svgElement("text",{x:50,y:61,"text-anchor":"middle",fill:"#6d28d9","font-size":fitLabel(text,75,60,42),"font-weight":700},text));node.append(svg);
   }
   // まず論理座標で文字を決定し、最後に表示倍率を一度だけ掛ける。
-  function typeText(item) { return ({compact:"軽",accessible:"車いす",ev:"EV",priority:"優先"})[item.spaceType]||""; }
+  function typeText(item) { return item.spaceType==="custom" ? String(item.customSpaceLabel||"専用").slice(0,24) : (spacePresets[item.spaceType]?.mark||""); }
   function labelSize(item) {
     const fitted=fitLabel(item.name||"",Number(item.width)*.8,Number(item.height)*.8,18);
     return item.objectType==="building" && item.labelAutoScale===false ? Math.min(fitted,Math.max(3,Math.min(18,Number(item.labelFontSize)||6))) : fitted;
@@ -188,5 +657,5 @@ window.ParkingMapDisplay = (() => {
     const overlap=(a,b)=>a.x<b.x+b.width+gap && a.x+a.width+gap>b.x && a.y<b.y+b.height+gap && a.y+a.height+gap>b.y;
     return candidates.find(a=>!occupied.some(b=>overlap(a,b)))??candidates[0];
   }
-  return Object.freeze({types,roads,typeText,labelSize,appendType,appendPavement,pavementNames,metersPerPixel,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
+  return Object.freeze({spacePresets,spaceTypeLabel,isGuidableType,types,roads,typeText,labelSize,appendType,appendPavement,pavementNames,metersPerPixel,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
 })();

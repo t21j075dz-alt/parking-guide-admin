@@ -55,6 +55,30 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   }
   console.log(`PASS: ${rows.length} saved layouts preserve geometry/scale and render in both apps`);
  }
+ // 全区画の選択・生成・復元と利用者の追加条件を実操作で確認。
+ assert.equal(await page.locator('#new-parking-space-type option').count(),46);
+ const allTypes=await page.evaluate(()=>Object.keys(mapDisplay.spacePresets));
+ await page.evaluate(()=>{getCurrentLayout().objects=[];getCurrentLayout().background=null;state.selectedUid=null;render();});
+ for(const type of allTypes){await page.selectOption('#new-parking-space-type',type);await page.click('#add-parking-space-button');}
+ assert.equal(await page.evaluate(()=>getCurrentLayout().objects.length),46);
+ await page.fill('#space-custom-label','福祉送迎専用');await page.locator('#space-custom-label').blur();
+ assert.equal(await page.evaluate(()=>getSelectedObject().customSpaceLabel),'福祉送迎専用');
+ const extendedLayout=await page.evaluate(()=>structuredClone(getCurrentLayout()));
+ await page.evaluate(async()=>{const json=JSON.stringify(state.layouts);await importJson({text:async()=>json});});
+ assert.equal(await page.evaluate(()=>getCurrentLayout().objects.length),46);
+ await user.evaluate(layout=>{state.guideEntrance=null;renderRegisteredLayout(layout,null);},extendedLayout);
+ assert.equal(await user.locator('[data-object-type="parkingSpace"]').count(),46);
+ assert.equal(await user.evaluate(layout=>createLayoutParkingSpaces(layout,{id:layout.facilityId}).length,extendedLayout),40);
+ await user.evaluate(()=>{document.querySelectorAll('.screen').forEach(n=>n.hidden=true);document.querySelector('#condition-screen').hidden=false;updateExtendedSpaceTypes();});
+ assert.equal(await user.locator('#extended-space-type option').count(),35);
+ await user.selectOption('#extended-space-type','bus');
+ assert.ok(await user.locator('input[name="spaceType"][value="extended"]').isChecked());
+ await user.evaluate(()=>saveSearchConditions());assert.equal(await user.evaluate(()=>state.requestedSpaceType),'bus');
+ await user.evaluate(()=>{state.language='en';updateExtendedSpaceTypes();});
+ assert.equal(await user.locator('#extended-space-type').inputValue(),'bus');
+ assert.equal(await user.locator('#extended-space-type option[value="bus"]').textContent(),'Bus only');
+ await user.screenshot({path:'/tmp/parking-user-types.png'});
+ console.log('PASS: 46 types create/import/render, 40 eligible search types, custom label, bus choice and English labels');
  assert.deepEqual(errors,[]);console.log('PASS: add, undo/redo, meters, live resize, type resize, priority, facility isolation, reload, 1024/1440px admin and 390px user map; no page errors');
  }finally{await b.close();server.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

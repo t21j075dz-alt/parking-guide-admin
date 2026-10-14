@@ -8,15 +8,15 @@
 <meta content="卒業研究用の駐車場マップ管理Webアプリ" name="description"/>
 <title>駐車場マップ管理｜卒業研究</title>
 <!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
-<link href="./admin.css?v=20261013-editor" rel="stylesheet"/>
-<link href="./map-display.css?v=20261013-editor" rel="stylesheet"/>
-<script defer="" src="./map-display.js?v=20261013-editor"></script>
+<link href="./admin.css?v=20261014-space-types" rel="stylesheet"/>
+<link href="./map-display.css?v=20261014-space-types" rel="stylesheet"/>
+<script defer="" src="./map-display.js?v=20261014-space-types"></script>
 <!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
 <script defer="" src="./sync-config.js"></script>
 <script defer="" src="./facility-catalog.js?v=20261011-fukuoka-100"></script>
-<script defer="" src="./admin.js?v=20261013-editor"></script>
-<link href="./editor-workbench.css?v=20261013-editor" rel="stylesheet"/>
-<script defer="" src="./editor-workbench.js?v=20261013-editor"></script>
+<script defer="" src="./admin.js?v=20261014-space-types"></script>
+<link href="./editor-workbench.css?v=20261014-space-types" rel="stylesheet"/>
+<script defer="" src="./editor-workbench.js?v=20261014-space-types"></script>
 </head>
 <body>
 <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
@@ -92,7 +92,7 @@
 <div class="tool-list parking-add-actions">
 <button id="add-parking-space-button" type="button">駐車枠を追加</button>
 </div>
-<p class="tool-help">写真の縮尺に合わせて実寸で追加します。優先区画は普通車の案内対象外です。</p>
+<p class="tool-help" id="new-space-preset-note"></p><p class="tool-help">初期寸法は現地に合わせて調整。専用枠は普通車に案内しません。</p>
 </details>
 <!-- 道路系オブジェクト。一方通行などは将来の経路探索にも利用できる形で保存する。 -->
 <details class="palette-section"><summary>通路・道路</summary>
@@ -230,7 +230,7 @@
 <!-- 右ペイン：選択中オブジェクトの共通属性・種類別属性を編集する。 -->
 <aside aria-label="選択オブジェクト設定" class="right-panel">
 <h2>選択中の設定</h2><p class="muted" id="editor-message" role="status"></p>
-<section hidden="" id="dimension-controls"><h3>大きさ（m）</h3><div class="meter-fields"><label>幅<input id="width-meters" min="0.01" step="0.01" type="number"/></label><label>長さ<input id="height-meters" min="0.01" step="0.01" type="number"/></label></div><button id="apply-meters-button" type="button">寸法を適用</button><button id="preset-size-button" type="button">駐車枠の標準寸法に戻す</button></section>
+<section hidden="" id="dimension-controls"><h3>大きさ（m）</h3><div class="meter-fields"><label>幅<input id="width-meters" min="0.01" step="0.01" type="number"/></label><label>長さ<input id="height-meters" min="0.01" step="0.01" type="number"/></label></div><button id="apply-meters-button" type="button">寸法を適用</button><button id="preset-size-button" type="button">区画種類の初期寸法に戻す</button></section>
 <fieldset hidden="" id="pavement-settings"><legend>路面標示</legend><label>種類<select id="pavement-kind"></select></label><label>色<input id="pavement-color" type="color" value="#ffffff"/></label></fieldset>
 <div class="empty-settings" id="empty-settings">オブジェクトを選択してください。</div>
 <form hidden="" id="object-form">
@@ -257,7 +257,7 @@
 </div>
 <p class="space-display-preview">表示：<output id="space-display-preview"></output></p>
 <p aria-live="polite" class="inline-error" id="space-number-error" role="status"></p>
-<label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option><option value="priority">優先（高齢者・妊産婦等）</option></select></label>
+<p class="tool-help" id="space-preset-note"></p><label hidden id="space-custom-label-field">枠に表示する文字<input id="space-custom-label" maxlength="24" placeholder="例：福祉送迎専用"/></label><label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option><option value="priority">優先（高齢者・妊産婦等）</option></select></label>
 <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
 <!-- 区画の大きさとは別に、現地の路面標示の形を保存する。 -->
 <div class="parking-marking-settings">

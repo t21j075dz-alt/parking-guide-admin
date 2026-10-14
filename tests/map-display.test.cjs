@@ -21,3 +21,13 @@ test('管理・利用者の文字は倍率を一度だけ適用し、リサイ�
 });
 test('航空写真縮尺は緯度とズームから求め、無効な背景を拒否する',()=>{const d=display();assert.ok(Math.abs(d.metersPerPixel({centerLat:0,zoom:18})-.5971642834779395)<1e-10);assert.equal(d.metersPerPixel({centerLat:34,zoom:17}),d.metersPerPixel({centerLat:34,zoom:18})*2);assert.equal(d.metersPerPixel(null),null);});
 test('全路面標示がSVGを出力し、車いす用は絵文字ではない',()=>{const d=display();for(const pavementKind of Object.keys(d.pavementNames)){const node=element();d.appendPavement(node,{pavementKind});assert.equal(node.children.length,1);assert.equal(node.children[0].tagName,'svg');}const node=element();d.appendType(node,{spaceType:'accessible'});assert.ok(walk(node).some(n=>n.tagName==='svg'));assert.ok(!node.textContent.includes('♿'));});
+
+test('追加区画ラベルは長辺のある大型枠・狭い二輪枠でも外形内に収まり、カスタムをテキストとして扱う',()=>{
+ const d=display();assert.equal(Object.keys(d.spacePresets).length,46);
+ for(const [spaceType,p] of Object.entries(d.spacePresets)){
+  const item={objectType:'parkingSpace',spaceType,width:p.widthMeters*10,height:p.lengthMeters*10,spaceNumber:'123',customSpaceLabel:'福祉車両専用'};
+  const node=element();d.appendType(node,item);d.applyTypography(node,item,2);
+  if(spaceType!=='standard'){assert.equal(node.children.length,1);const size=parseFloat(node.style['--space-type-size']);assert.ok(Math.max(...d.typeText(item).split('\n').map(d.units))*size<=item.width*.9*2+1e-8);}
+ }
+ const node=element();d.appendType(node,{spaceType:'custom',customSpaceLabel:'<img src=x onerror=bad>'});assert.ok(!walk(node).some(n=>n.tagName==='img'));assert.match(node.children[0].textContent,/<img/);
+});

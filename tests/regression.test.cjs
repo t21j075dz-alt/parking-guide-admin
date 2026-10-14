@@ -160,3 +160,10 @@ test('写真縮尺で普通・軽・車いす・優先枠を実寸生成し、�
  const before=run('JSON.stringify(getCurrentLayout().objects)');run('initializePhotoScale(getCurrentLayout());');assert.equal(run('JSON.stringify(getCurrentLayout().objects)'),before);
 });
 test('既存レイアウトの手動縮尺は航空写真を表示しても保持する',()=>{const {run}=app();run(`state.facilityId='a';ensureLayout('a');getCurrentLayout().canvas.scaleMetersPerPixel=.1;getCurrentLayout().objects=[{uid:'keep',objectType:'parkingSpace',x:5,y:6,width:25,height:50}];getCurrentLayout().background={centerLat:34,zoom:18};initializePhotoScale(getCurrentLayout());`);assert.equal(run('getLayoutScale(getCurrentLayout())'),.1);assert.equal(run('getCurrentLayout().objects[0].width'),25);});
+
+test('全46区画プリセットを写真縮尺で作成し、大型バスと貨物車の実寸・禁止枠の状態を保つ',()=>{
+ const {run}=app();run(`state.facilityId='a';ensureLayout('a');getCurrentLayout().background={type:'gsi-seamlessphoto',centerLat:35,centerLng:135,zoom:18};initializePhotoScale(getCurrentLayout());`);
+ const keys=run('Object.keys(PARKING_SPACE_PRESETS)');assert.equal(keys.length,46);
+ for(const key of keys){run(`addObject('parkingSpace',{spaceType:${JSON.stringify(key)}})`);const out=JSON.parse(run(`JSON.stringify({item:getSelectedObject(),preset:PARKING_SPACE_PRESETS[getSelectedObject().spaceType],scale:getLayoutScale(getCurrentLayout())})`));assert.ok(Math.abs(out.item.width*out.scale-out.preset.widthMeters)<1e-9,key);assert.ok(Math.abs(out.item.height*out.scale-out.preset.lengthMeters)<1e-9,key);if(!out.preset.guidable)assert.equal(out.item.status,'unavailable',key);}
+ assert.equal(run('PARKING_SPACE_PRESETS.bus.widthMeters'),3.3);assert.equal(run('PARKING_SPACE_PRESETS.bus.lengthMeters'),13);assert.equal(run('PARKING_SPACE_PRESETS.smallTruck.lengthMeters'),7.7);
+});

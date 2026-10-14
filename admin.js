@@ -261,14 +261,7 @@ const V10_OBJECT_DEFAULTS = Object.freeze({
  */
 const SCHEMATIC_METERS_PER_PIXEL = 0.1;
 
-const PARKING_SPACE_PRESETS = Object.freeze({
-  /* width/heightは旧データ互換用。新規配置はメートル値を現行縮尺で換算する。 */
-  standard: { width: 6, height: 12, widthMeters: 2.5, lengthMeters: 5.0 },
-  compact: { width: 6, height: 12, widthMeters: 2.0, lengthMeters: 3.6 },
-  accessible: { width: 6, height: 12, widthMeters: 3.5, lengthMeters: 6.0 },
-  ev: { width: 6, height: 12, widthMeters: 2.5, lengthMeters: 5.0 },
-  priority: {width:6,height:12,widthMeters:2.5,lengthMeters:5.0},
-});
+const PARKING_SPACE_PRESETS = mapDisplay.spacePresets;
 
 const OBJECT_DEFAULTS = {
   parkingLot: { width: 180, height: 120, name: "駐車場敷地" },
@@ -776,10 +769,7 @@ function createUid(type) {
 
 /** 駐車枠の種類に応じた表示名の接頭辞を返す。 */
 function getParkingSpaceLabel(spaceType) {
-  if(spaceType === "priority")return "優先";
-  return spaceType === "compact" ? "軽"
-    : spaceType === "accessible" ? "車椅子"
-      : spaceType === "ev" ? "EV" : "普通車";
+  return ({standard:"普通車",compact:"軽",accessible:"車椅子",ev:"EV",priority:"優先"})[spaceType] || mapDisplay.spaceTypeLabel(spaceType);
 }
 
 /** 建物外形に合わせた名称ラベルの文字サイズを返す。手動指定時は保存値を優先する。 */
@@ -862,13 +852,14 @@ function addObject(type, options = {}) {
   }
   if (type === "parkingSpace") {
     item.spaceType = selectedSpaceType;
-    item.status = "available";
+    item.status = parkingPreset.guidable ? "available" : "unavailable";
+    if(selectedSpaceType==="custom")item.customSpaceLabel="専用";
     item.physicalWidthMeters = parkingPreset.widthMeters;
     item.physicalLengthMeters = parkingPreset.lengthMeters;
 
     /* 航空写真例に合わせ、奥側を閉じて車路側を開けた細い3辺線を標準にする。 */
-    item.markingStyle = "photoStall";
-    item.markingColor = "#ffffff";
+    item.markingStyle = parkingPreset.markingStyle || "photoStall";
+    item.markingColor = parkingPreset.markingColor || "#ffffff";
     item.markingWidth = 0.15 / scale;
 
     assignParkingSpaceNumber(item, layout);
@@ -3300,6 +3291,9 @@ function updateSelectedFromForm() {
       const preset = PARKING_SPACE_PRESETS[item.spaceType] ?? PARKING_SPACE_PRESETS.standard;
       item.width = preset.widthMeters / getLayoutScale(layout);
       item.height = preset.lengthMeters / getLayoutScale(layout);
+      elements.spaceMarkingStyle.value = preset.markingStyle || "photoStall";
+      elements.spaceMarkingColor.value = preset.markingColor || "#ffffff";
+      if (!preset.guidable) {item.status="unavailable";elements.spaceStatus.value="unavailable";}
       item.physicalWidthMeters = preset.widthMeters;
       item.physicalLengthMeters = preset.lengthMeters;
 

@@ -62,3 +62,4 @@ html body .map-canvas:not(.has-photo) .map-object[data-space-type="priority"] {b
 html body .map-canvas:not(.has-photo) .map-object[data-space-type="ev"] {background-color:#236652 !important;}
 html body .map-canvas:not(.has-photo) .map-object[data-object-type="pavementMarking"] {background-color:#596779;}
 @media(max-width:1100px){.editor-zoom input{display:none;}}
+#space-custom-label-field[hidden] {display:none !important;}
