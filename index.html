@@ -1,375 +1,361 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f5f5f4">
-    <meta name="description" content="卒業研究用の駐車場マップ管理Webアプリ">
-    <title>駐車場マップ管理｜卒業研究</title>
-    <!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
-    <link rel="stylesheet" href="./admin.css?v=20261011-map-display">
-    <link rel="stylesheet" href="./map-display.css?v=20261011-map-display">
-    <script src="./map-display.js?v=20261011-map-display" defer></script>
-    <!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
-    <script src="./sync-config.js" defer></script>
-    <script src="./facility-catalog.js?v=20261011-fukuoka-100" defer></script>
-    <script src="./admin.js?v=20261011-map-display" defer></script>
-  </head>
-  <body>
-    <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
-    <header class="topbar">
-      <div>
-        <p class="app-kicker">卒業研究・管理用</p>
-        <h1>駐車場マップ管理</h1>
-      </div>
-      <div class="topbar-actions">
-        <button id="theme-button" type="button">ダークモード</button>
-        <button id="save-button" type="button">端末に保存</button>
-        <button id="export-json-button" type="button">JSON出力</button>
-        <button id="export-js-button" type="button">ユーザー用JS出力</button>
-        <label class="file-button">JSON読込<input id="import-file" type="file" accept="application/json,.json"></label>
-      </div>
-    </header>
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="#f5f5f4" name="theme-color"/>
+<meta content="卒業研究用の駐車場マップ管理Webアプリ" name="description"/>
+<title>駐車場マップ管理｜卒業研究</title>
+<!-- 管理画面専用CSS。利用者向けアプリのCSSとは分離する。 -->
+<link href="./admin.css?v=20261013-editor" rel="stylesheet"/>
+<link href="./map-display.css?v=20261013-editor" rel="stylesheet"/>
+<script defer="" src="./map-display.js?v=20261013-editor"></script>
+<!-- 自動反映設定 → 施設データ → 管理画面本体の順で読み込む。 -->
+<script defer="" src="./sync-config.js"></script>
+<script defer="" src="./facility-catalog.js?v=20261011-fukuoka-100"></script>
+<script defer="" src="./admin.js?v=20261013-editor"></script>
+<link href="./editor-workbench.css?v=20261013-editor" rel="stylesheet"/>
+<script defer="" src="./editor-workbench.js?v=20261013-editor"></script>
+</head>
+<body>
+<!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
+<header class="topbar">
+<div>
+<p class="app-kicker">卒業研究・管理用</p>
+<h1>駐車場マップ管理</h1>
+</div>
+<div class="topbar-actions">
+<button id="undo-button" title="Ctrl / ⌘ Z" type="button">↶ 取り消す</button><button id="redo-button" title="Ctrl / ⌘ Shift Z" type="button">↷ やり直す</button>
+<button id="theme-button" type="button">ダークモード</button>
+<button id="save-button" type="button">端末に保存</button>
+<button id="export-json-button" type="button">JSON出力</button>
+<button id="export-js-button" type="button">ユーザー用JS出力</button>
+<label class="file-button">JSON読込<input accept="application/json,.json" id="import-file" type="file"/></label>
+</div>
+</header>
+<p aria-live="polite" id="local-save-status" role="status"></p>
+<main class="admin-layout">
+<!-- 左ペイン：編集対象施設の選択と、新しいオブジェクトの追加を行う。 -->
+<aside aria-label="オブジェクト追加" class="left-panel">
+<section>
+<h2>編集する施設</h2><label class="field-label" for="facility-search">施設を検索</label><input id="facility-search" placeholder="施設名・住所" type="search"/><div id="facility-results"></div>
+<label class="field-label" for="prefecture-select">都道府県</label>
+<select id="prefecture-select"></select>
+<label class="field-label" for="facility-select">施設</label>
+<select id="facility-select"></select>
+<p class="muted" id="facility-id"></p>
+<p class="muted" id="facility-address"></p>
+</section>
+<details class="palette-section"><summary>ユーザーアプリへ自動反映</summary>
 
-    <p id="local-save-status" role="status" aria-live="polite"></p>
+<p class="muted" id="cloud-sync-status">クラウド連携は未設定です。</p>
+<label class="field-label" for="cloud-email">管理者メール</label>
+<input autocomplete="username" id="cloud-email" placeholder="管理者メール" type="email"/>
+<label class="field-label" for="cloud-password">パスワード</label>
+<input autocomplete="current-password" id="cloud-password" placeholder="パスワード" type="password"/>
+<div class="tool-list">
+<button id="cloud-login-button" type="button">クラウドにログイン</button>
+<button id="cloud-sync-button" type="button">今すぐ反映</button>
+<button id="cloud-load-button" type="button">クラウドから読込</button>
+<button id="cloud-logout-button" type="button">ログアウト</button>
+</div>
+<p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
+</details>
+<!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
+<details class="palette-section"><summary>敷地・建物・外周道路</summary>
 
-    <main class="admin-layout">
-      <!-- 左ペイン：編集対象施設の選択と、新しいオブジェクトの追加を行う。 -->
-      <aside class="left-panel" aria-label="オブジェクト追加">
-        <section>
-          <h2>編集する施設</h2>
-          <label class="field-label" for="prefecture-select">都道府県</label>
-          <select id="prefecture-select"></select>
-          <label class="field-label" for="facility-select">施設</label>
-          <select id="facility-select"></select>
-          <p id="facility-id" class="muted"></p>
-          <p id="facility-address" class="muted"></p>
-        </section>
+<label class="field-label" for="destination-building-select">店舗建物</label>
+<select id="destination-building-select">
+<option value="">汎用建物</option>
+</select>
+<div class="tool-list">
+<button data-add-object="parkingLot" type="button">駐車場敷地</button>
+<button data-add-object="excludedParkingLot" type="button">対象外駐車場敷地</button>
+<button id="add-destination-building-button" type="button">選択した店舗建物を追加</button>
+<button data-add-object="nationalRoad" type="button">国道</button>
+<button data-add-object="prefecturalRoad" type="button">県道</button>
+<button data-add-object="publicRoad" type="button">公道</button>
+</div>
+<p class="tool-help">「形変更」で頂点を動かす。辺の＋で頂点追加。</p>
+</details>
+<!-- 駐車区画は種類を選んでから1つの追加ボタンで配置する。 -->
+<details class="palette-section" open=""><summary>駐車区画</summary>
 
-        <section class="cloud-sync-panel">
-          <h2>ユーザーアプリへ自動反映</h2>
-          <p id="cloud-sync-status" class="muted">クラウド連携は未設定です。</p>
-          <label class="field-label" for="cloud-email">管理者メール</label>
-          <input id="cloud-email" type="email" autocomplete="username" placeholder="管理者メール">
-          <label class="field-label" for="cloud-password">パスワード</label>
-          <input id="cloud-password" type="password" autocomplete="current-password" placeholder="パスワード">
-          <div class="tool-list">
-            <button id="cloud-login-button" type="button">クラウドにログイン</button>
-            <button id="cloud-sync-button" type="button">今すぐ反映</button>
-            <button id="cloud-load-button" type="button">クラウドから読込</button>
-            <button id="cloud-logout-button" type="button">ログアウト</button>
-          </div>
-          <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
-        </section>
+<label class="field-label" for="new-parking-space-type">区画種類</label>
+<select id="new-parking-space-type">
+<option value="standard">普通車</option>
+<option value="compact">軽自動車</option>
+<option value="accessible">車いす使用者用</option>
+<option value="ev">EV</option><option value="priority">優先（高齢者・妊産婦等）</option>
+</select>
+<div class="tool-list parking-add-actions">
+<button id="add-parking-space-button" type="button">駐車枠を追加</button>
+</div>
+<p class="tool-help">写真の縮尺に合わせて実寸で追加します。優先区画は普通車の案内対象外です。</p>
+</details>
+<!-- 道路系オブジェクト。一方通行などは将来の経路探索にも利用できる形で保存する。 -->
+<details class="palette-section"><summary>通路・道路</summary>
 
-        <!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
-        <section>
-          <h2>敷地・建物・外周道路</h2>
-          <label class="field-label" for="destination-building-select">店舗建物</label>
-          <select id="destination-building-select">
-            <option value="">汎用建物</option>
-          </select>
-          <div class="tool-list">
-            <button type="button" data-add-object="parkingLot">駐車場敷地</button>
-            <button type="button" data-add-object="excludedParkingLot">対象外駐車場敷地</button>
-            <button id="add-destination-building-button" type="button">選択した店舗建物を追加</button>
-            <button type="button" data-add-object="nationalRoad">国道</button>
-            <button type="button" data-add-object="prefecturalRoad">県道</button>
-            <button type="button" data-add-object="publicRoad">公道</button>
-          </div>
-          <p class="tool-help">四角形で追加されます。「形変更」モードに切り替えると、青い頂点をドラッグして変形でき、辺中央の「＋」から頂点を追加できます。頂点はダブルクリックで削除できます。</p>
-        </section>
+<div class="tool-list">
+<button data-add-object="road" data-traffic-direction="twoWay" type="button">車道（双方向）</button>
+<button data-add-object="road" data-traffic-direction="oneWay" type="button">一方通行</button>
+<button data-add-object="sidewalk" type="button">歩道</button>
+<button data-add-object="crosswalk" type="button">横断歩道</button>
+<button data-add-object="stopLine" type="button">停止線</button>
+<button data-add-object="speedBump" type="button">速度抑制ハンプ</button>
+</div>
+</details>
+<details class="palette-section"><summary>道路標識</summary>
 
-        <!-- 駐車区画は種類を選んでから1つの追加ボタンで配置する。 -->
-        <section>
-          <h2>駐車区画</h2>
-          <label class="field-label" for="new-parking-space-type">区画種類</label>
-          <select id="new-parking-space-type">
-            <option value="standard">普通車</option>
-            <option value="compact">軽自動車</option>
-            <option value="accessible">車いす使用者用</option>
-            <option value="ev">EV</option>
-          </select>
-          <div class="tool-list parking-add-actions">
-            <button id="add-parking-space-button" type="button">駐車枠を追加</button>
-          </div>
-          <p class="tool-help">枠の表示サイズは統一しています。軽は「軽」、車いす用は「♿」、EVは「EV」を枠内に表示します。</p>
-        </section>
+<div class="tool-list">
+<button data-add-object="roadSign" data-sign-type="noEntry" type="button">車両進入禁止</button>
+<button data-add-object="roadSign" data-sign-type="stop" type="button">一時停止</button>
+</div>
+<p class="tool-help">「形変更」で頂点を動かす。辺の＋で頂点追加。</p>
+</details>
+<!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
+<details class="palette-section"><summary>施設・設備</summary>
 
-        <!-- 道路系オブジェクト。一方通行などは将来の経路探索にも利用できる形で保存する。 -->
-        <section>
-          <h2>通路・道路</h2>
-          <div class="tool-list">
-            <button type="button" data-add-object="road" data-traffic-direction="twoWay">車道（双方向）</button>
-            <button type="button" data-add-object="road" data-traffic-direction="oneWay">一方通行</button>
-            <button type="button" data-add-object="sidewalk">歩道</button>
-            <button type="button" data-add-object="crosswalk">横断歩道</button>
-            <button type="button" data-add-object="stopLine">停止線</button>
-            <button type="button" data-add-object="speedBump">速度抑制ハンプ</button>
-          </div>
-        </section>
-
-        <section>
-          <h2>道路標識</h2>
-          <div class="tool-list">
-            <button type="button" data-add-object="roadSign" data-sign-type="noEntry">車両進入禁止</button>
-            <button type="button" data-add-object="roadSign" data-sign-type="stop">一時停止</button>
-          </div>
-          <p class="tool-help">一時停止・進入禁止は道路上へ置くと自動でその道路に関連付けます。一時停止は道路上に停止線と「止まれ」表示も自動生成します。国道・県道は道路側へ路線番号を設定すると路線標識を自動表示します。</p>
-        </section>
-
-        <!-- 店舗建物・出入口・カート置場など、駐車場内の固定設備を配置する。 -->
-        <section>
-          <h2>施設・設備</h2>
-          <div class="tool-list">
-            <button type="button" data-add-object="buildingEntrance">建物出入口</button>
-            <button type="button" data-add-object="parkingEntrance" data-access-type="entrance">駐車場入口</button>
-            <button type="button" data-add-object="parkingEntrance" data-access-type="exit">駐車場出口</button>
-            <button type="button" data-add-object="parkingEntrance" data-access-type="both">駐車場出入口</button>
-            <button type="button" data-add-object="cartCorral">カート置き場</button>
-            <button type="button" data-add-object="bicycleParking">駐輪場</button>
-            <button type="button" data-add-object="motorcycleParking">二輪車置場</button>
-            <button type="button" data-add-object="loadingZone">荷捌きスペース</button>
-            <button type="button" data-add-object="evCharger">EV充電器</button>
-          </div>
-        </section>
-      </aside>
-
-      <!-- 中央ワークスペース：航空写真を下敷きにし、自由配置でレイアウトを作成する。 -->
-      <section class="workspace" aria-labelledby="canvas-title">
-        <div class="workspace-head">
-          <div>
-            <h2 id="canvas-title">配置図</h2>
-            <p>航空写真と拡張グリッドを下敷きに、敷地・建物・道路を自由な多角形で編集できます。</p>
-          </div>
-          <div class="canvas-settings">
-            <label>幅 <input id="canvas-width" type="number" min="400" max="6000" step="10"></label>
-            <label>高さ <input id="canvas-height" type="number" min="300" max="6000" step="10"></label>
-            <label>m/px <input id="canvas-scale" type="number" min="0" step="0.001" placeholder="未設定"></label>
-          </div>
-        </div>
-        <!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
-        <details class="background-panel" open>
-          <summary>航空写真を下敷きにする</summary>
-          <div class="background-main-actions">
-            <button id="background-enable-button" type="button">航空写真を表示</button>
-            <button id="background-edit-button" type="button" aria-pressed="false">写真を動かす</button>
-            <button id="background-zoom-out-button" type="button" aria-label="航空写真を縮小">－</button>
-            <button id="background-zoom-in-button" type="button" aria-label="航空写真を拡大">＋</button>
-            <button id="current-location-background-button" type="button">現在地を中心にする</button>
-            <button id="reset-facility-location-button" type="button">店舗位置へ戻す</button>
-          </div>
-          <label class="background-opacity-row">写真の濃さ
-            <input id="background-opacity" type="range" min="0.15" max="1" step="0.05" value="0.75">
-          </label>
-          <details class="background-advanced">
-            <summary>緯度・経度を直接指定する</summary>
-            <div class="background-controls">
-              <label>背景
+<div class="tool-list">
+<button data-add-object="buildingEntrance" type="button">建物出入口</button>
+<button data-access-type="entrance" data-add-object="parkingEntrance" type="button">駐車場入口</button>
+<button data-access-type="exit" data-add-object="parkingEntrance" type="button">駐車場出口</button>
+<button data-access-type="both" data-add-object="parkingEntrance" type="button">駐車場出入口</button>
+<button data-add-object="cartCorral" type="button">カート置き場</button>
+<button data-add-object="bicycleParking" type="button">駐輪場</button>
+<button data-add-object="motorcycleParking" type="button">二輪車置場</button>
+<button data-add-object="loadingZone" type="button">荷捌きスペース</button>
+<button data-add-object="evCharger" type="button">EV充電器</button>
+</div>
+</details>
+<details class="palette-section" open=""><summary>路面標示</summary><label for="new-pavement-kind">種類</label><select id="new-pavement-kind"></select><button id="add-pavement-button" type="button">標示を追加</button></details><details class="palette-section"><summary>配置物一覧 <span id="object-count"></span></summary><input aria-label="配置物を検索" id="object-search" placeholder="名称・番号で絞り込み" type="search"/><div id="object-list"></div></details></aside>
+<!-- 中央ワークスペース：航空写真を下敷きにし、自由配置でレイアウトを作成する。 -->
+<section aria-labelledby="canvas-title" class="workspace">
+<div class="workspace-head">
+<div>
+<h2 id="canvas-title">配置図</h2>
+<p>枠を選んで移動・サイズ変更。細かな調整は右側へ。</p>
+</div>
+<div class="canvas-settings">
+<label>幅 <input id="canvas-width" max="6000" min="400" step="10" type="number"/></label>
+<label>高さ <input id="canvas-height" max="6000" min="300" step="10" type="number"/></label>
+<label>m/px <input id="canvas-scale" min="0" placeholder="未設定" step="0.001" type="number"/></label>
+</div>
+</div>
+<!-- 航空写真は編集補助用。保存されるのは中心座標・ズーム・透明度で、画像自体は保存しない。 -->
+<details class="background-panel">
+<summary>航空写真・縮尺 <span id="scale-summary"></span></summary>
+<div class="background-main-actions">
+<button id="photo-scale-button" type="button">写真から縮尺を設定</button><button id="background-enable-button" type="button">航空写真を表示</button>
+<button aria-pressed="false" id="background-edit-button" type="button">写真を動かす</button>
+<button aria-label="航空写真を縮小" id="background-zoom-out-button" type="button">－</button>
+<button aria-label="航空写真を拡大" id="background-zoom-in-button" type="button">＋</button>
+<button id="current-location-background-button" type="button">現在地を中心にする</button>
+<button id="reset-facility-location-button" type="button">店舗位置へ戻す</button>
+</div>
+<label class="background-opacity-row">写真の濃さ
+            <input id="background-opacity" max="1" min="0.15" step="0.05" type="range" value="0.75"/>
+</label>
+<details class="background-advanced">
+<summary>緯度・経度を直接指定する</summary>
+<div class="background-controls">
+<label>背景
                 <select id="background-type">
-                  <option value="none">なし</option>
-                  <option value="gsi-seamlessphoto">国土地理院・全国最新写真</option>
-                  <option value="gsi-ort">国土地理院・オルソ画像（別写真を試す）</option>
-                  <option value="gsi-airphoto">国土地理院・簡易空中写真（別写真を試す）</option>
-                </select>
-              </label>
-              <label>緯度 <input id="background-latitude" type="number" step="0.000001" placeholder="34.699800"></label>
-              <label>経度 <input id="background-longitude" type="number" step="0.000001" placeholder="133.928000"></label>
-              <label>ズーム <input id="background-zoom" type="number" min="14" max="18" step="1" value="18"></label>
-              <button id="apply-background-button" type="button">数値を反映</button>
-            </div>
-          </details>
-          <p id="background-status" class="muted">「航空写真を表示」後、「写真を動かす」を押すとキャンバス上で直接位置合わせできます。</p>
-          <p class="map-attribution">背景写真を使用する場合：出典 国土地理院（地理院タイル）。全国最新写真は最大ズーム18です。画質が不足する地点では「オルソ画像」「簡易空中写真」も比較してください。</p>
-        </details>
-        <div class="editor-toolbar" aria-label="編集補助">
-          <div class="edit-mode-switcher" role="group" aria-label="編集モード">
-            <span class="edit-mode-label">編集モード</span>
-            <button type="button" class="edit-mode-button is-active" data-edit-mode="move" aria-pressed="true">移動</button>
-            <button type="button" class="edit-mode-button" data-edit-mode="resize" aria-pressed="false">拡大縮小</button>
-            <button type="button" class="edit-mode-button" data-edit-mode="reshape" aria-pressed="false">形変更</button>
-          </div>
-          <div class="grid-toolbar">
-            <label class="toolbar-check"><input id="grid-visible" type="checkbox" checked> 方眼グリッド</label>
-            <label class="toolbar-check"><input id="snap-enabled" type="checkbox" checked> 吸着</label>
-            <label class="toolbar-check"><input id="parking-snap-strong" type="checkbox" checked> 駐車枠を強く吸着</label>
-            <label class="toolbar-check"><input id="site-snap-strong" type="checkbox" checked> 敷地・建物・道路を強く吸着（移動・形変更）</label>
-            <label class="toolbar-check"><input id="base-layer-lock" type="checkbox"> 敷地・道路をロック</label>
-            <label class="toolbar-check"><input id="orthogonal-snap" type="checkbox" checked> 直角・直線補正</label>
-            <label class="grid-size-label">グリッド
+<option value="none">なし</option>
+<option value="gsi-seamlessphoto">国土地理院・全国最新写真</option>
+<option value="gsi-ort">国土地理院・オルソ画像（別写真を試す）</option>
+<option value="gsi-airphoto">国土地理院・簡易空中写真（別写真を試す）</option>
+</select>
+</label>
+<label>緯度 <input id="background-latitude" placeholder="34.699800" step="0.000001" type="number"/></label>
+<label>経度 <input id="background-longitude" placeholder="133.928000" step="0.000001" type="number"/></label>
+<label>ズーム <input id="background-zoom" max="18" min="14" step="1" type="number" value="18"/></label>
+<button id="apply-background-button" type="button">数値を反映</button>
+</div>
+</details>
+<p class="muted" id="background-status">写真を表示し、必要なときだけ位置を調整します。</p>
+<p class="map-attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" rel="noopener" target="_blank">国土地理院</a> · 写真の縮尺は概算です。</p>
+</details>
+<div aria-label="編集補助" class="editor-toolbar">
+<div aria-label="編集モード" class="edit-mode-switcher" role="group">
+<span class="edit-mode-label">編集モード</span>
+<button aria-pressed="true" class="edit-mode-button is-active" data-edit-mode="move" type="button">移動</button>
+<button aria-pressed="false" class="edit-mode-button" data-edit-mode="resize" type="button">拡大縮小</button>
+<button aria-pressed="false" class="edit-mode-button" data-edit-mode="reshape" type="button">形変更</button>
+</div>
+
+
+<span class="toolbar-spacer"></span>
+
+<div aria-label="編集倍率" class="editor-zoom">
+<button aria-label="編集画面を縮小" id="editor-zoom-out-button" type="button">－</button>
+<input aria-label="編集倍率" id="editor-zoom-range" max="12800" min="25" step="25" type="range" value="100"/>
+<output for="editor-zoom-range" id="editor-zoom-output">100%</output>
+<button aria-label="編集画面を拡大" id="editor-zoom-in-button" type="button">＋</button>
+<button id="editor-zoom-fit-button" type="button">用紙全体</button><button id="fit-objects-button" type="button">配置に合わせる</button>
+</div>
+<button id="rotate-left-button" type="button">↶ 90°</button>
+<button id="rotate-right-button" type="button">↷ 90°</button><span class="polygon-help" id="edit-mode-help">ドラッグで移動・白いハンドルでサイズ変更</span>
+<details class="editor-advanced"><summary>吸着・グリッド・一括変更</summary><div class="grid-toolbar">
+<label class="toolbar-check"><input checked="" id="grid-visible" type="checkbox"/> 方眼グリッド</label>
+<label class="toolbar-check"><input checked="" id="snap-enabled" type="checkbox"/> 吸着</label>
+<label class="toolbar-check"><input checked="" id="parking-snap-strong" type="checkbox"/> 枠を吸着</label>
+<label class="toolbar-check"><input checked="" id="site-snap-strong" type="checkbox"/> 敷地を吸着</label>
+<label class="toolbar-check"><input id="base-layer-lock" type="checkbox"/> 背景図形をロック</label>
+<label class="toolbar-check"><input checked="" id="orthogonal-snap" type="checkbox"/> 直角・直線補正</label>
+<label class="grid-size-label">グリッド
               <select id="grid-size">
-                <option value="0.1">0.01m（1cm）</option>
-                <option value="0.2">0.02m（2cm）</option>
-                <option value="0.5" selected>0.05m（5cm）</option>
-                <option value="1">0.1m（10cm）</option>
-                <option value="2">0.2m（20cm）</option>
-                <option value="5">0.5m</option>
-                <option value="10">1m</option>
-                <option value="25">2.5m</option>
-                <option value="50">5m</option>
-              </select>
-            </label>
-          </div>
-          <span class="muted grid-help">薄線＝設定間隔、太線＝1m、最太線＝5m。最小1cmグリッドまで選択できます。矢印キーは1cm、Shift＋矢印は10cmずつ移動します。細かいグリッドは編集倍率を上げると見やすくなります。頂点はさらに細かく動き、Altを押しながらだと吸着を一時解除できます。</span>
-          <span class="toolbar-spacer"></span>
-          <div class="layout-scale" aria-label="配置全体のサイズ変更">
-            <label>配置全体 <input id="layout-scale-percent" type="number" min="25" max="400" step="5" value="100">%</label>
-            <button id="apply-layout-scale-button" type="button">一括サイズ変更</button>
-          </div>
-          <div class="editor-zoom" aria-label="編集倍率">
-            <button id="editor-zoom-out-button" type="button" aria-label="編集画面を縮小">－</button>
-            <input id="editor-zoom-range" type="range" min="25" max="12800" step="25" value="100" aria-label="編集倍率">
-            <output id="editor-zoom-output" for="editor-zoom-range">100%</output>
-            <button id="editor-zoom-in-button" type="button" aria-label="編集画面を拡大">＋</button>
-            <button id="editor-zoom-fit-button" type="button">全体表示</button>
-          </div>
-          <button id="rotate-left-button" type="button">↶ 90°</button>
-          <button id="rotate-right-button" type="button">↷ 90°</button><span id="edit-mode-help" class="polygon-help">移動モード：オブジェクトをドラッグして位置を調整します。</span>
-        </div>
-        <div id="canvas-scroll" class="canvas-scroll">
-          <div id="canvas-stage" class="canvas-stage">
-            <div id="map-canvas" class="map-canvas" tabindex="0" aria-label="駐車場配置編集キャンバス"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 右ペイン：選択中オブジェクトの共通属性・種類別属性を編集する。 -->
-      <aside class="right-panel" aria-label="選択オブジェクト設定">
-        <h2>設定</h2>
-        <div id="empty-settings" class="empty-settings">オブジェクトを選択してください。</div>
-        <form id="object-form" hidden>
-          <label class="primary-setting">名称<input id="object-name" type="text"></label>
-          <p class="direct-edit-help">移動・サイズ・形を上部のモードで切り替えます。文字はサイズに合わせて調整します。</p>
-          <details class="numeric-settings">
-            <summary>数値で微調整</summary>
-            <div class="settings-grid">
-              <label>内部ID<input id="object-uid" type="text" readonly></label>
-              <label>種類<input id="object-type" type="text" readonly></label>
-              <label>X<input id="object-x" type="number" step="0.1"></label>
-              <label>Y<input id="object-y" type="number" step="0.1"></label>
-              <label>回転<input id="object-rotation" type="number" min="-360" max="360" step="1"></label>
-              <label id="width-field">幅<input id="object-width" type="number" min="0.5" step="0.1"></label>
-              <label id="height-field">高さ<input id="object-height" type="number" min="0.5" step="0.1"></label>
-            </div>
-          </details>
-
-          <fieldset id="parking-space-settings" hidden>
-            <legend>駐車区画</legend>
-            <div class="space-identity-settings">
-              <label>番号<input id="space-number" type="text" inputmode="numeric" maxlength="8" pattern="[0-9０-９]{1,8}" required placeholder="1"></label>
-              <label>列・区画名<input id="space-group" type="text" maxlength="8" placeholder="A"></label>
-              <label>呼び方<select id="space-group-kind"><option value="row">列（A列）</option><option value="area">区画（A区画）</option></select></label>
-            </div>
-            <p class="space-display-preview">表示：<output id="space-display-preview"></output></p>
-            <p id="space-number-error" class="inline-error" role="status" aria-live="polite"></p>
-            <label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option></select></label>
-            <label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
-
-            <!-- 区画の大きさとは別に、現地の路面標示の形を保存する。 -->
-            <div class="parking-marking-settings">
-              <label>区画線の形
+<option value="0.1">0.01m（1cm）</option>
+<option value="0.2">0.02m（2cm）</option>
+<option selected="" value="0.5">0.05m（5cm）</option>
+<option value="1">0.1m（10cm）</option>
+<option value="2">0.2m（20cm）</option>
+<option value="5">0.5m</option>
+<option value="10">1m</option>
+<option value="25">2.5m</option>
+<option value="50">5m</option>
+</select>
+</label>
+</div><span class="muted grid-help">Alt：吸着解除 · 矢印：1cm · Shift：10cm · 中ボタン：画面移動</span><div aria-label="配置全体のサイズ変更" class="layout-scale">
+<label>配置全体 <input id="layout-scale-percent" max="400" min="25" step="5" type="number" value="100"/>%</label>
+<button id="apply-layout-scale-button" type="button">一括サイズ変更</button>
+</div></details></div>
+<div class="canvas-scroll" id="canvas-scroll">
+<div class="canvas-stage" id="canvas-stage">
+<div aria-label="駐車場配置編集キャンバス" class="map-canvas" id="map-canvas" tabindex="0"></div>
+</div>
+</div>
+</section>
+<!-- 右ペイン：選択中オブジェクトの共通属性・種類別属性を編集する。 -->
+<aside aria-label="選択オブジェクト設定" class="right-panel">
+<h2>選択中の設定</h2><p class="muted" id="editor-message" role="status"></p>
+<section hidden="" id="dimension-controls"><h3>大きさ（m）</h3><div class="meter-fields"><label>幅<input id="width-meters" min="0.01" step="0.01" type="number"/></label><label>長さ<input id="height-meters" min="0.01" step="0.01" type="number"/></label></div><button id="apply-meters-button" type="button">寸法を適用</button><button id="preset-size-button" type="button">駐車枠の標準寸法に戻す</button></section>
+<fieldset hidden="" id="pavement-settings"><legend>路面標示</legend><label>種類<select id="pavement-kind"></select></label><label>色<input id="pavement-color" type="color" value="#ffffff"/></label></fieldset>
+<div class="empty-settings" id="empty-settings">オブジェクトを選択してください。</div>
+<form hidden="" id="object-form">
+<label class="primary-setting">名称<input id="object-name" type="text"/></label>
+<p class="direct-edit-help">ドラッグで移動。白いハンドルでサイズ変更。</p>
+<details class="numeric-settings">
+<summary>数値で微調整</summary>
+<div class="settings-grid">
+<label>内部ID<input id="object-uid" readonly="" type="text"/></label>
+<label>種類<input id="object-type" readonly="" type="text"/></label>
+<label>X<input id="object-x" step="0.1" type="number"/></label>
+<label>Y<input id="object-y" step="0.1" type="number"/></label>
+<label>回転<input id="object-rotation" max="360" min="-360" step="1" type="number"/></label>
+<label id="width-field">幅<input id="object-width" min="0.01" step="0.1" type="number"/></label>
+<label id="height-field">高さ<input id="object-height" min="0.01" step="0.1" type="number"/></label>
+</div>
+</details>
+<fieldset hidden="" id="parking-space-settings">
+<legend>駐車区画</legend>
+<div class="space-identity-settings">
+<label>番号<input id="space-number" inputmode="numeric" maxlength="8" pattern="[0-9０-９]{1,8}" placeholder="1" required="" type="text"/></label>
+<label>列・区画名<input id="space-group" maxlength="8" placeholder="A" type="text"/></label>
+<label>呼び方<select id="space-group-kind"><option value="row">列（A列）</option><option value="area">区画（A区画）</option></select></label>
+</div>
+<p class="space-display-preview">表示：<output id="space-display-preview"></output></p>
+<p aria-live="polite" class="inline-error" id="space-number-error" role="status"></p>
+<label>区画種類<select id="space-type"><option value="standard">普通車</option><option value="compact">軽自動車</option><option value="accessible">車椅子使用者用</option><option value="ev">EV</option><option value="priority">優先（高齢者・妊産婦等）</option></select></label>
+<label>状態<select id="space-status"><option value="available">空き</option><option value="occupied">使用中</option><option value="unavailable">利用不可・判定不能</option></select></label>
+<!-- 区画の大きさとは別に、現地の路面標示の形を保存する。 -->
+<div class="parking-marking-settings">
+<label>区画線の形
                 <select id="space-marking-style">
-                  <option value="photoStall">写真風（奥側閉じ・手前開き）</option>
-                  <option value="full">四辺・一本線</option>
-                  <option value="uShape">コの字（3辺線）</option>
-                  <option value="sides">両側線のみ</option>
-                  <option value="headOnly">頭側だけ</option>
-                  <option value="headTicks">頭側の短い印</option>
-                  <option value="leftOnly">左側一本線</option>
-                  <option value="rightOnly">右側一本線</option>
-                  <option value="doubleFull">四辺・二重線</option>
-                  <option value="doubleSides">両側・二重線</option>
-                  <option value="cornerMarks">四隅L字</option>
-                  <option value="none">区画線なし</option>
-                </select>
-              </label>
-              <div class="marking-inline">
-                <label>線色<input id="space-marking-color" type="color" value="#ffffff"></label>
-                <label>太さ
+<option value="photoStall">写真風（奥側閉じ・手前開き）</option>
+<option value="full">四辺・一本線</option>
+<option value="uShape">コの字（3辺線）</option>
+<option value="sides">両側線のみ</option>
+<option value="headOnly">頭側だけ</option>
+<option value="headTicks">頭側の短い印</option>
+<option value="leftOnly">左側一本線</option>
+<option value="rightOnly">右側一本線</option>
+<option value="doubleFull">四辺・二重線</option>
+<option value="doubleSides">両側・二重線</option>
+<option value="cornerMarks">四隅L字</option>
+<option value="roundedDouble">二重線・先端丸型</option><option value="tMarks">T字・端部印</option><option value="dashed">破線枠</option><option value="hatched">斜線入り枠</option><option value="none">区画線なし</option>
+</select>
+</label>
+<div class="marking-inline">
+<label>線色<input id="space-marking-color" type="color" value="#ffffff"/></label>
+<label>太さ
                   <span class="marking-width-control">
-                    <input id="space-marking-width" type="range" min="0.2" max="1" step="0.05" value="0.35">
-                    <output id="space-marking-width-output">0.35px</output>
-                  </span>
-                </label>
-              </div>
-              <p class="muted">「奥側・頭側」は区画の上辺です。「写真風」は奥側を閉じ、車路側を開けた細い3辺線です。区画を回転すると線の向きも一緒に回転します。</p>
-            </div>
-
-            <div class="adjacent-generator">
-              <label>連続数<input id="adjacent-count" type="number" min="1" max="50" value="1"></label>
-              <p class="muted">選択中の枠と同じ大きさ・向きで、隙間なく追加します。</p>
-              <div class="adjacent-buttons">
-                <button type="button" data-adjacent-direction="up">↑ 上</button>
-                <button type="button" data-adjacent-direction="left">← 左</button>
-                <button type="button" data-adjacent-direction="right">右 →</button>
-                <button type="button" data-adjacent-direction="down">↓ 下</button>
-              </div>
-            </div>
-          </fieldset>
-
-          <fieldset id="road-settings" hidden>
-            <legend>車道</legend>
-            <label>通行方向<select id="road-direction"><option value="twoWay">双方向</option><option value="oneWay">一方通行（矢印方向）</option></select></label>
-            <p class="muted">一方通行の向きは「回転」で調整します。0°では右向きです。</p>
-          </fieldset>
-
-          <fieldset id="building-settings" hidden>
-            <legend>建物</legend>
-            <label>店舗・建物<select id="building-destination"></select></label>
-            <label>建物ID<input id="building-object-id" type="text" list="building-id-options" placeholder="building_001"></label>
-            <label class="check-row"><input id="building-label-auto-scale" type="checkbox" checked> 建物サイズに合わせて文字を自動調整</label>
-            <label id="building-label-size-field">文字サイズの上限
+<input id="space-marking-width" max="5" min="0.2" step="0.05" type="range" value="0.35"/>
+<output id="space-marking-width-output">0.35px</output>
+</span>
+</label>
+</div>
+<p class="muted">頭側は枠の上辺。回転すると線も回転します。</p>
+</div>
+<div class="adjacent-generator">
+<label>連続数<input id="adjacent-count" max="50" min="1" type="number" value="1"/></label>
+<p class="muted">選択中の枠と同じ大きさ・向きで、隙間なく追加します。</p>
+<div class="adjacent-buttons">
+<button data-adjacent-direction="up" type="button">↑ 上</button>
+<button data-adjacent-direction="left" type="button">← 左</button>
+<button data-adjacent-direction="right" type="button">右 →</button>
+<button data-adjacent-direction="down" type="button">↓ 下</button>
+</div>
+</div>
+</fieldset>
+<fieldset hidden="" id="road-settings">
+<legend>車道</legend>
+<label>通行方向<select id="road-direction"><option value="twoWay">双方向</option><option value="oneWay">一方通行（矢印方向）</option></select></label>
+<p class="muted">一方通行の向きは「回転」で調整します。0°では右向きです。</p>
+</fieldset>
+<fieldset hidden="" id="building-settings">
+<legend>建物</legend>
+<label>店舗・建物<select id="building-destination"></select></label>
+<label>建物ID<input id="building-object-id" list="building-id-options" placeholder="building_001" type="text"/></label>
+<label class="check-row"><input checked="" id="building-label-auto-scale" type="checkbox"/> 建物サイズに合わせて文字を自動調整</label>
+<label id="building-label-size-field">文字サイズの上限
               <span class="building-label-size-control">
-                <input id="building-label-font-size" type="range" min="3" max="18" step="1" value="6">
-                <output id="building-label-font-size-output">6px</output>
-              </span>
-            </label>
-            <p class="muted">複合施設の店舗を選ぶと、名称と建物IDをまとめて反映します。</p>
-          </fieldset>
-
-          <fieldset id="road-sign-settings" hidden>
-            <legend>道路標識</legend>
-            <label>標識種類
+<input id="building-label-font-size" max="18" min="3" step="1" type="range" value="6"/>
+<output id="building-label-font-size-output">6px</output>
+</span>
+</label>
+<p class="muted">複合施設の店舗を選ぶと、名称と建物IDをまとめて反映します。</p>
+</fieldset>
+<fieldset hidden="" id="road-sign-settings">
+<legend>道路標識</legend>
+<label>標識種類
               <select id="road-sign-type">
-                <option value="nationalRoute">国道（おにぎり）</option>
-                <option value="prefecturalRoute">都道府県道（ヘキサ）</option>
-                <option value="noEntry">車両進入禁止</option>
-                <option value="stop">一時停止</option>
-              </select>
-            </label>
-            <label id="route-number-field">路線番号<input id="road-sign-route-number" type="text" inputmode="numeric" maxlength="4" placeholder="53"></label>
-            <label id="route-prefecture-field">都道府県名<input id="road-sign-prefecture" type="text" maxlength="8" placeholder="岡山県"></label>
-            <p id="road-sign-help" class="muted">一時停止は赤い逆三角形の「止まれ / STOP」で表示し、道路へ関連付けると停止線と「止まれ」の路面表示を自動生成します。車両進入禁止は赤地に白い横帯で表示します。</p>
-          </fieldset>
-
-          <fieldset id="parking-entrance-settings" hidden>
-            <legend>駐車場出入口</legend>
-            <label>用途<select id="parking-access-type"><option value="both">出入口</option><option value="entrance">入口専用</option><option value="exit">出口専用</option></select></label>
-            <p class="muted">入口と出口を別々に配置する場合は、それぞれ専用として設定してください。</p>
-          </fieldset>
-
-          <fieldset id="building-entrance-settings" hidden>
-            <legend>建物出入口</legend>
-            <label>入口種類<select id="entrance-type"><option value="main">正面入口</option><option value="sub">その他の一般入口</option><option value="accessible">バリアフリー入口</option><option value="staff">従業員入口</option><option value="other">その他</option></select></label>
-            <label class="check-row"><input id="public-access" type="checkbox"> 利用者が使用可能</label>
-            <label class="check-row"><input id="wheelchair-accessible" type="checkbox"> 車椅子で利用可能</label>
-            <label class="check-row"><input id="guide-target" type="checkbox"> 案内基準として使用</label>
-            <label>関連建物ID<input id="building-id" type="text" list="building-id-options" placeholder="building_001"></label>
-            <datalist id="building-id-options"></datalist>
-            <p id="building-id-help" class="muted">複合施設では、目的店舗に対応する建物IDを選択してください。</p>
-          </fieldset>
-
-          <div class="object-actions">
-            <button id="duplicate-button" type="button">複製</button>
-            <button id="delete-button" class="danger" type="button">削除</button>
-          </div>
-        </form>
-      </aside>
-    </main>
-
-    <!-- 管理画面と利用者画面を分離して運用することを明記する。 -->
-    <footer class="footer">
-      <p>管理用アプリです。利用者向け画面とは別に運用し、出力したレイアウトデータだけをユーザー用アプリへ反映します。</p>
-    </footer>
-  </body>
+<option value="nationalRoute">国道（おにぎり）</option>
+<option value="prefecturalRoute">都道府県道（ヘキサ）</option>
+<option value="noEntry">車両進入禁止</option>
+<option value="stop">一時停止</option>
+</select>
+</label>
+<label id="route-number-field">路線番号<input id="road-sign-route-number" inputmode="numeric" maxlength="4" placeholder="53" type="text"/></label>
+<label id="route-prefecture-field">都道府県名<input id="road-sign-prefecture" maxlength="8" placeholder="岡山県" type="text"/></label>
+<p class="muted" id="road-sign-help">道路に関連付けた一時停止標識には停止線と文字を表示します。</p>
+</fieldset>
+<fieldset hidden="" id="parking-entrance-settings">
+<legend>駐車場出入口</legend>
+<label>用途<select id="parking-access-type"><option value="both">出入口</option><option value="entrance">入口専用</option><option value="exit">出口専用</option></select></label>
+<p class="muted">入口と出口を別々に配置する場合は、それぞれ専用として設定してください。</p>
+</fieldset>
+<fieldset hidden="" id="building-entrance-settings">
+<legend>建物出入口</legend>
+<label>入口種類<select id="entrance-type"><option value="main">正面入口</option><option value="sub">その他の一般入口</option><option value="accessible">バリアフリー入口</option><option value="staff">従業員入口</option><option value="other">その他</option></select></label>
+<label class="check-row"><input id="public-access" type="checkbox"/> 利用者が使用可能</label>
+<label class="check-row"><input id="wheelchair-accessible" type="checkbox"/> 車椅子で利用可能</label>
+<label class="check-row"><input id="guide-target" type="checkbox"/> 案内基準として使用</label>
+<label>関連建物ID<input id="building-id" list="building-id-options" placeholder="building_001" type="text"/></label>
+<datalist id="building-id-options"></datalist>
+<p class="muted" id="building-id-help">複合施設では、目的店舗に対応する建物IDを選択してください。</p>
+</fieldset>
+<div class="object-actions">
+<button id="duplicate-button" type="button">複製</button>
+<button class="danger" id="delete-button" type="button">削除</button>
+</div>
+</form>
+</aside>
+</main>
+<!-- 管理画面と利用者画面を分離して運用することを明記する。 -->
+<footer class="footer">
+<p>端末内に自動保存 · ログイン中はクラウドへ反映 · <a href="./DESIGN-SOURCES.md" target="_blank">図形・寸法の出典</a></p>
+</footer>
+</body>
 </html>

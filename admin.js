@@ -262,11 +262,12 @@ const V10_OBJECT_DEFAULTS = Object.freeze({
 const SCHEMATIC_METERS_PER_PIXEL = 0.1;
 
 const PARKING_SPACE_PRESETS = Object.freeze({
-  /* 航空写真の実際の白線へ合わせやすいよう、表示上は全種類6×12pxへ統一する。 */
+  /* width/heightは旧データ互換用。新規配置はメートル値を現行縮尺で換算する。 */
   standard: { width: 6, height: 12, widthMeters: 2.5, lengthMeters: 5.0 },
   compact: { width: 6, height: 12, widthMeters: 2.0, lengthMeters: 3.6 },
   accessible: { width: 6, height: 12, widthMeters: 3.5, lengthMeters: 6.0 },
   ev: { width: 6, height: 12, widthMeters: 2.5, lengthMeters: 5.0 },
+  priority: {width:6,height:12,widthMeters:2.5,lengthMeters:5.0},
 });
 
 const OBJECT_DEFAULTS = {
@@ -291,6 +292,7 @@ const OBJECT_DEFAULTS = {
   loadingZone: { width: 48, height: 24, name: "荷捌きスペース" },
   evCharger: { width: 8, height: 8, name: "EV充電器" },
   roadSign: { width: 10, height: 12, name: "道路標識" },
+  pavementMarking: {width: 12, height: 30, name:"路面標示"},
 };
 
 /*
@@ -383,6 +385,7 @@ const EDGE_OVERFLOW_VISIBLE_MARGIN = 20;
 
 /** 細線オブジェクトだけは3px未満まで縮小できるようにする。 */
 function getMinimumObjectSize(item) {
+  if (["parkingSpace","pavementMarking"].includes(item?.objectType)) return .01;
   if (item?.objectType === "stopLine") return 0.5;
   if (item?.objectType === "speedBump") return 1;
   return 3;
@@ -773,6 +776,7 @@ function createUid(type) {
 
 /** 駐車枠の種類に応じた表示名の接頭辞を返す。 */
 function getParkingSpaceLabel(spaceType) {
+  if(spaceType === "priority")return "優先";
   return spaceType === "compact" ? "軽"
     : spaceType === "accessible" ? "車椅子"
       : spaceType === "ev" ? "EV" : "普通車";
@@ -780,8 +784,8 @@ function getParkingSpaceLabel(spaceType) {
 
 /** 建物外形に合わせた名称ラベルの文字サイズを返す。手動指定時は保存値を優先する。 */
 function getBuildingLabelFontSize(item) {
-  const fitted = mapDisplay.fitLabel(item?.name || "建物", Number(item?.width)*.8, Number(item?.height)*.8, 18);
-  return item?.labelAutoScale === false ? Math.min(fitted, Math.max(3, Math.min(18, Number(item.labelFontSize) || 6))) : fitted;
+  return mapDisplay.labelSize(item);
+
 }
 
 /**
@@ -833,8 +837,9 @@ function addObject(type, options = {}) {
   const parkingPreset = type === "parkingSpace"
     ? (PARKING_SPACE_PRESETS[selectedSpaceType] ?? PARKING_SPACE_PRESETS.standard)
     : null;
-  const initialWidth = parkingPreset?.width ?? defaults.width;
-  const initialHeight = parkingPreset?.height ?? defaults.height;
+  const scale = getLayoutScale(layout);
+  const initialWidth = parkingPreset ? parkingPreset.widthMeters / scale : defaults.width;
+  const initialHeight = parkingPreset ? parkingPreset.lengthMeters / scale : defaults.height;
   const uid = createUid(type);
   const item = {
     uid,
@@ -864,7 +869,7 @@ function addObject(type, options = {}) {
     /* 航空写真例に合わせ、奥側を閉じて車路側を開けた細い3辺線を標準にする。 */
     item.markingStyle = "photoStall";
     item.markingColor = "#ffffff";
-    item.markingWidth = 0.35;
+    item.markingWidth = 0.15 / scale;
 
     assignParkingSpaceNumber(item, layout);
   }
@@ -914,6 +919,16 @@ function addObject(type, options = {}) {
     item.routeNumber = signDefaults.routeNumber;
     item.prefectureName = getCurrentFacilityRecord()?.prefecture ?? "岡山県";
     item.name = signDefaults.name;
+  }
+  if(type === "pavementMarking") {
+    item.pavementKind=options.pavementKind||"straight";
+    item.name=mapDisplay.pavementNames[item.pavementKind]||"路面標示";
+    item.width=1.2/scale;item.height=3/scale;item.markingColor="#ffffff";
+  }
+  const viewport=elements.canvasScroll;
+  if(viewport?.clientWidth>0) {
+    item.x=Math.max(0,Math.min(layout.canvas.width-item.width,(viewport.scrollLeft+viewport.clientWidth/2-24)/state.viewScale-item.width/2));
+    item.y=Math.max(0,Math.min(layout.canvas.height-item.height,(viewport.scrollTop+viewport.clientHeight/2-24)/state.viewScale-item.height/2));
   }
   layout.objects.push(item);
   state.selectedUid = uid;
@@ -1150,6 +1165,9 @@ function changeBackgroundZoom(delta) {
   if (!layout?.background) {
     return;
   }
+  if(layout.objects.length && layout.canvas.scaleSource==="photo") {
+    elements.backgroundStatus.textContent="配置後の拡大は「表示倍率」を使ってください。写真倍率は固定しています。";return;
+  }
   layout.background.zoom = Math.max(14, Math.min(18, Math.round((layout.background.zoom ?? 18) + delta)));
   saveLocal();
   render();
@@ -1245,6 +1263,9 @@ function applyBackgroundSettings() {
     return;
   }
 
+  if(layout.objects.length && layout.canvas.scaleSource==="photo" && zoom!==layout.background?.zoom) {
+    elements.backgroundStatus.textContent="配置後の拡大は表示倍率を使ってください。";return;
+  }
   layout.background = {
     type: GSI_PHOTO_SOURCES[elements.backgroundType.value] ? elements.backgroundType.value : "gsi-seamlessphoto",
     centerLat,
@@ -1314,7 +1335,7 @@ function applyViewScale(scale, preserveCenter = false) {
   /* 編集補助UIだけは画面上の太さ・大きさを一定にし、高倍率時の肥大化を防ぐ。 */
   elements.canvas.style.setProperty("--ui-polygon-stroke", `${0.8 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-selection-stroke", `${1 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-resize-handle-size", `${5 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-resize-handle-size", `${12 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-border", `${1 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-hit-size", `${8 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-vertex-visual-size", `${2 / nextScale}px`);
@@ -1354,11 +1375,7 @@ function changeViewScale(delta) {
 }
 
 /* 編集モードごとの操作説明。モードは保存データには含めず、管理画面だけの状態として扱う。 */
-const EDIT_MODE_HELP = Object.freeze({
-  move: "移動モード：オブジェクトをドラッグして位置を調整します。",
-  resize: "拡大縮小モード：選択中のオブジェクトだけを操作します。重なった他の図形はクリックを通過します。別の図形を選ぶときは「移動」に切り替えます。",
-  reshape: "形変更モード：選択中の図形だけを操作します。頂点は他の図形の形変更後の実際の輪郭線・頂点へ吸着します。Altを押しながら動かすと吸着を一時解除できます。",
-});
+const EDIT_MODE_HELP = Object.freeze({move:"ドラッグ：移動 · 白いハンドル：サイズ · Alt：吸着解除",resize:"白いハンドルでサイズ変更。Altで吸着解除。",reshape:"頂点をドラッグ。辺の＋で追加、頂点をダブルクリックで削除。"});
 
 /** 「敷地・道路をロック」の対象で、現在ロック中か判定する。 */
 function isObjectLocked(item) {
@@ -1433,9 +1450,17 @@ function fitViewScale() {
 }
 
 /** 現在選択中の方眼グリッド間隔（論理px）を返す。1m=10px。 */
+function getLayoutScale(layout) { return Number(layout?.canvas?.scaleMetersPerPixel)>0 ? Number(layout.canvas.scaleMetersPerPixel) : SCHEMATIC_METERS_PER_PIXEL; }
+function initializePhotoScale(layout) {
+  const scale=mapDisplay.metersPerPixel(layout?.background);
+  if(scale && (layout.canvas.scaleSource==="photo" || (!layout.objects.length && !layout.canvas.scaleSource))) {
+    layout.canvas.scaleMetersPerPixel=scale;layout.canvas.scaleSource="photo";
+  }
+}
+
 function getGridSize() {
   const value = Number(elements.gridSize?.value);
-  return Number.isFinite(value) && value > 0 ? value : 2;
+  return (Number.isFinite(value) && value > 0 ? value : 2) * SCHEMATIC_METERS_PER_PIXEL / getLayoutScale(getCurrentLayout());
 }
 
 /** 方眼グリッドの表示・間隔をCSS変数へ反映する。 */
@@ -1459,8 +1484,8 @@ function updateGridAppearance() {
     "--ui-grid-fine-color",
     fineGridVisible ? "rgb(148 163 184 / 14%)" : "transparent",
   );
-  elements.canvas.style.setProperty("--meter-grid-size", "10px");
-  elements.canvas.style.setProperty("--major-grid-size", "50px");
+  elements.canvas.style.setProperty("--meter-grid-size", `${1/getLayoutScale(layout)}px`);
+  elements.canvas.style.setProperty("--major-grid-size", `${5/getLayoutScale(layout)}px`);
   elements.canvas.style.setProperty("--grid-origin-x", `${originX}px`);
   elements.canvas.style.setProperty("--grid-origin-y", `${originY}px`);
 }
@@ -2363,7 +2388,7 @@ function addResizeHandles(node, item) {
 function startResize(event) {
   event.stopPropagation();
   event.preventDefault();
-  if (state.editMode !== "resize") {
+  if (!["resize","move"].includes(state.editMode)) {
     return;
   }
   const node = event.currentTarget.closest(".map-object");
@@ -2422,8 +2447,8 @@ function moveResize(event) {
   const minSize = getMinimumObjectSize(item);
   const requestedWidth = sx === 0 ? state.resize.width : state.resize.width + sx * localDx;
   const requestedHeight = sy === 0 ? state.resize.height : state.resize.height + sy * localDy;
-  const newWidth = Math.max(minSize, snapToGrid(requestedWidth));
-  const newHeight = Math.max(minSize, snapToGrid(requestedHeight));
+  const newWidth = sx===0 ? state.resize.width : Math.max(minSize, event.altKey ? requestedWidth : snapToGrid(requestedWidth));
+  const newHeight = sy===0 ? state.resize.height : Math.max(minSize, event.altKey ? requestedHeight : snapToGrid(requestedHeight));
 
   if (resizeConnectedSiteGroup(item, layout, newWidth, newHeight)) {
     return;
@@ -2786,6 +2811,8 @@ function appendPhotoParkingMarking(node) { mapDisplay.appendPhoto(node); }
 /** 背景と全オブジェクトを現在の編集状態から描画する。 */
 function render() {
   const layout = ensureLayout(state.facilityId);
+  initializePhotoScale(layout);
+  elements.canvas.classList.toggle("has-photo", Boolean(layout.background && GSI_PHOTO_SOURCES[layout.background.type]));
   elements.canvas.style.width = `${layout.canvas.width}px`;
   elements.canvas.style.height = `${layout.canvas.height}px`;
   elements.canvasWidth.value = layout.canvas.width;
@@ -2833,6 +2860,7 @@ function render() {
     if (item.objectType === "road") node.dataset.trafficDirection = item.trafficDirection ?? "twoWay";
     if (item.objectType === "parkingEntrance") node.dataset.accessType = item.accessType ?? "both";
     if (item.objectType === "roadSign") appendRoadSignFace(node, item);
+    if (item.objectType === "pavementMarking") mapDisplay.appendPavement(node,item);
     if (item.objectType === "noEntry") mapDisplay.appendSign(node, {...item, signType:"noEntry"});
     mapDisplay.applyTypography(node,item,1,item.objectType === "building" ? getBuildingLabelFontSize(item) : undefined);
     if (["buildingEntrance","parkingEntrance"].includes(item.objectType)) mapDisplay.appendEntrance(node,item);
@@ -2856,20 +2884,9 @@ function render() {
 
       mapDisplay.appendParking(node,item);
 
-      const typeMark = document.createElement("span");
-      typeMark.className = "space-type-mark";
-      typeMark.setAttribute("aria-hidden", "true");
-      if (item.spaceType === "compact") typeMark.textContent = "軽";
-      if (item.spaceType === "accessible") typeMark.textContent = "♿";
-      if (item.spaceType === "ev") typeMark.textContent = "EV";
-      const hasType = Boolean(typeMark.textContent);
-      node.style.setProperty("--space-type-size", `${mapDisplay.fitLabel(typeMark.textContent,item.width*.9,item.height*.28,14)}px`);
-      if (hasType) node.append(typeMark);
-      node.style.setProperty("--number-top", hasType ? "48%" : "18%");
-      node.style.setProperty("--number-height", hasType ? "45%" : "65%");
-
+      mapDisplay.appendType(node,item);
       const displayNumber = [mapDisplay.groupName(item),mapDisplay.spaceNumber(item)].filter(Boolean).join("\n");
-      node.style.setProperty("--space-number-size", `${mapDisplay.fitLabel(displayNumber,item.width*.9,item.height*(hasType?.45:.65),18)}px`);
+      mapDisplay.applyTypography(node,item);
       if (displayNumber) {
         const numberMark = document.createElement("span");
         numberMark.className = "space-number-mark";
@@ -2889,7 +2906,7 @@ function render() {
     label.className = "object-label";
     label.textContent = item.name || item.uid;
     label.title = item.name || item.uid;
-    const graphical = ["parkingSpace","roadSign","noEntry","crosswalk","stopLine","speedBump","buildingEntrance","parkingEntrance"].includes(item.objectType)
+    const graphical = ["pavementMarking","parkingSpace","roadSign","noEntry","crosswalk","stopLine","speedBump","buildingEntrance","parkingEntrance"].includes(item.objectType)
       || (item.objectType === "road" && item.trafficDirection === "oneWay")
       || (["nationalRoad","prefecturalRoad"].includes(item.objectType) && item.routeNumber);
     if (!graphical) node.append(label);
@@ -2897,7 +2914,7 @@ function render() {
     node.title = item.objectType === "parkingSpace" ? mapDisplay.spaceName(item) : item.name || item.uid;
 
     if (item.uid === state.selectedUid && !isObjectLocked(item)) {
-      if (state.editMode === "resize") {
+      if (["resize","move"].includes(state.editMode)) {
         addResizeHandles(node, item);
       } else if (state.editMode === "reshape" && POLYGON_OBJECT_TYPES.has(item.objectType)) {
         addPolygonHandles(node, item);
@@ -2912,6 +2929,7 @@ function render() {
     elements.canvas.append(node);
   });
   updateSettings();
+  window.ParkingEditor?.refresh();
 }
 
 /** 指定UIDのオブジェクトを選択状態にする。 */
@@ -2969,7 +2987,7 @@ function moveDrag(event) {
   const rawY = state.drag.startY
     + (event.clientY - state.drag.startClientY) / state.viewScale;
   const initialPosition = clampObjectPosition(item, rawX, rawY, layout);
-  const snapped = snapObjectPosition(item, initialPosition.x, initialPosition.y);
+  const snapped = event.altKey ? initialPosition : snapObjectPosition(item, initialPosition.x, initialPosition.y);
   const finalPosition = clampObjectPosition(item, snapped.x, snapped.y, layout);
   item.x = Math.round(finalPosition.x * 100) / 100;
   item.y = Math.round(finalPosition.y * 100) / 100;
@@ -3280,8 +3298,8 @@ function updateSelectedFromForm() {
 
     if (item.spaceType !== previousType) {
       const preset = PARKING_SPACE_PRESETS[item.spaceType] ?? PARKING_SPACE_PRESETS.standard;
-      item.width = preset.width;
-      item.height = preset.height;
+      item.width = preset.widthMeters / getLayoutScale(layout);
+      item.height = preset.lengthMeters / getLayoutScale(layout);
       item.physicalWidthMeters = preset.widthMeters;
       item.physicalLengthMeters = preset.lengthMeters;
 
@@ -3613,6 +3631,7 @@ async function loadRemoteLayouts() {
     });
     ensureLayout(state.facilityId);
     state.selectedUid = null;
+    window.ParkingEditor?.resetHistory();
     persistLocalLayouts();
     render();
     updateCloudStatus(`クラウドから${rows.length}件読み込みました。`);
@@ -3667,6 +3686,14 @@ function persistLocalLayouts() {
 
 /** 編集を端末に保存し、ログイン中ならクラウド保存を予約する。 */
 function saveLocal() {
+  const layout=getCurrentLayout();
+  if(layout) {
+    initializePhotoScale(layout);
+    for(const item of layout.objects)if(item.objectType==="parkingSpace"){
+      item.physicalWidthMeters=item.width*getLayoutScale(layout);item.physicalLengthMeters=item.height*getLayoutScale(layout);
+    }
+  }
+  window.ParkingEditor?.record();
   persistLocalLayouts();
   scheduleRemoteSync();
 }
@@ -3713,6 +3740,7 @@ async function importJson(file) {
   const data = JSON.parse(await file.text());
   validateLayoutCollection(data);
   state.layouts = data;
+  window.ParkingEditor?.resetHistory();
   ensureLayout(state.facilityId);
   state.selectedUid = null;
   saveLocal();
@@ -4039,6 +4067,7 @@ function initializeFacilities() {
 
 /** 都道府県変更時に施設候補とキャンバス表示を切り替える。 */
 function changePrefecture() {
+  state.drag=state.resize=state.vertexDrag=null;
   state.selectedUid = null;
   state.backgroundEdit = false;
   state.backgroundDrag = null;
@@ -4051,6 +4080,7 @@ function changePrefecture() {
 
 /** 施設変更時に対応するレイアウトへ編集対象を切り替える。 */
 function changeFacility() {
+  state.drag=state.resize=state.vertexDrag=null;
   state.facilityId = elements.facilitySelect.value;
   updateBuildingIdOptions();
   state.selectedUid = null;
@@ -4078,7 +4108,8 @@ function updateCanvasSettings() {
   layout.canvas.width = Math.min(6000, Math.max(400, Number(elements.canvasWidth.value) || DEFAULT_CANVAS_WIDTH));
   layout.canvas.height = Math.min(6000, Math.max(300, Number(elements.canvasHeight.value) || DEFAULT_CANVAS_HEIGHT));
   const scale = Number(elements.canvasScale.value);
-  layout.canvas.scaleMetersPerPixel = Number.isFinite(scale) && scale > 0 ? scale : null;
+  if(Number.isFinite(scale) && scale>0 && scale!==getLayoutScale(layout))layout.canvas.scaleSource="manual";
+  layout.canvas.scaleMetersPerPixel = Number.isFinite(scale) && scale > 0 ? scale : SCHEMATIC_METERS_PER_PIXEL;
   saveLocal();
   render();
 }
@@ -4098,6 +4129,7 @@ document.querySelectorAll("[data-add-object]").forEach((button) => {
     trafficDirection: button.dataset.trafficDirection,
     accessType: button.dataset.accessType,
     signType: button.dataset.signType,
+    pavementKind: button.dataset.pavementKind,
   }));
 });
 
@@ -4267,6 +4299,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Delete" || event.key === "Backspace") {
+    event.preventDefault();
     deleteSelected();
     return;
   }
@@ -4283,7 +4316,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   event.preventDefault();
-  const step = event.shiftKey ? 1 : 0.1;
+  const step = (event.shiftKey ? .1 : .01) / getLayoutScale(getCurrentLayout());
   if (event.key === "ArrowLeft") item.x -= step;
   if (event.key === "ArrowRight") item.x += step;
   if (event.key === "ArrowUp") item.y -= step;

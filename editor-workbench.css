@@ -1,0 +1,64 @@
+/* 編集領域を常に確保し、補助操作は開いたときだけ表示する。 */
+body {min-width:760px;font-size:13px;overflow:hidden;}
+.topbar {min-height:66px;padding:10px 20px;gap:16px;background:var(--panel);}
+.topbar h1 {font-size:19px;letter-spacing:.02em;}
+.topbar-actions {flex-wrap:wrap;justify-content:flex-end;gap:6px;}
+button,.file-button,input,select {border-radius:7px;}
+button {transition:background .12s,border-color .12s;}
+button:disabled {opacity:.4;cursor:default;}
+button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+#save-button,#add-parking-space-button,#apply-meters-button {background:var(--accent);color:var(--panel);border-color:var(--accent);}
+#local-save-status {margin:0;padding:5px 20px;min-height:28px;background:var(--accent-soft);color:var(--text);font-size:12px;}
+.admin-layout {height:calc(100dvh - 125px);min-height:0;grid-template-columns:230px minmax(280px,1fr) 280px;}
+.left-panel,.right-panel {padding:16px;scrollbar-gutter:stable;}
+.left-panel section + section {margin-top:12px;}
+.palette-section {border-top:1px solid var(--border);padding:12px 0;margin-top:12px;}
+summary {cursor:pointer;font-weight:650;padding:5px 0;}
+.palette-section[open] summary {margin-bottom:10px;}
+.tool-list {grid-template-columns:1fr 1fr;gap:6px;}
+.tool-list button {font-size:12px;text-align:center;min-height:38px;}
+.cloud-sync-panel input {margin-bottom:8px;}
+.left-panel select {margin-bottom:8px;}
+.workspace-head {padding:12px 16px;gap:10px;flex-wrap:wrap;}
+.workspace-head p {margin-top:4px;}
+.canvas-settings {gap:6px;}
+.canvas-settings label {grid-template-columns:auto 60px;font-size:11px;}
+.background-panel {margin:8px 12px 0;padding:8px 12px;border-radius:9px;max-height:260px;overflow:auto;flex-shrink:0;}
+#scale-summary {font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;}
+.editor-toolbar {margin:8px 12px;padding:8px;gap:6px;border:1px solid var(--border);border-radius:9px;background:var(--panel);max-height:260px;overflow:auto;flex-shrink:0;}
+.editor-toolbar button {font-size:12px;}
+.edit-mode-label,.toolbar-spacer {display:none;}
+.editor-zoom {margin-left:auto;}
+.editor-zoom input {width:90px;}
+.editor-advanced {width:100%;border-top:1px solid var(--border);font-size:12px;}
+.editor-advanced .grid-toolbar {display:flex;flex-wrap:wrap;padding:6px 0;}
+.editor-advanced .grid-help {display:block;}
+#edit-mode-help {font-size:11px;width:100%;}
+.canvas-scroll {background:var(--bg);min-height:150px;}
+.map-object.selected {outline:1px solid #2563eb;outline-offset:2px;}
+.map-object .resize-handle {min-width:0;min-height:0;touch-action:none;}
+.right-panel h2 {margin-bottom:12px;}
+.right-panel h3 {font-size:12px;margin:0 0 8px;}
+#dimension-controls {padding:12px;background:var(--accent-soft);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;}
+.meter-fields {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+#dimension-controls button {width:100%;margin-top:5px;}
+#object-form label {margin-bottom:8px;}
+.numeric-settings {margin:12px 0;}
+#object-list,#facility-results {max-height:220px;overflow:auto;display:grid;gap:4px;}
+.object-list-item {text-align:left;overflow-wrap:anywhere;}
+.object-list-item[aria-pressed="true"] {background:var(--accent-soft);border-color:var(--accent);}
+.footer {height:31px;padding:4px 16px;font-size:11px;border-top:1px solid var(--border);}
+.footer p {margin:0;}
+@media(max-width:1100px){.admin-layout{grid-template-columns:190px minmax(260px,1fr) 230px}.topbar-actions{gap:3px}.topbar-actions button,.file-button{font-size:11px;padding:5px 6px}.canvas-settings{display:none}.left-panel,.right-panel{padding:10px}.tool-list{grid-template-columns:1fr}.editor-zoom input{display:none}}
+body {height:100dvh;display:flex;flex-direction:column;}
+.topbar,#local-save-status,.footer {flex-shrink:0;}
+.admin-layout {flex:1;height:auto;min-height:0;}
+.editor-zoom {display:flex;flex-wrap:wrap;align-items:center;gap:5px;}
+.editor-zoom input {width:90px;flex:0 0 90px;}
+.editor-zoom output {min-width:45px;}
+html body .map-canvas:not(.has-photo) .map-object[data-object-type="parkingSpace"] {background-color:#596779 !important;}
+html body .map-canvas:not(.has-photo) .map-object[data-space-type="accessible"] {background-color:#215995 !important;}
+html body .map-canvas:not(.has-photo) .map-object[data-space-type="priority"] {background-color:#52643b !important;}
+html body .map-canvas:not(.has-photo) .map-object[data-space-type="ev"] {background-color:#236652 !important;}
+html body .map-canvas:not(.has-photo) .map-object[data-object-type="pavementMarking"] {background-color:#596779;}
+@media(max-width:1100px){.editor-zoom input{display:none;}}

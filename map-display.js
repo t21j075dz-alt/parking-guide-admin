@@ -1,7 +1,7 @@
 "use strict";
 /* 両アプリで同じ番号・文字寸法・標識／路面標示を使う。保存データは書き換えない。 */
 window.ParkingMapDisplay = (() => {
-  const types = ["parkingLot","excludedParkingLot","nationalRoad","prefecturalRoad","publicRoad","parkingSpace","road","sidewalk","crosswalk","building","buildingEntrance","parkingEntrance","stopLine","speedBump","noEntry","cartCorral","bicycleParking","motorcycleParking","loadingZone","evCharger","roadSign"];
+  const types = ["parkingLot","excludedParkingLot","nationalRoad","prefecturalRoad","publicRoad","parkingSpace","road","sidewalk","crosswalk","building","buildingEntrance","parkingEntrance","stopLine","speedBump","noEntry","cartCorral","bicycleParking","motorcycleParking","loadingZone","evCharger","roadSign","pavementMarking"];
   const roads = new Set(["road","nationalRoad","prefecturalRoad","publicRoad"]);
   function normalizeNumber(value) {
     return String(value ?? "").normalize("NFKC").trim().replace(/\d+/g, n => n.replace(/^0+(?=\d)/,""));
@@ -103,13 +103,14 @@ window.ParkingMapDisplay = (() => {
     }
     node.append(svg);
   }
-  const markingStyles=["photoStall","full","uShape","sides","headOnly","headTicks","leftOnly","rightOnly","doubleFull","doubleSides","cornerMarks","none"];
+  const markingStyles=["photoStall","full","uShape","sides","headOnly","headTicks","leftOnly","rightOnly","doubleFull","doubleSides","cornerMarks","roundedDouble","tMarks","dashed","hatched","none"];
   function appendParking(node,item) {
     const style=item.markingStyle??"photoStall";
     if(style==="none")return;
     const svg=svgRoot(100,100,"shared-photo-marking");svg.setAttribute("preserveAspectRatio","none");
-    const paths={photoStall:"M 0 100 V 0 H 100 V 100",uShape:"M 0 100 V 0 H 100 V 100",full:"M 0 0 H 100 V 100 H 0 Z",sides:"M 0 0 V 100 M 100 0 V 100",headOnly:"M 0 0 H 100",headTicks:"M 0 22 V 0 H 28 M 72 0 H 100 V 22",leftOnly:"M 0 0 V 100",rightOnly:"M 100 0 V 100",doubleFull:"M 0 0 H 100 V 100 H 0 Z M 6 6 H 94 V 94 H 6 Z",doubleSides:"M 0 0 V 100 M 6 0 V 100 M 94 0 V 100 M 100 0 V 100",cornerMarks:"M 0 22 V 0 H 28 M 72 0 H 100 V 22 M 0 78 V 100 H 28 M 72 100 H 100 V 78"};
-    svg.append(svgElement("path",{d:paths[style]??paths.photoStall,fill:"none",stroke:"var(--space-line-color, white)","stroke-width":"var(--space-line-width, .35px)","vector-effect":"non-scaling-stroke"}));node.append(svg);
+    const paths={roundedDouble:"M 0 0 V 90 Q 3 100 6 90 V 0 M 94 0 V 90 Q 97 100 100 90 V 0",tMarks:"M 0 0 V 100 M 100 0 V 100 M 0 0 H 100 M 0 100 H 12 M 88 100 H 100",dashed:"M 0 0 H 100 V 100 H 0 Z",hatched:"M 0 0 H 100 V 100 H 0 Z M 0 25 L 25 0 M 0 50 L 50 0 M 0 75 L 75 0 M 0 100 L 100 0 M 25 100 L 100 25 M 50 100 L 100 50 M 75 100 L 100 75",photoStall:"M 0 100 V 0 H 100 V 100",uShape:"M 0 100 V 0 H 100 V 100",full:"M 0 0 H 100 V 100 H 0 Z",sides:"M 0 0 V 100 M 100 0 V 100",headOnly:"M 0 0 H 100",headTicks:"M 0 22 V 0 H 28 M 72 0 H 100 V 22",leftOnly:"M 0 0 V 100",rightOnly:"M 100 0 V 100",doubleFull:"M 0 0 H 100 V 100 H 0 Z M 6 6 H 94 V 94 H 6 Z",doubleSides:"M 0 0 V 100 M 6 0 V 100 M 94 0 V 100 M 100 0 V 100",cornerMarks:"M 0 22 V 0 H 28 M 72 0 H 100 V 22 M 0 78 V 100 H 28 M 72 100 H 100 V 78"};
+    svg.append(svgElement("path",{d:paths[style]??paths.photoStall,fill:"none",stroke:"var(--space-line-color, white)","stroke-width":"var(--space-line-width, .35px)","vector-effect":"non-scaling-stroke"}));if(style === "dashed") svg.firstChild?.setAttribute("stroke-dasharray","6 4");
+    node.append(svg);
   }
   function appendPhoto(node) { appendParking(node,{markingStyle:"photoStall"}); }
   function appendEntrance(node,item) {
@@ -118,20 +119,67 @@ window.ParkingMapDisplay = (() => {
     const text=item.objectType==="buildingEntrance"?"↑":item.accessType==="exit"?"出口":item.accessType==="entrance"?"入口":"出入口";
     svg.append(svgElement("text",{x:50,y:61,"text-anchor":"middle",fill:"#6d28d9","font-size":fitLabel(text,75,60,42),"font-weight":700},text));node.append(svg);
   }
-  function applyTypography(node,item,scale=1,buildingSize) {
-    const width=(Number(item.width)||1)*scale,height=(Number(item.height)||1)*scale;
-    const font=buildingSize==null?fitLabel(item.name||"",width*.8,height*.8,18):buildingSize*scale;
-    node.style.setProperty("--map-label-size",`${font}px`);
+  // まず論理座標で文字を決定し、最後に表示倍率を一度だけ掛ける。
+  function typeText(item) { return ({compact:"軽",accessible:"車いす",ev:"EV",priority:"優先"})[item.spaceType]||""; }
+  function labelSize(item) {
+    const fitted=fitLabel(item.name||"",Number(item.width)*.8,Number(item.height)*.8,18);
+    return item.objectType==="building" && item.labelAutoScale===false ? Math.min(fitted,Math.max(3,Math.min(18,Number(item.labelFontSize)||6))) : fitted;
+  }
+  function applyTypography(node,item,scale=1) {
+    const width=Number(item.width)||1,height=Number(item.height)||1;
+    node.style.setProperty("--map-label-size",`${labelSize(item)*scale}px`);
     if(item.objectType === "parkingSpace") {
-      const type=({compact:"軽",accessible:"♿",ev:"EV"})[item.spaceType]||"";
-      const number=[groupName(item),spaceNumber(item)].filter(Boolean).join("\n");
-      node.style.setProperty("--space-type-size",`${fitLabel(type,width*.9,height*.28,14)}px`);
-      node.style.setProperty("--space-number-size",`${fitLabel(number,width*.9,height*(type?.45:.65),18)}px`);
+      const type=typeText(item), number=[groupName(item),spaceNumber(item)].filter(Boolean).join("\n");
+      node.style.setProperty("--space-type-size",`${fitLabel(type,width*.9,height*.28,14)*scale}px`);
+      node.style.setProperty("--space-number-size",`${fitLabel(number,width*.9,height*(type?.45:.65),18)*scale}px`);
       node.style.setProperty("--number-top",type?"48%":"18%");
       node.style.setProperty("--number-height",type?"45%":"65%");
     }
     const shield=node.querySelector?.(".shared-route-shield");
-    if(shield)shield.style.width=shield.style.height=`${Math.max(.5,Math.min(width,height)*.82)}px`;
+    if(shield)shield.style.width=shield.style.height=`${Math.max(.5,Math.min(width,height)*.82)*scale}px`;
+  }
+  function appendType(node,item) {
+    const label=typeText(item);
+    if(!label)return;
+    const mark=document.createElement("span");mark.className="space-type-mark";mark.setAttribute("aria-hidden","true");
+    if(item.spaceType!=="accessible")mark.textContent=label;
+    else {
+      // 国際シンボルマークに類似する単色図。OS依存の絵文字を使わない。
+      const svg=svgRoot(100,100,"shared-accessible");
+      svg.append(svgElement("circle",{cx:51,cy:16,r:9,fill:"currentColor"}));
+      svg.append(svgElement("path",{d:"M 49 32 L 52 58 H 72 L 85 82 L 94 77 M 50 43 H 71 M 38 48 A 26 26 0 1 0 68 78",fill:"none",stroke:"currentColor","stroke-width":8,"stroke-linecap":"round","stroke-linejoin":"round"}));
+      mark.append(svg);
+    }
+    node.append(mark);
+  }
+  const pavementNames={straight:"直進",left:"左折",right:"右折",straightLeft:"直進・左折",straightRight:"直進・右折",stop:"止まれ",slow:"徐行",noParking:"駐車禁止",hatched:"斜線帯",accessible:"車いすマーク",priority:"優先",ev:"EV充電",wheelStop:"車止め",walkway:"歩行者通路"};
+  function appendPavement(node,item) {
+    const svg=svgRoot(100,100,"shared-pavement");
+    const kind=item.pavementKind||"straight", color=item.markingColor||"#ffffff";
+    const path=d=>svg.append(svgElement("path",{d,fill:"none",stroke:color,"stroke-width":8,"stroke-linejoin":"miter"}));
+    if(["straight","left","right","straightLeft","straightRight"].includes(kind)) {
+      path("M 50 95 V 42");
+      if(kind.includes("straight")){path("M 50 45 V 8 M 30 30 L 50 8 L 70 30");}
+      if(kind.toLowerCase().includes("left")){path("M 50 55 Q 50 35 30 35 H 8 M 28 15 L 8 35 L 28 55");}
+      if(kind.toLowerCase().includes("right")){path("M 50 55 Q 50 35 70 35 H 92 M 72 15 L 92 35 L 72 55");}
+    } else if(kind==="hatched" || kind==="walkway") {
+      svg.setAttribute("preserveAspectRatio","none");
+      for(let n=-100;n<=100;n+=20)path(kind==="hatched"?`M ${n} 100 L ${n+100} 0`:`M 0 ${n} H 100`);
+    } else if(kind==="wheelStop") {
+      svg.setAttribute("preserveAspectRatio","none");
+      for(const x of [8,58])svg.append(svgElement("rect",{x,y:35,width:34,height:30,rx:4,fill:"#a8adb5",stroke:"#555","stroke-width":2}));
+    } else if(kind==="accessible") {
+      const holder=document.createElement("div");appendType(holder,{spaceType:"accessible"});
+      const symbol=holder.querySelector(".shared-accessible");if(symbol){symbol.setAttribute("class","shared-pavement");node.append(symbol);}return;
+    } else {
+      const text=({stop:"止まれ",slow:"徐行",noParking:"駐車禁止",priority:"優先",ev:"EV"})[kind]||"";
+      svg.append(svgElement("text",{x:50,y:58,"text-anchor":"middle",fill:color,"font-weight":800,"font-size":fitLabel(text,95,80,32)},text));
+    }
+    node.append(svg);
+  }
+  function metersPerPixel(background) {
+    if(!Number.isFinite(background?.centerLat)||!Number.isFinite(background?.zoom))return null;
+    return Math.cos(Math.max(-85.05112878,Math.min(85.05112878,background.centerLat))*Math.PI/180)*2*Math.PI*6378137/(256*2**background.zoom);
   }
   function placeLabel(anchor,width,height,occupied,bounds) {
     const gap=8,pad=4;
@@ -140,5 +188,5 @@ window.ParkingMapDisplay = (() => {
     const overlap=(a,b)=>a.x<b.x+b.width+gap && a.x+a.width+gap>b.x && a.y<b.y+b.height+gap && a.y+a.height+gap>b.y;
     return candidates.find(a=>!occupied.some(b=>overlap(a,b)))??candidates[0];
   }
-  return Object.freeze({types,roads,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
+  return Object.freeze({types,roads,typeText,labelSize,appendType,appendPavement,pavementNames,metersPerPixel,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
 })();
