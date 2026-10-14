@@ -19,6 +19,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  await page.click('#undo-button');assert.ok(await page.evaluate(()=>Math.abs(getCurrentLayout().objects[0].width*getLayoutScale(getCurrentLayout())-2.5)<1e-6));await page.click('#redo-button');
  await page.click('.map-object[data-object-type="parkingSpace"]');
  const before=await page.evaluate(()=>({w:getSelectedObject().width,h:getSelectedObject().height,font:parseFloat(document.querySelector('.space-number-mark').style.fontSize||getComputedStyle(document.querySelector('.space-number-mark')).fontSize)}));
+ await page.click('[data-edit-mode="resize"]');
  const box=await page.locator('.resize-handle--e').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+30,box.y+box.height/2,{steps:5});await page.mouse.up();
  const after=await page.evaluate(()=>({w:getSelectedObject().width,h:getSelectedObject().height}));assert.ok(after.w>before.w);assert.equal(after.h,before.h);
  // Type changes must use physical dimensions too.

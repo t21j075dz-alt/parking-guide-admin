@@ -31,3 +31,22 @@ test('追加区画ラベルは長辺のある大型枠・狭い二輪枠でも�
  }
  const node=element();d.appendType(node,{spaceType:'custom',customSpaceLabel:'<img src=x onerror=bad>'});assert.ok(!walk(node).some(n=>n.tagName==='img'));assert.match(node.children[0].textContent,/<img/);
 });
+
+test('英語マップは全46種類を英訳し、文字と番号を枠内に収める',()=>{
+ const document={documentElement:{lang:'en'},createElement:element,createElementNS:(_,tag)=>element(tag)},context=vm.createContext({window:{},document});
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'../map-display.js'),'utf8'),context);const d=context.window.ParkingMapDisplay;
+ for(const [spaceType,p] of Object.entries(d.spacePresets))for(const scale of [.25,1,8]){
+  const item={objectType:'parkingSpace',spaceType,spaceGroup:'A',spaceNumber:'12',width:p.widthMeters*10,height:p.lengthMeters*10},node=element();d.applyTypography(node,item,scale);
+  const label=d.typeText(item);assert.ok(!/[ぁ-んァ-ン一-龯]/.test(label),spaceType);
+  const size=parseFloat(node.style['--space-type-size']);assert.ok(Math.max(...label.split('\n').map(d.units))*size<=item.width*.9*scale);
+  assert.ok(label.split('\n').length*size*1.1<=item.height*.3*scale);
+ }
+ assert.equal(d.displaySpaceName({spaceGroup:'A',spaceNumber:'012'}),'Row A 12');
+ assert.equal(d.groupName({spaceGroup:'A'}),'A列','Stored identity stays independent of language');
+});
+test('英語名は表示だけに使い、固有名・カスタム表記と日本語への復帰を保持する',()=>{
+ const document={documentElement:{lang:'en'},createElement:element,createElementNS:(_,tag)=>element(tag)},context=vm.createContext({window:{},document});vm.runInContext(fs.readFileSync(path.join(__dirname,'../map-display.js'),'utf8'),context);const d=context.window.ParkingMapDisplay;
+ const item={name:'店舗',nameEn:'Research Store',spaceType:'custom',customSpaceLabel:'送迎',customSpaceLabelEn:'Pick up'};const original=JSON.stringify(item);
+ assert.equal(d.displayName(item),'Research Store');assert.equal(d.typeText(item),'Pick\nup');assert.equal(d.displayName({name:'未知の固有名'}),'未知の固有名');assert.equal(d.displayName({name:'建物'}),'Building');
+ document.documentElement.lang='ja';assert.equal(d.displayName(item),'店舗');assert.equal(d.typeText(item),'送迎');assert.equal(JSON.stringify(item),original);
+});

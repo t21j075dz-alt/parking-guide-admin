@@ -1307,6 +1307,7 @@ function useCurrentLocationForBackground() {
 
 /** 編集倍率を25%～3200%へ制限し、写真とオブジェクトを同じ倍率で表示する。 */
 function applyViewScale(scale, preserveCenter = false) {
+  if (state.drag || state.resize || state.vertexDrag) return;
   const layout = getCurrentLayout();
   if (!layout || !elements.canvasStage) {
     return;
@@ -1323,19 +1324,20 @@ function applyViewScale(scale, preserveCenter = false) {
   }
 
   state.viewScale = nextScale;
+  elements.canvas.querySelectorAll(".map-object").forEach(node => {const item=layout.objects.find(o=>o.uid===node.dataset.uid);if(item)node.dataset.smallEditing=String(Math.min(item.width,item.height)*nextScale<32);});
   /* 編集補助UIだけは画面上の太さ・大きさを一定にし、高倍率時の肥大化を防ぐ。 */
   elements.canvas.style.setProperty("--ui-polygon-stroke", `${0.8 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-selection-stroke", `${1 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-size", `${12 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-resize-handle-border", `${1 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-hit-size", `${8 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-vertex-visual-size", `${2 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-add-visual-size", `${1.25 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-add-font-size", `${1.1 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-vertex-visual-size", `${7 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-visual-size", `${6 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-font-size", `${5 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-polygon-add-outline", `${0.4 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-hover-size", `${3.5 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-add-hover-size", `${3.5 / nextScale}px`);
-  elements.canvas.style.setProperty("--ui-polygon-add-hover-font-size", `${2.5 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-hover-size", `${7 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-hover-size", `${7 / nextScale}px`);
+  elements.canvas.style.setProperty("--ui-polygon-add-hover-font-size", `${5 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-fine-line", `${0.45 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-meter-line", `${0.65 / nextScale}px`);
   elements.canvas.style.setProperty("--ui-grid-major-line", `${0.9 / nextScale}px`);
@@ -1366,7 +1368,7 @@ function changeViewScale(delta) {
 }
 
 /* 編集モードごとの操作説明。モードは保存データには含めず、管理画面だけの状態として扱う。 */
-const EDIT_MODE_HELP = Object.freeze({move:"ドラッグ：移動 · 白いハンドル：サイズ · Alt：吸着解除",resize:"白いハンドルでサイズ変更。Altで吸着解除。",reshape:"頂点をドラッグ。辺の＋で追加、頂点をダブルクリックで削除。"});
+const EDIT_MODE_HELP = Object.freeze({move:"ドラッグ：移動 · 白いハンドル：サイズ · Alt：位置合わせを一時OFF",resize:"白いハンドルでサイズ変更。Altで位置合わせを一時OFF。",reshape:"頂点をドラッグ。辺の＋で追加、頂点をダブルクリックで削除。"});
 
 /** 「敷地・道路をロック」の対象で、現在ロック中か判定する。 */
 function isObjectLocked(item) {
@@ -1401,8 +1403,8 @@ function updateEditModeUi() {
     const selected = getSelectedObject();
     if (state.editMode === "reshape" && selected && !POLYGON_OBJECT_TYPES.has(selected.objectType)) {
       help += RESIZE_ONLY_OBJECT_TYPES.has(selected.objectType)
-        ? " 選択中のオブジェクトは形変更しません。サイズ調整は「拡大縮小」を使用してください。"
-        : " 選択中のオブジェクトは形変更の対象外です。";
+        ? " この図形の頂点は編集できません。「サイズ変更」を使ってください。"
+        : " この図形の頂点は編集できません。";
     }
     elements.editModeHelp.textContent = help;
   }
@@ -1460,14 +1462,12 @@ function updateGridAppearance() {
   const visible = elements.gridVisible?.checked !== false;
   const fineGridVisible = size * state.viewScale >= 3;
   const layout = getCurrentLayout();
-  const parkingLot = layout?.objects?.find((item) => item.objectType === "parkingLot");
 
   /*
-   * 方眼はキャンバス固定ではなく、駐車場敷地の左上を原点にする。
-   * 四角形の敷地を移動した場合も、その敷地に沿ってグリッドが揃う。
+   * 方眼をキャンバス原点へ固定し、敷地の移動中に背景まで動いて見えるのを防ぐ。
    */
-  const originX = Number(parkingLot?.x) || 0;
-  const originY = Number(parkingLot?.y) || 0;
+  const originX = 0;
+  const originY = 0;
 
   elements.canvas.classList.toggle("grid-hidden", !visible);
   elements.canvas.style.setProperty("--grid-size", `${size}px`);
@@ -1511,7 +1511,7 @@ function snapParkingSpacePosition(item, x, y) {
    *   3. 中心を一致
    * とし、軽枠と普通車枠を混ぜても奥側の白線が一直線になりやすくする。
    */
-  const threshold = Math.max(14, getGridSize() * 2);
+  const threshold = 8 / Math.max(0.25, state.viewScale);
   const itemRotation = ((Number(item.rotation) || 0) % 360 + 360) % 360;
   const iw = Number(item.width) || 25;
   const ih = Number(item.height) || 50;
@@ -1636,7 +1636,7 @@ function snapSitePosition(item, x, y) {
     return null;
   }
 
-  const threshold = Math.max(12, getGridSize() * 2);
+  const threshold = 8 / Math.max(0.25, state.viewScale);
   const width = Number(item.width) || 100;
   const height = Number(item.height) || 100;
   let bestX = null;
@@ -1696,9 +1696,7 @@ function snapSitePosition(item, x, y) {
 
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
 function snapObjectPosition(item, x, y) {
-  if (!elements.snapEnabled?.checked) {
-    return { x, y, guideX: null, guideY: null };
-  }
+
   const parkingSnap = snapParkingSpacePosition(item, x, y);
   if (parkingSnap) {
     return {
@@ -1714,48 +1712,7 @@ function snapObjectPosition(item, x, y) {
     return siteSnap;
   }
 
-  const threshold = Math.max(3, getGridSize() * 0.65);
-  const layout = getCurrentLayout();
-  const width = item.width ?? 34;
-  const height = item.height ?? 34;
-  let bestX = { value: snapToGrid(x), distance: Math.abs(snapToGrid(x) - x), guide: null };
-  let bestY = { value: snapToGrid(y), distance: Math.abs(snapToGrid(y) - y), guide: null };
-
-  layout.objects.forEach((other) => {
-    if (other.uid === item.uid) {
-      return;
-    }
-    const ow = other.width ?? 34;
-    const oh = other.height ?? 34;
-    const xCandidates = [
-      [other.x, other.x],
-      [other.x + ow, other.x + ow],
-      [other.x - width, other.x],
-      [other.x + ow - width, other.x + ow],
-      [other.x + ow / 2 - width / 2, other.x + ow / 2],
-    ];
-    const yCandidates = [
-      [other.y, other.y],
-      [other.y + oh, other.y + oh],
-      [other.y - height, other.y],
-      [other.y + oh - height, other.y + oh],
-      [other.y + oh / 2 - height / 2, other.y + oh / 2],
-    ];
-    xCandidates.forEach(([candidate, guide]) => {
-      const distance = Math.abs(candidate - x);
-      if (distance <= threshold && (bestX.guide === null || distance < bestX.distance)) {
-        bestX = { value: candidate, distance, guide };
-      }
-    });
-    yCandidates.forEach(([candidate, guide]) => {
-      const distance = Math.abs(candidate - y);
-      if (distance <= threshold && (bestY.guide === null || distance < bestY.distance)) {
-        bestY = { value: candidate, distance, guide };
-      }
-    });
-  });
-
-  return { x: bestX.value, y: bestY.value, guideX: bestX.guide, guideY: bestY.guide };
+  return {x: snapToGrid(x), y: snapToGrid(y), guideX: null, guideY: null};
 }
 
 /**
@@ -2045,6 +2002,9 @@ function startVertexDrag(event) {
     pointerId: event.pointerId,
     vertexIndex,
     startClientX: event.clientX,
+    startScrollX: elements.canvasScroll.scrollLeft,
+    startScrollY: elements.canvasScroll.scrollTop,
+    scale: state.viewScale,
     startClientY: event.clientY,
     startPoint: { ...points[vertexIndex] },
     rotation: Number(item.rotation) || 0,
@@ -2083,7 +2043,7 @@ function snapReshapeVertex(item, vertexIndex, localX, localY) {
 
   const currentGlobal = objectLocalPointToGlobal(item, localX, localY);
   const threshold = Math.max(
-    0.2,
+    0,
     RESHAPE_SNAP_SCREEN_DISTANCE / Math.max(0.25, state.viewScale),
   );
 
@@ -2173,8 +2133,8 @@ function moveVertexDrag(event) {
   const index = state.vertexDrag.vertexIndex;
   if (!item || !points?.[index]) return;
 
-  const dx = (event.clientX - state.vertexDrag.startClientX) / state.viewScale;
-  const dy = (event.clientY - state.vertexDrag.startClientY) / state.viewScale;
+  const dx = (event.clientX - state.vertexDrag.startClientX + (elements.canvasScroll.scrollLeft || 0) - (state.vertexDrag.startScrollX || 0)) / state.vertexDrag.scale;
+  const dy = (event.clientY - state.vertexDrag.startClientY + (elements.canvasScroll.scrollTop || 0) - (state.vertexDrag.startScrollY || 0)) / state.vertexDrag.scale;
   const radians = state.vertexDrag.rotation * Math.PI / 180;
   const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
   const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
@@ -2211,7 +2171,7 @@ function moveVertexDrag(event) {
   if (elements.orthogonalSnap?.checked && !event.altKey) {
     const previous = points[(index - 1 + points.length) % points.length];
     const next = points[(index + 1) % points.length];
-    const threshold = Math.max(0.75, getGridSize() / 2);
+    const threshold = 6 / Math.max(0.25, state.viewScale);
 
     const xCandidates = [previous.x, next.x];
     const yCandidates = [previous.y, next.y];
@@ -2248,7 +2208,7 @@ function moveVertexDrag(event) {
 
   let reshapeGuideX = null;
   let reshapeGuideY = null;
-  if (!event.altKey) {
+  if (elements.siteSnapStrong?.checked && !event.altKey) {
     const reshapeSnap = snapReshapeVertex(item, index, x, y);
     if (reshapeSnap) {
       x = reshapeSnap.x;
@@ -2265,8 +2225,8 @@ function moveVertexDrag(event) {
    * 吸着した実輪郭線が元の外接矩形より外側でも、その位置をそのまま保持する。
    * ドラッグ終了時に実際の多角形から新しい外接矩形を再計算する。
    */
-  point.x = Math.round(x * 100) / 100;
-  point.y = Math.round(y * 100) / 100;
+  point.x = Math.round(x * 10000) / 10000;
+  point.y = Math.round(y * 10000) / 10000;
 
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   updatePolygonSvg(node, item);
@@ -2398,6 +2358,9 @@ function startResize(event) {
     pointerId: event.pointerId,
     direction: event.currentTarget.dataset.resizeDirection,
     startClientX: event.clientX,
+    startScrollX: elements.canvasScroll.scrollLeft,
+    startScrollY: elements.canvasScroll.scrollTop,
+    scale: state.viewScale,
     startClientY: event.clientY,
     x: item.x,
     y: item.y,
@@ -2427,8 +2390,8 @@ function moveResize(event) {
   if (!item || !layout) {
     return;
   }
-  const dx = (event.clientX - state.resize.startClientX) / state.viewScale;
-  const dy = (event.clientY - state.resize.startClientY) / state.viewScale;
+  const dx = (event.clientX - state.resize.startClientX + (elements.canvasScroll.scrollLeft || 0) - (state.resize.startScrollX || 0)) / state.resize.scale;
+  const dy = (event.clientY - state.resize.startClientY + (elements.canvasScroll.scrollTop || 0) - (state.resize.startScrollY || 0)) / state.resize.scale;
   const radians = state.resize.rotation * Math.PI / 180;
   const localDx = dx * Math.cos(radians) + dy * Math.sin(radians);
   const localDy = -dx * Math.sin(radians) + dy * Math.cos(radians);
@@ -2876,7 +2839,7 @@ function render() {
       mapDisplay.appendParking(node,item);
 
       mapDisplay.appendType(node,item);
-      const displayNumber = [mapDisplay.groupName(item),mapDisplay.spaceNumber(item)].filter(Boolean).join("\n");
+      const displayNumber = [mapDisplay.displayGroupName(item),mapDisplay.spaceNumber(item)].filter(Boolean).join("\n");
       mapDisplay.applyTypography(node,item);
       if (displayNumber) {
         const numberMark = document.createElement("span");
@@ -2886,6 +2849,7 @@ function render() {
       }
     }
 
+    node.dataset.smallEditing=String(Math.min(item.width,item.height)*state.viewScale<32);
     node.style.left = `${item.x}px`;
     node.style.top = `${item.y}px`;
     node.style.width = `${item.width ?? 34}px`;
@@ -2895,8 +2859,8 @@ function render() {
 
     const label = document.createElement("span");
     label.className = "object-label";
-    label.textContent = item.name || item.uid;
-    label.title = item.name || item.uid;
+    label.textContent = mapDisplay.displayName(item) || item.uid;
+    label.title = mapDisplay.displayName(item) || item.uid;
     const graphical = ["pavementMarking","parkingSpace","roadSign","noEntry","crosswalk","stopLine","speedBump","buildingEntrance","parkingEntrance"].includes(item.objectType)
       || (item.objectType === "road" && item.trafficDirection === "oneWay")
       || (["nationalRoad","prefecturalRoad"].includes(item.objectType) && item.routeNumber);
@@ -2951,6 +2915,9 @@ function startDrag(event) {
   state.drag = {
     pointerId: event.pointerId,
     startClientX: event.clientX,
+    startScrollX: elements.canvasScroll.scrollLeft,
+    startScrollY: elements.canvasScroll.scrollTop,
+    scale: state.viewScale,
     startClientY: event.clientY,
     startX: item.x,
     startY: item.y,
@@ -2974,14 +2941,14 @@ function moveDrag(event) {
     return;
   }
   const rawX = state.drag.startX
-    + (event.clientX - state.drag.startClientX) / state.viewScale;
+    + (event.clientX - state.drag.startClientX + (elements.canvasScroll.scrollLeft || 0) - (state.drag.startScrollX || 0)) / state.drag.scale;
   const rawY = state.drag.startY
-    + (event.clientY - state.drag.startClientY) / state.viewScale;
+    + (event.clientY - state.drag.startClientY + (elements.canvasScroll.scrollTop || 0) - (state.drag.startScrollY || 0)) / state.drag.scale;
   const initialPosition = clampObjectPosition(item, rawX, rawY, layout);
   const snapped = event.altKey ? initialPosition : snapObjectPosition(item, initialPosition.x, initialPosition.y);
   const finalPosition = clampObjectPosition(item, snapped.x, snapped.y, layout);
-  item.x = Math.round(finalPosition.x * 100) / 100;
-  item.y = Math.round(finalPosition.y * 100) / 100;
+  item.x = Math.round(finalPosition.x * 10000) / 10000;
+  item.y = Math.round(finalPosition.y * 10000) / 10000;
   showSnapGuides(snapped.guideX, snapped.guideY);
   const node = elements.canvas.querySelector(`[data-uid="${CSS.escape(item.uid)}"]`);
   if (node) {
@@ -3323,8 +3290,8 @@ function updateSelectedFromForm() {
     item.buildingId = elements.buildingId.value.trim();
   }
   const finalPosition = clampObjectPosition(item, item.x, item.y, layout);
-  item.x = Math.round(finalPosition.x * 100) / 100;
-  item.y = Math.round(finalPosition.y * 100) / 100;
+  item.x = Math.round(finalPosition.x * 10000) / 10000;
+  item.y = Math.round(finalPosition.y * 10000) / 10000;
   if (item.objectType === "roadSign") {
     attachRoadSignToSurface(item, layout);
   }
@@ -4280,7 +4247,7 @@ document.querySelector("#import-file").addEventListener("change", async (event) 
   try {
     await importJson(event.target.files[0]);
   } catch (error) {
-    alert(error.message);
+    alert(window.AdminI18n?.translate(error.message) || error.message);
   } finally {
     event.target.value = "";
   }

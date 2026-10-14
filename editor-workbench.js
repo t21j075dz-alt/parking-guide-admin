@@ -14,6 +14,8 @@ window.ParkingEditor = (() => {
   $('new-parking-space-type').addEventListener('change',()=>{$('new-space-preset-note').textContent=presetNote($('new-parking-space-type').value);});
   $('new-space-preset-note').textContent=presetNote($('new-parking-space-type').value);
   $('space-custom-label').addEventListener('change',()=>{const item=getSelectedObject();if(item?.spaceType!=='custom')return;item.customSpaceLabel=$('space-custom-label').value.trim().slice(0,24)||'専用';saveLocal();render();});
+  $('object-name-en').addEventListener('change',()=>{const item=getSelectedObject();if(!item||isObjectLocked(item))return;item.nameEn=$('object-name-en').value.trim().slice(0,120);saveLocal();render();});
+  $('space-custom-label-en').addEventListener('change',()=>{const item=getSelectedObject();if(item?.spaceType!=='custom'||isObjectLocked(item))return;item.customSpaceLabelEn=$('space-custom-label-en').value.trim().slice(0,40);saveLocal();render();});
   const histories=new Map();let restoring=false,pan=null,lastFacility=null;
   function snapshot(){return JSON.stringify(getCurrentLayout());}
   function history(){
@@ -44,11 +46,14 @@ window.ParkingEditor = (() => {
     $('scale-summary').textContent=`1 px ≈ ${scale.toFixed(3)} m · ${layout.canvas.scaleSource==='photo'?'航空写真基準':'設定縮尺'}`;
     $('object-count').textContent=`${layout.objects.length} 個`;
     $('dimension-controls').hidden=!item;
+    $('object-name-en').value=item?.nameEn||'';
+    $('space-custom-label-en-field').hidden=item?.spaceType!=='custom';
+    $('space-custom-label-en').value=item?.customSpaceLabelEn||'';
     $('preset-size-button').hidden=item?.objectType!=='parkingSpace';
     if(item){$('width-meters').value=(item.width*scale).toFixed(2);$('height-meters').value=(item.height*scale).toFixed(2);}
     const list=$('object-list'),filter=$('object-search').value.trim().toLowerCase();list.replaceChildren();
     for(const obj of [...layout.objects].reverse()){
-      const label=obj.objectType==='parkingSpace'?`${mapDisplay.spaceName(obj)} · ${getParkingSpaceLabel(obj.spaceType)}`:obj.name;
+      const label=obj.objectType==='parkingSpace'?`${mapDisplay.displaySpaceName(obj)} · ${mapDisplay.spaceTypeLabel(obj.spaceType,document.documentElement.lang==='en')}`:mapDisplay.displayName(obj);
       if(filter&&!`${label} ${obj.uid}`.toLowerCase().includes(filter))continue;
       const button=document.createElement('button');button.type='button';button.textContent=label||obj.objectType;
       button.className='object-list-item';button.setAttribute('aria-pressed',String(obj.uid===state.selectedUid));
@@ -125,5 +130,5 @@ window.ParkingEditor = (() => {
   // Ctrl/Cmd+ホイールは写真倍率ではなく表示倍率だけを変更。
   elements.canvasScroll.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)return;event.preventDefault();event.stopPropagation();applyViewScale(state.viewScale*(event.deltaY<0?1.15:1/1.15),true);},{passive:false,capture:true});
   window.addEventListener('resize',()=>requestAnimationFrame(fitObjects));
-  refresh();return {record,refresh,travel,calibrate,setMeters,fitObjects,resetHistory:()=>{histories.clear();lastFacility=null;}};
+  refresh();return {record,refresh,travel,calibrate,setMeters,fitObjects,focusSelected,resetHistory:()=>{histories.clear();lastFacility=null;}};
 })();

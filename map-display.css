@@ -43,3 +43,6 @@ html body .map-object[data-object-type="parkingEntrance"] > .map-object-label { 
 html body .map-object[data-object-type="pavementMarking"] {background:transparent;border:0;padding:0;}
 html body .map-object[data-object-type="pavementMarking"] > .object-label {display:none;}
 html body .map-object[data-object-type] {min-width:0;min-height:0;}
+
+/* English words wrap deliberately; neither selection nor language switches change geometry. */
+.space-type-mark {white-space:pre-line; overflow-wrap:normal;}

@@ -472,6 +472,16 @@ window.ParkingMapDisplay = (() => {
   function spaceTypeLabel(type,english=false){const p=spacePresets[type];return p?(english?p.en:p.label):String(type||"普通車");}
   function isGuidableType(type){return spacePresets[type]?.guidable===true;}
   const roads = new Set(["road","nationalRoad","prefecturalRoad","publicRoad"]);
+  const english = () => typeof document !== 'undefined' && document.documentElement?.lang === 'en';
+  const defaultNames = {"駐車場敷地":"Parking area","対象外駐車場":"Excluded parking area","国道":"National road","県道":"Prefectural road","公道":"Public road","駐車区画":"Parking space","場内車道":"Internal road","歩道":"Footpath","横断歩道":"Crosswalk","建物":"Building","店舗入口":"Store entrance","建物入口":"Building entrance","駐車場入口":"Parking entrance","駐車場出口":"Parking exit","駐車場出入口":"Parking access","停止線":"Stop line","速度抑制ハンプ":"Speed bump","進入禁止":"No entry","カート置き場":"Cart return","駐輪場":"Bicycle parking","二輪車置場":"Motorcycle parking","荷捌きスペース":"Loading area","EV充電器":"EV charger","EV充電":"EV charging","道路標識":"Road sign","路面標示":"Pavement marking"};
+  function displayName(item) {return english() ? String(item.nameEn||defaultNames[item.name]||item.name||'') : String(item.name||'');}
+  function displayGroupName(item) {
+    if(!english())return groupName(item);
+    const group=String(item.spaceGroup||'').normalize('NFKC').trim().replace(/(?:区画|列)$/u,'');
+    return group ? `${item.spaceGroupKind==='area'?'Area':'Row'} ${group}` : '';
+  }
+  function displaySpaceName(item){return [displayGroupName(item),spaceNumber(item)].filter(Boolean).join(' ');}
+  function wrapMark(text) {return String(text).replace(/ +/g,'\n');}
   function normalizeNumber(value) {
     return String(value ?? "").normalize("NFKC").trim().replace(/\d+/g, n => n.replace(/^0+(?=\d)/,""));
   }
@@ -513,12 +523,12 @@ window.ParkingMapDisplay = (() => {
       svg.append(svgElement("rect",{x:17,y:34,width:66,height:16,fill:"white",rx:2}));
     } else if(sign === "stop") {
       svg.append(svgElement("polygon",{points:"3,3 97,3 50,85",fill:"#c81e1e",stroke:"white","stroke-width":3,"stroke-linejoin":"round"}));
-      svg.append(svgElement("text",{x:50,y:29,"text-anchor":"middle",fill:"white","font-size":20,"font-weight":700},"止まれ"));
-      svg.append(svgElement("text",{x:50,y:46,"text-anchor":"middle",fill:"white","font-size":11,"font-weight":700},"STOP"));
+      svg.append(svgElement("text",{x:50,y:english()?40:29,"text-anchor":"middle",fill:"white","font-size":20,"font-weight":700},english()?"STOP":"止まれ"));
+      if(!english())svg.append(svgElement("text",{x:50,y:46,"text-anchor":"middle",fill:"white","font-size":11,"font-weight":700},"STOP"));
     } else {
       const shape=sign === "prefecturalRoute" ? "50,2 94,23 83,69 50,84 17,69 6,23" : "10,3 90,3 96,14 82,65 50,84 18,65 4,14";
       svg.append(svgElement("polygon",{points:shape,fill:"#1256a0",stroke:"white","stroke-width":3,"stroke-linejoin":"round"}));
-      const heading=sign === "prefecturalRoute" ? item.prefectureName||"県道" : "国道";
+      const heading=english() ? (sign === "prefecturalRoute" ? "PREF." : "ROUTE") : sign === "prefecturalRoute" ? item.prefectureName||"県道" : "国道";
       const number=normalizeNumber(item.routeNumber)||"?";
       svg.append(svgElement("text",{x:50,y:24,"text-anchor":"middle",fill:"white","font-size":fitLabel(heading,72,20,14),"font-weight":700},heading));
       svg.append(svgElement("text",{x:50,y:58,"text-anchor":"middle",fill:"white","font-size":fitLabel(number,70,39,32),"font-weight":800},number));
@@ -568,7 +578,7 @@ window.ParkingMapDisplay = (() => {
       const x=Math.max(bx,Math.min(w-bx,a.x*w)),y=Math.max(by,Math.min(h-by,a.y*h));
       const g=svgElement("g",{transform:`translate(${x} ${y}) rotate(${a.rotation})`});
       g.append(svgElement("path",{d:`M ${-mw/2} ${-mh/2} H ${mw/2}`,stroke:"white","stroke-width":Math.max(.15,mh*.08)}));
-      g.append(svgElement("text",{x:0,y:mh*.25,"text-anchor":"middle",fill:"white","font-size":fitLabel("止まれ",mw,mh*.8,12),"font-weight":700},"止まれ"));svg.append(g);
+      g.append(svgElement("text",{x:0,y:mh*.25,"text-anchor":"middle",fill:"white","font-size":fitLabel(english()?"STOP":"止まれ",mw,mh*.8,12),"font-weight":700},english()?"STOP":"止まれ"));svg.append(g);
     }
     node.append(svg);
   }
@@ -585,20 +595,27 @@ window.ParkingMapDisplay = (() => {
   function appendEntrance(node,item) {
     const svg=svgRoot(100,100,"shared-sign-graphic");
     svg.append(svgElement("circle",{cx:50,cy:50,r:44,fill:"#f5f3ff",stroke:"#6d28d9","stroke-width":5}));
-    const text=item.objectType==="buildingEntrance"?"↑":item.accessType==="exit"?"出口":item.accessType==="entrance"?"入口":"出入口";
+    const text=item.objectType==="buildingEntrance"?"↑":item.accessType==="exit"?(english()?"EXIT":"出口"):item.accessType==="entrance"?(english()?"IN":"入口"):(english()?"IN/OUT":"出入口");
     svg.append(svgElement("text",{x:50,y:61,"text-anchor":"middle",fill:"#6d28d9","font-size":fitLabel(text,75,60,42),"font-weight":700},text));node.append(svg);
   }
   // まず論理座標で文字を決定し、最後に表示倍率を一度だけ掛ける。
-  function typeText(item) { return item.spaceType==="custom" ? String(item.customSpaceLabel||"専用").slice(0,24) : (spacePresets[item.spaceType]?.mark||""); }
+  function typeText(item) {
+    if(item.spaceType==='custom')return english()?wrapMark(item.customSpaceLabelEn||'Reserved'):String(item.customSpaceLabel||'専用').slice(0,24);
+    const p=spacePresets[item.spaceType];
+    if(!p?.mark)return '';
+    if(!english())return p.mark;
+    const short={compact:'KEI',smallCar:'SMALL',passengerLong:'CAR',large:'LARGE',smallTruck:'SMALL TRUCK',mediumTruck:'MEDIUM TRUCK',largeTruck:'LARGE TRUCK',trailer:'TRAILER',doubleTrailer:'DOUBLE TRAILER',combined:'CAR / TRUCK',bus:'BUS ONLY',busPriority:'BUS PRIORITY',minibus:'MINIBUS',rv:'RV',motorcycle:'MOTORCYCLE',moped:'MOPED',bicycle:'BICYCLE',scooter:'SCOOTER',accessible:'♿',priority:'PRIORITY',maternity:'MATERNITY',senior:'SENIOR',family:'FAMILY',ev:'EV',evFast:'EV FAST',evAccessible:'EV ACCESS',taxi:'TAXI',reserved:'RESERVED',monthly:'MONTHLY',visitor:'VISITOR',customer:'CUSTOMER',employee:'STAFF',company:'COMPANY',carShare:'CAR SHARE',rental:'RENTAL',hotel:'HOTEL',shortStay:'SHORT STAY',loading:'LOADING',delivery:'DELIVERY',taxiStand:'TAXI STAND',pickup:'PICK UP',busBoarding:'BUS STOP',emergency:'EMERGENCY',fireAccess:'FIRE ACCESS'};
+    return wrapMark(short[item.spaceType]||p.en);
+  }
   function labelSize(item) {
-    const fitted=fitLabel(item.name||"",Number(item.width)*.8,Number(item.height)*.8,18);
+    const fitted=fitLabel(displayName(item)||"",Number(item.width)*.8,Number(item.height)*.8,18);
     return item.objectType==="building" && item.labelAutoScale===false ? Math.min(fitted,Math.max(3,Math.min(18,Number(item.labelFontSize)||6))) : fitted;
   }
   function applyTypography(node,item,scale=1) {
     const width=Number(item.width)||1,height=Number(item.height)||1;
     node.style.setProperty("--map-label-size",`${labelSize(item)*scale}px`);
     if(item.objectType === "parkingSpace") {
-      const type=typeText(item), number=[groupName(item),spaceNumber(item)].filter(Boolean).join("\n");
+      const type=typeText(item), number=[displayGroupName(item),spaceNumber(item)].filter(Boolean).join("\n");
       node.style.setProperty("--space-type-size",`${fitLabel(type,width*.9,height*.28,14)*scale}px`);
       node.style.setProperty("--space-number-size",`${fitLabel(number,width*.9,height*(type?.45:.65),18)*scale}px`);
       node.style.setProperty("--number-top",type?"48%":"18%");
@@ -641,7 +658,7 @@ window.ParkingMapDisplay = (() => {
       const holder=document.createElement("div");appendType(holder,{spaceType:"accessible"});
       const symbol=holder.querySelector(".shared-accessible");if(symbol){symbol.setAttribute("class","shared-pavement");node.append(symbol);}return;
     } else {
-      const text=({stop:"止まれ",slow:"徐行",noParking:"駐車禁止",priority:"優先",ev:"EV"})[kind]||"";
+      const text=(english()?{stop:"STOP",slow:"SLOW",noParking:"NO PARKING",priority:"PRIORITY",ev:"EV"}:{stop:"止まれ",slow:"徐行",noParking:"駐車禁止",priority:"優先",ev:"EV"})[kind]||"";
       svg.append(svgElement("text",{x:50,y:58,"text-anchor":"middle",fill:color,"font-weight":800,"font-size":fitLabel(text,95,80,32)},text));
     }
     node.append(svg);
@@ -657,5 +674,5 @@ window.ParkingMapDisplay = (() => {
     const overlap=(a,b)=>a.x<b.x+b.width+gap && a.x+a.width+gap>b.x && a.y<b.y+b.height+gap && a.y+a.height+gap>b.y;
     return candidates.find(a=>!occupied.some(b=>overlap(a,b)))??candidates[0];
   }
-  return Object.freeze({spacePresets,spaceTypeLabel,isGuidableType,types,roads,typeText,labelSize,appendType,appendPavement,pavementNames,metersPerPixel,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
+  return Object.freeze({displayName,displayGroupName,displaySpaceName,spacePresets,spaceTypeLabel,isGuidableType,types,roads,typeText,labelSize,appendType,appendPavement,pavementNames,metersPerPixel,normalizeNumber,spaceNumber,spaceName,groupName,groupKey,fitLabel,units,numberConflict,appendSign,appendRoute,appendSurface,appendPhoto,appendParking,appendEntrance,applyTypography,markingStyles,stopAnchors,placeLabel});
 })();
