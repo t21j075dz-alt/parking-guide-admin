@@ -18,6 +18,7 @@
 <script defer="" src="./admin.js?v=20261014-interaction"></script>
 <link href="./editor-workbench.css?v=20261014-interaction" rel="stylesheet"/>
 <script defer="" src="./editor-workbench.js?v=20261014-interaction"></script>
+<script defer="" src="./home-live-status.js?v=20261023"></script>
 </head>
 <body>
 <!-- 上部操作：テーマ、端末保存、バックアップ入出力をまとめる。 -->
@@ -63,6 +64,13 @@
 <button id="cloud-logout-button" type="button">ログアウト</button>
 </div>
 <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
+</details>
+<details class="palette-section" id="home-live-status-panel">
+<summary>自宅テスト用：YOLOリアルタイム満空（管理者専用）</summary>
+<p class="muted">カメラ映像は表示・保存しません。15秒以上更新がなければ「未確認」です。保存済みの枠配置と手動設定は変更しません。</p>
+<p class="muted" id="home-live-notice" aria-live="polite">管理者ログイン後に取得します。</p>
+<ol id="home-live-list" style="padding-left:1.5em;line-height:1.8"></ol>
+<button id="home-live-refresh" type="button">判定結果を更新</button>
 </details>
 <!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
 <details class="palette-section"><summary>敷地・建物・外周道路</summary>
