@@ -1,3 +1,98 @@
+# 自宅駐車場 本番導入手順（2026-10-27 / Home staging）
+
+この導入は **カメラでの目視確認 → ローカル試験 → 管理者だけにクラウド試験 → 利用者公開の判断** の4段階です。
+一括で公開しません。日光の録画・実験区画座標は自宅には持ち込まず、
+施設ID `home-test-001` を使います。
+
+## 0. 事前確認
+
+- 自宅の管理者レイアウトはSupabaseに登録されています（2026-10-27に8枠UIDを確認）。
+  `space_001`〜`space_008` のUIDを使います。
+- ZIPには学習済みの重み `best.pt` や秘密の設定値は含めません。
+- 通信を有効にする場合、カメラPC側の `config_home_live.json` に
+  `supabase_url` と公開用 `publishable_key` が必要です。
+  `service_role` や秘密鍵を記入しないでください。
+- `config_home_live.json`、撮影動画・画像は**公開GitHubにアップロードしない**でください。
+- **カメラの角度・レンズが変わったら再校正してください。**
+  昔の `test_house1.mp4` の区画座標をそのまま使わないのが安全です。
+
+## 1. 自宅専用configを新規生成（元の設定には触れない）
+
+PowerShellを `parking-vision` フォルダで開く。以下の元ファイルは、
+以前の自宅実験で作った `config.json` の実際の保存先を指定する。
+
+```powershell
+& "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe" .\setup_home.py --from-config "C:\Users\anasu\Downloads\parking-guide-admin-main\parking-vision\config.json" --output .\config_home_live.json --camera 0
+```
+
+旧 `config.json` は保存したまま。新しい `config_home_live.json` では
+施設を自宅に固定、入力をUSBカメラ0へ変更、区画・敷地・死角を未登録状態へ戻します。
+学習済み `vehicle_model` のパスはコピーします。
+カメラがIPカメラなら `--camera` に**PCから接続可能なRTSP URL**を指定し、
+認証情報は端末内にだけ保存してください。
+
+管理者アプリの **JSON出力** で取得した `parking-layouts.json` がある場合は
+`--admin-layout "ファイルの実際のパス"` を追加すると、管理アプリの枠UID一覧を先に読み込みます。
+これは**位置座標を自動で変換するものではありません。**
+
+## 2. 実際のカメラで区画・敷地境界を再登録
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode calibrate -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+ウィンドウの表示に従い、見える枠の四隅を4点ずつ登録。
+映らない枠は `s` でスキップする（**管理アプリにある8枠を無理に登録しない**）。
+`l` で敷地全体の外周四隅を登録、`q` で保存。
+敷地全体が一枚の四角形にできない場合は、見える範囲を安全側に限定する。
+奥の枠が手前の車に隠れる場合は設定JSONに `occluded_by_spaces` をUIDで記入する。
+
+**空きが目視確認できた枠だけ**、`initially_confirmed_empty_uids` に列挙する。
+未確認の区画は `unknown` のまま。正確に判定できるまでは無理に公開しない。
+
+## 3. PCだけでライブ試験
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode camera -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+このモードは**Supabaseに何も送らない**。
+車が見えている区画で `occupied`、見えない区画で `unknown` が妥当か確認する。
+カメラ位置が変わった時は必ず校正し直す。ウィンドウで `q` を押すと停止。
+
+駐車開始時間はカメラが空き状態からの駐車を観測したときだけ確定。
+初めから停車中の車には「駐車開始時刻不明」と表示する。
+不明の車でも区画固定IDは継続し、車色は推定値のみ記録する。
+
+## 4. 管理者アプリへクラウド送信（公開はしない）
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode cloud -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+`cloud` は明示の確認入力とSupabase管理者ログインが必要。
+開始前にSupabase上の施設 `home-test-001` とカメラの全UIDを照合する。
+アクセス権がない場合はRLSによって書き込みが拒否される。
+この段階では利用者アプリへの自動公開を**しない**。
+管理者アプリで同施設を選び「カメラによる空き状況・駐車枠固定ID」を開くと
+区画状態、P001などの固定ID、色推定、駐車時間を確認できる。
+
+## 5. 利用者へ公開する前の合否条件
+
+- 実際に空いていない区画をavailableと案内したケースがないことを目視データで検証。
+- 少なくとも数回の「駐車→一時遮蔽→出庫」を再現し、P001などが変わらないことを確認。
+- 区画UIDが実際の表示位置・枠番号と一致。
+- カメラ断、暗所、遮蔽時に不正な空き案内が起きないことを確認。
+- 現状は**ソフトウェアの動作試験まで**。実測正解率とプライバシー対策を確認した後、
+  必要なら管理者アプリ側の「利用者アプリへ最新の空き状況を公開」を明示的にON。
+
+**注意：** 最新の日光v4結果では `slot_anchored_stay_count=0` であり、
+停止車両のセッション計測はまだ現地映像で成功を確認していません。
+判定対象を自宅に移すにあたり、区画位置の再登録と候補検出のログで原因を調べます。
+「成功しました」とは扱いません。
+
+---
+
 # v4（2026-10-27）：駐車区画を基準にした車両ID・死角・管理アプリ連携
 
 ## この変更の理由（測定結果）
