@@ -206,7 +206,7 @@ class SlotStayManager:
             pending = self.candidates.get(uid)
             if pending is None:
                 self.candidates[uid] = {
-                    "start": now, "latest": now, "point": point,
+                    "start": now, "latest": now, "point": point, "samples": 1,
                     "confirmed_empty": uid in self.prev_clear and uid not in self.initial_presence,
                     "color": color_shape(frame, det)[0],
                     "aspect": color_shape(frame, det)[1],
@@ -217,7 +217,7 @@ class SlotStayManager:
             # 停止候補は位置がほぼ不変。移動している車は確定しない。
             if distance > .028 or now - pending["latest"] > 3.0:
                 self.candidates[uid] = {
-                    "start": now, "latest": now, "point": point,
+                    "start": now, "latest": now, "point": point, "samples": 1,
                     "confirmed_empty": pending["confirmed_empty"],
                     "color": color_shape(frame, det)[0],
                     "aspect": color_shape(frame, det)[1],
@@ -225,7 +225,8 @@ class SlotStayManager:
                 }
                 continue
             pending["latest"] = now
-            if now - pending["start"] < self.park_seconds:
+            pending["samples"] += 1
+            if now - pending["start"] < self.park_seconds or pending["samples"] < 4:
                 continue
 
             observed = pending["confirmed_empty"]
