@@ -15,11 +15,11 @@ jobs:
         with:
           python-version: '3.11'
       - name: Check JavaScript syntax
-        run: node --check admin.js && node --check admin-i18n.js
+        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js
       - name: Run admin tests
         run: node --test tests/*.test.cjs
       - name: Run pure tracking tests (no camera or cloud)
         working-directory: parking-vision
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
-        run: python -m py_compile parking-vision/monitor.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py
+        run: python -m py_compile parking-vision/monitor.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py
