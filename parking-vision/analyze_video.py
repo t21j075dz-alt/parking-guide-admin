@@ -145,7 +145,8 @@ def analyze(args) -> Path:
             stay_csv = csv.writer(stay_stream)
             stay_csv.writerow(["動画の時刻(秒)", "駐車枠UID", "固定車両番号", "滞在セッションID",
                                "状態", "見えているか", "車色（推定）", "外形縦横比（参考）",
-                               "駐車時間(秒・観測開始を確認した場合のみ)", "駐車開始確認"])
+                               "駐車時間(秒・観測開始を確認した場合のみ)", "駐車開始確認",
+                               "最低観測継続時間(秒)"])
             detection_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス",
                                     "確信度", "x1", "y1", "x2", "y2", "駐車枠ID"])
             mapping_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス", "検出信頼度"])
@@ -238,6 +239,7 @@ def analyze(args) -> Path:
                             entry["bounding_box_aspect"],
                             entry["duration_seconds"] if entry["duration_seconds"] is not None else "",
                             "確認済み" if entry["started_at_observed"] else "開始時刻不明",
+                            entry["observed_seconds"],
                         ])
                 prevented_false_free_frames += sum(
                     raw[uid] == "available" and states[uid] != "available"
