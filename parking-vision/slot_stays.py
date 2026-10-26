@@ -172,7 +172,9 @@ class SlotStayManager:
             if state == "available" and det is None and uid not in occluded:
                 self.prev_clear.add(uid)
             if det is None:
-                self.candidates.pop(uid, None)
+                pending = self.candidates.get(uid)
+                if pending and now - pending["latest"] > 3:
+                    self.candidates.pop(uid, None)
                 if stay:
                     stay.in_view = False
                     stay.visibility = "occluded" if uid in occluded else "lost"
