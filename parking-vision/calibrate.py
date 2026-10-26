@@ -29,11 +29,13 @@ def main():
         raise SystemExit("config.json の space_uids に実際の駐車枠IDを入力してください")
 
     areas = dict(config.get("space_zones") or {})
+    if config.get("monitored_site_polygon"):
+        areas["monitored_site_polygon"] = config["monitored_site_polygon"]
     mode = 0
     clicked = []
     phase = "spaces"
     print("写真に写る駐車枠の四隅を、時計回りに4回クリックしてください。")
-    print("Enter: 次の枠  /  s: 枠を飛ばす  /  e: 入口  /  x: 出口  /  q: 保存して終了")
+    print("Enter: 次の枠 / s: スキップ / e: 入口 / x: 出口 / l: 敷地4隅 / q: 保存終了")
     print("輪郭は画面で確認し、よく見えない枠は登録しないでください。")
 
     def current_name():
@@ -87,6 +89,10 @@ def main():
         if key == ord("x"):
             clicked.clear()
             phase = "exit_zone"
+        if key == ord("l"):
+            clicked.clear()
+            phase = "monitored_site_polygon"
+            print("敷地の境界4点をクリック。敷地外の車はカウントされません。")
         if key == 8:  # Backspaceでクリックを1点取り消す
             if clicked:
                 clicked.pop()
@@ -100,7 +106,7 @@ def main():
                 phase = "entry_zone"
 
     config["space_zones"] = {uid: polygon for uid, polygon in areas.items() if uid in names}
-    for key in ("entry_zone", "exit_zone"):
+    for key in ("entry_zone", "exit_zone", "monitored_site_polygon"):
         if key in areas:
             config[key] = areas[key]
     path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
