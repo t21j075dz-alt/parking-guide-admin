@@ -27,5 +27,10 @@
   "occupied_hold_seconds": 8,
   "allow_unverified_initial_empty": false,
   "reid_window_seconds": 12,
-  "initially_confirmed_empty_uids": []
+  "initially_confirmed_empty_uids": [],
+  "monitored_site_polygon": [],
+  "camera_blind_space_uids": [],
+  "occluded_by_spaces": {},
+  "verify_admin_layout_on_cloud": true,
+  "admin_layout_export": ""
 }
