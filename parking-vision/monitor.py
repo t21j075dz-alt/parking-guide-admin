@@ -20,6 +20,8 @@ import time
 from urllib import error, parse, request
 from uuid import uuid4
 
+from stable_ids import StableIdMatcher
+
 # VisDroneのクラス名と標準COCOのクラス名を両方扱う。
 # ユーザーが以前学習したVisDroneモデルは、motor=二輪車、
 # pedestrian/people=歩行者などの名前を使っている。
@@ -167,9 +169,11 @@ class Vehicle:
 
 
 class VehicleTracker:
-    def __init__(self, facility_id: str, camera_id: str, park_seconds: float = 5):
+    def __init__(self, facility_id: str, camera_id: str, park_seconds: float = 5,
+                 lost_seconds: float = 12):
         self.facility_id, self.camera_id = facility_id, camera_id
         self.park_seconds = park_seconds
+        self.lost_seconds = lost_seconds
         self.vehicles: dict[int, Vehicle] = {}
 
     def update(self, detections: list[dict], zones: dict, exit_zone: list,
@@ -194,7 +198,7 @@ class VehicleTracker:
             if entry.phase == "exited":
                 changed.append(entry.row())
                 del self.vehicles[track_id]
-            elif now - entry.seen_monotonic > 3:
+            elif now - entry.seen_monotonic > self.lost_seconds:
                 entry.phase = "lost"  # IDが消えたことを「退出」とは決めつけない
                 changed.append(entry.row())
                 del self.vehicles[track_id]
@@ -340,7 +344,7 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (250, 255, 255), 2)
     for d in vehicle_detections + obstacles:
         px, py = d["point"]
-        label = f"{d['name']} #{d['track_id']}" if d["track_id"] is not None else d["name"]
+        label = f"{d['name']} ID{d['track_id']}" if d["track_id"] is not None else d["name"]
         cv2.putText(frame, label, (int(px * w), int(py * h)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 255, 20), 2)
 
@@ -384,7 +388,9 @@ def main():
     zones = config["space_zones"]
     observer = SpaceObserver(zones)
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
-                            float(config.get("park_seconds", 5)))
+                            float(config.get("park_seconds", 5)),
+                            lost_seconds=float(config.get("reid_window_seconds", 12)))
+    stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
     pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
@@ -398,6 +404,7 @@ def main():
                 vehicle_model, obstacle_model, frame, float(config.get("confidence", 0.35)),
             )
             now = time.monotonic()
+            vehicles = stable_ids.update(vehicles, now, frame=frame)
             for event in tracks.update(vehicles, zones, config.get("exit_zone", []), now):
                 pending_sessions[event["session_id"]] = event
             raw = classify_spaces(vehicles, blockers, zones)
