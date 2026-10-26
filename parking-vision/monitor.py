@@ -161,12 +161,13 @@ class VehicleTracker:
             point = detected["point"]
             uid = space_for(point, zones)
             entry = self.vehicles.get(int(track_id))
-            if entry is None:
+            is_new = entry is None
+            if is_new:
                 entry = Vehicle(self.camera_id, self.facility_id, int(track_id))
                 self.vehicles[int(track_id)] = entry
             previous = entry.phase
             entry.observe(point, uid, bool(exit_zone and inside(point, exit_zone)), now, self.park_seconds)
-            if entry.phase != previous or now - entry.seen_monotonic < 0.01:
+            if is_new or entry.phase != previous:
                 changed.append(entry.row())
         for track_id, entry in list(self.vehicles.items()):
             if entry.phase == "exited":
@@ -335,6 +336,7 @@ def main():
                             float(config.get("park_seconds", 5)))
     last_push, last_print = 0., 0.
     previous_statuses = None
+    pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
     try:
         while True:
             ok, frame = camera.read()
@@ -355,7 +357,8 @@ def main():
                 blockers.extend(detector_boxes(blocks[0], width, height, BLOCKING_NAMES))
                 # カスタムモデルにも車が含まれる場合、追跡は元の車両モデルだけで行う。
             now = time.monotonic()
-            tracks.update(vehicles, zones, config.get("exit_zone", []), now)
+            for event in tracks.update(vehicles, zones, config.get("exit_zone", []), now):
+                pending_sessions[event["session_id"]] = event
             occupied = {space_for(d["point"], zones) for d in vehicles}
             blocked = {space_for(d["point"], zones) for d in blockers}
             raw = {
@@ -364,7 +367,8 @@ def main():
             }
             statuses = observer.update(raw, now)
             changed = statuses != previous_statuses
-            if changed or now - last_push >= 5:
+            should_send = changed or bool(pending_sessions) or now - last_push >= 5
+            if should_send:
                 if writer:
                     rows = [{
                         "facility_id": config["facility_id"], "space_uid": uid,
@@ -374,14 +378,17 @@ def main():
                     try:
                         writer.upsert("parking_live_status", rows, "facility_id,space_uid")
                         # 追跡IDは同じカメラ稼働中だけ有効。車の画像は保存しない。
-                        writer.upsert("parking_vehicle_sessions",
-                                      [entry.row() for entry in tracks.vehicles.values()],
-                                      "session_id")
+                        session_rows = {entry.session_id: entry.row() for entry in tracks.vehicles.values()}
+                        session_rows.update(pending_sessions)
+                        writer.upsert("parking_vehicle_sessions", list(session_rows.values()), "session_id")
+                        pending_sessions.clear()
                     except (error.URLError, error.HTTPError, OSError, KeyError) as exc:
                         print(f"クラウド共有に失敗: {exc}（認証・権限・通信をご確認ください）")
                 if changed or now - last_print >= 5:
                     print(" / ".join(f"{uid}={STATUS_NAMES[status]}" for uid, status in statuses.items()))
                     last_print = now
+                if not writer:
+                    pending_sessions.clear()
                 previous_statuses, last_push = statuses.copy(), now
             if args.preview:
                 overlay(frame, zones, statuses, vehicles, blockers)
