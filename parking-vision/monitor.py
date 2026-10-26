@@ -20,7 +20,18 @@ import time
 from urllib import error, parse, request
 from uuid import uuid4
 
-VEHICLE_NAMES = {"car", "truck", "bus", "motorcycle", "bicycle", "vehicle", "van"}
+# VisDroneのクラス名と標準COCOのクラス名を両方扱う。
+# ユーザーが以前学習したVisDroneモデルは、motor=二輪車、
+# pedestrian/people=歩行者などの名前を使っている。
+VEHICLE_NAMES = {
+    "car", "truck", "bus", "motorcycle", "bicycle", "vehicle", "van",
+    "tricycle", "awning_tricycle",
+}
+CLASS_ALIASES = {
+    "pedestrian": "person",
+    "people": "person",
+    "motor": "motorcycle",
+}
 BLOCKING_NAMES = {
     "person", "cone", "traffic_cone", "traffic cone", "カラーコーン",
     "shopping_cart", "shopping cart", "cart", "trolley", "カート",
@@ -279,7 +290,8 @@ def detector_boxes(result, width: int, height: int, allowed: set[str]) -> list[d
         boxes.xyxy.cpu().tolist(), boxes.cls.int().cpu().tolist(),
         boxes.conf.cpu().tolist(), ids,
     ):
-        name = str(names[int(class_id)]).lower().strip().replace("-", "_")
+        raw_name = str(names[int(class_id)]).lower().strip().replace("-", "_")
+        name = CLASS_ALIASES.get(raw_name, raw_name)
         if name not in allowed:
             continue
         x1, y1, x2, y2 = bbox
