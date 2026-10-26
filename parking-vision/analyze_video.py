@@ -298,6 +298,9 @@ def analyze(args) -> Path:
         "observations": summarize_observations(counts, frames),
         "tracked_session_count": len(tracker_sessions),
         "slot_anchored_stay_count": len(stays.active) + len(stays.finished),
+        "slot_detection_frames_by_uid": stays.candidate_detection_frames,
+        "slot_pending_confirmation_uids": sorted(stays.candidates),
+        "slot_stay_note": "駐車枠固定IDが0件ならカメラ区画位置・接地点・停止時間・検出信頼度を確認",
         "slot_anchored_active": stays.current_display(now),
         "slot_anchored_finished_count": len(stays.finished),
         "slot_duration_confirmed_count": sum(
