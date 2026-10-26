@@ -1,0 +1,24 @@
+{
+  "facility_id": "home-test-001",
+  "camera_id": "home-camera-01",
+  "source": 0,
+  "supabase_url": "https://gahoqlpuufqjqpyaaykt.supabase.co",
+  "publishable_key": "ここにsync-config.jsのpublishableKeyを入力",
+  "vehicle_model": "yolo11n.pt",
+  "obstacle_model": "",
+  "confidence": 0.35,
+  "park_seconds": 5,
+  "space_uids": [
+    "space_001",
+    "space_002",
+    "space_003",
+    "space_004",
+    "space_005",
+    "space_006",
+    "space_007",
+    "space_008"
+  ],
+  "space_zones": {},
+  "entry_zone": [],
+  "exit_zone": []
+}
