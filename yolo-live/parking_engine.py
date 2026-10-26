@@ -84,6 +84,8 @@ class ParkingEngine:
         self.require_obstacles = bool(config.get("require_obstacle_detection", True))
         self.journeys: dict[int, Journey] = {}
         self.unresolved_slots: set[str] = set()
+        self.last_car_seen: dict[str, datetime] = {}
+        self.last_obstacle_seen: dict[str, datetime] = {}
         self.last_states: dict[str, str] = {}
         self.last_emitted: dict[str, datetime] = {}
 
@@ -107,11 +109,13 @@ class ParkingEngine:
             if label in OBSTACLES:
                 if slot:
                     obstacles.add(slot)
+                    self.last_obstacle_seen[slot] = now
                 continue
             if label not in VEHICLES:
                 continue
             if slot:
                 touched_slots.add(slot)
+                self.last_car_seen[slot] = now
             if det.track_id is None:
                 # トラッカーIDがない車も区画占有には数える。
                 continue
@@ -156,7 +160,7 @@ class ParkingEngine:
                     and (now - item.stationary_since).total_seconds() >= self.dwell):
                     item.phase = "parked"
                     item.space_uid = slot
-                    item.parked_at = now
+                    item.parked_at = item.candidate_since
                     self.unresolved_slots.discard(slot)
 
             if item.phase == "exiting" and self.exit_zone and inside(det.point, self.exit_zone):
@@ -181,11 +185,17 @@ class ParkingEngine:
 
         states = []
         for uid in self.slots:
+            # カメラが一時的に物体を見失った間は、決して「空き」にしない。
+            car_recent = uid in self.last_car_seen and (
+                now - self.last_car_seen[uid]).total_seconds() < self.lost_after
+            obstacle_recent = uid in self.last_obstacle_seen and (
+                now - self.last_obstacle_seen[uid]).total_seconds() < self.lost_after
             if uid in touched_slots:
                 status = "occupied"
             elif uid in obstacles:
                 status = "blocked"
-            elif uid in self.unresolved_slots or (self.require_obstacles and not obstacle_model_ready):
+            elif (uid in self.unresolved_slots or car_recent or obstacle_recent
+                  or (self.require_obstacles and not obstacle_model_ready)):
                 status = "unknown"
             else:
                 status = "available"
@@ -212,6 +222,8 @@ class ParkingEngine:
                     "left_space_at": item.left_space_at.isoformat() if item.left_space_at else None,
                     "exited_at": item.exited_at.isoformat() if item.exited_at else None,
                     "last_seen_at": item.last_seen_at.isoformat(),
+                    "position_x": round(item.position[0], 5),
+                    "position_y": round(item.position[1], 5),
                 })
                 item.last_sent_at = now
                 item.last_sent_phase = item.phase
