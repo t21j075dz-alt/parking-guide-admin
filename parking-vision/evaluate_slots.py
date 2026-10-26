@@ -87,7 +87,9 @@ def evaluate(prediction_rows, ground_truth_rows):
         fn = sum(confusion[(label, other)] for other in LABELS if other != label)
         precision = tp / (tp + fp) if tp + fp else None
         recall = tp / (tp + fn) if tp + fn else None
-        f1 = 2 * precision * recall / (precision + recall) if precision is not None and recall is not None and precision + recall else None
+        f1 = (2 * precision * recall / (precision + recall)
+              if precision is not None and recall is not None and precision + recall > 0
+              else 0.0 if precision is not None and recall is not None else None)
         by_label[label] = {
             "precision": round(precision, 4) if precision is not None else None,
             "recall": round(recall, 4) if recall is not None else None,
