@@ -26,5 +26,6 @@
   "tracking_confidence": 0.15,
   "occupied_hold_seconds": 8,
   "allow_unverified_initial_empty": false,
-  "reid_window_seconds": 12
+  "reid_window_seconds": 12,
+  "initially_confirmed_empty_uids": []
 }
