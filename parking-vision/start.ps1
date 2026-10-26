@@ -93,8 +93,15 @@ switch ($Mode) {
     break
   }
   "calibrate" {
-    Write-Host "【枠の登録】動画の駐車区画を四隅で登録してください。"
-    & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+    Write-Host "【枠の登録】設定のカメラまたは指定動画から画像を取得します。"
+    if ($Video) {
+      if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) {
+        throw "指定された動画がありません: $Video"
+      }
+      & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+    } else {
+      & $pythonCommand "calibrate.py" "--config" $config
+    }
     break
   }
   "camera" {
