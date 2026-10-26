@@ -4380,7 +4380,7 @@ async function refreshLiveMonitor() {
       liveMonitorFetch("parking_live_visibility", "is_published", facilityId),
       liveMonitorFetch("parking_live_status", "space_uid,status,checked_at", facilityId),
       liveMonitorFetch("parking_vehicle_sessions",
-        "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at,vehicle_color_estimate,vehicle_shape_ratio,visibility_state,start_time_verified,identity_basis", facilityId),
+        "track_id,phase,space_uid,entered_at,parked_at,left_space_at,last_seen_at,vehicle_color_estimate,vehicle_shape_ratio,visibility_state,start_time_verified,identity_basis", facilityId),
     ]);
     if (seq !== liveMonitorSequence || facilityId !== state.facilityId) return;
     liveMonitor.published.disabled = !visibility.length;
@@ -4428,6 +4428,18 @@ async function refreshLiveMonitor() {
         ? liveMonitorLanguage("・映像で未確認", " · temporarily not visible") : "";
       const color = vehicle.vehicle_color_estimate && vehicle.vehicle_color_estimate !== "不明"
         ? "・" + vehicle.vehicle_color_estimate : "";
+      let observedMinimum = "";
+      if (!vehicle.parked_at && vehicle.entered_at) {
+        const seen = Date.parse(vehicle.entered_at);
+        const lastSeen = Date.parse(vehicle.last_seen_at || "");
+        if (Number.isFinite(seen) && Number.isFinite(lastSeen) && lastSeen >= seen) {
+          const mins = Math.floor((lastSeen - seen) / 60000);
+          observedMinimum = liveMonitorLanguage(
+            "・少なくとも観測 " + mins + "分",
+            " · seen at least " + mins + " min",
+          );
+        }
+      }
       const startUnknown = !vehicle.parked_at
         ? liveMonitorLanguage("・駐車開始時刻不明", " · start time unknown") : "";
       const basis = vehicle.identity_basis === "stationary_slot"
@@ -4443,7 +4455,7 @@ async function refreshLiveMonitor() {
       appendLiveItem(liveMonitor.sessions,
         (vehicle.space_uid || "未割当") + "｜" + displayId + basis
         + "｜" + liveMonitorPhase(vehicle.phase)
-        + visual + color + shape + elapsed + startUnknown);
+        + visual + color + shape + elapsed + observedMinimum + startUnknown);
     }
     if (!order.length) appendLiveItem(liveMonitor.sessions,
       liveMonitorLanguage("まだ区画固定IDの駐車記録はありません。旧式の生ID記録は非表示です。",
