@@ -42,7 +42,15 @@ class NextStageLogicTest(unittest.TestCase):
         vehicle = tracker.vehicles[1]
         self.assertEqual(vehicle.phase, "parked")
         self.assertIsNotNone(vehicle.candidate_started_at)
-        self.assertEqual(vehicle.parked_at, vehicle.candidate_started_at)
+        self.assertIsNone(vehicle.parked_at)  # 動画開始時から駐車中なので時刻は不明
+
+    def test_parking_start_requires_observed_arrival(self):
+        tracker = VehicleTracker("home-test-001", "camera", park_seconds=5)
+        tracker.update([{"track_id": 1, "point": (.8, .8)}], self.zone, [], 0)
+        for t in range(1, 12):
+            tracker.update([{"track_id": 1, "point": (.25, .25)}], self.zone, [], t)
+        self.assertEqual(tracker.vehicles[1].phase, "parked")
+        self.assertIsNotNone(tracker.vehicles[1].parked_at)
 
     def test_unknown_not_reported_as_accuracy(self):
         obs = {"space_001": Counter({"available": 7, "unknown": 3})}

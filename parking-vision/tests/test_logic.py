@@ -13,7 +13,7 @@ class ParkingLogicTest(unittest.TestCase):
         self.assertEqual(space_for((0.25, 0.25), self.zones), "space_001")
 
     def test_free_requires_five_seconds(self):
-        observer = SpaceObserver(["space_001"])
+        observer = SpaceObserver(["space_001"], allow_initial_empty=True)
         observer.update({"space_001": "available"}, 1)
         self.assertEqual(observer.update({"space_001": "available"}, 2)["space_001"], "unknown")
         self.assertEqual(observer.update({"space_001": "available"}, 6)["space_001"], "available")
@@ -26,7 +26,53 @@ class ParkingLogicTest(unittest.TestCase):
                 self.zones, [], float(clock))
         self.assertEqual(tracker.vehicles[7].phase, "parked")
         self.assertEqual(tracker.vehicles[7].space_uid, "space_001")
-        self.assertTrue(tracker.vehicles[7].parked_at)
+        # 最初から区画内にある車は本当の駐車開始を測定できない
+        self.assertIsNone(tracker.vehicles[7].parked_at)
+
+    def test_departure_can_confirm_vacancy_without_false_free(self):
+        observer = SpaceObserver(["space_001"], absence_hold_seconds=3)
+        observer.update({"space_001": "occupied"}, 0)
+        observer.update({"space_001": "occupied"}, 1)
+        self.assertEqual(observer.update({"space_001": "available"}, 2)["space_001"], "occupied")
+        self.assertEqual(observer.update({"space_001": "available"}, 5)["space_001"], "occupied")
+        self.assertEqual(observer.update({"space_001": "available"}, 5.5)["space_001"], "unknown")
+        observer.update({"space_001": "available"}, 6, departures=["space_001"])
+        self.assertNotEqual(observer.update({"space_001": "available"}, 7)["space_001"], "available")
+        self.assertEqual(observer.update({"space_001": "available"}, 12)["space_001"], "available")
+
+    def test_no_initial_free_without_verification(self):
+        observer = SpaceObserver(["space_001"])
+        for now in (0, 1, 10, 20):
+            self.assertEqual(observer.update({"space_001": "available"}, now)["space_001"], "unknown")
+
+    def test_border_straddling_car_cannot_make_adjacent_free(self):
+        from monitor import classify_spaces
+        zones = {"A": [[0, 0],[.5,0],[.5,1],[0,1]],
+                 "B": [[.5,0],[1,0],[1,1],[.5,1]]}
+        car = [{"point": (.495,.7), "bottom_points": [(.45,.7),(.495,.7),(.56,.7)]}]
+        states = classify_spaces(car, [], zones)
+        self.assertNotEqual(states["A"], "available")
+        self.assertNotEqual(states["B"], "available")
+
+    def test_operator_verified_initial_empty_is_allowed_only_for_checked_spaces(self):
+        observer = SpaceObserver(
+            ["space_001", "space_002"],
+            initially_confirmed_empty_uids=["space_001"],
+        )
+        first = {"space_001": "available", "space_002": "available"}
+        observer.update(first, 0)
+        observed = observer.update(first, 6)
+        self.assertEqual(observed["space_001"], "available")
+        self.assertEqual(observed["space_002"], "unknown")
+
+    def test_initially_occupied_then_undetected_never_claims_free(self):
+        observer = SpaceObserver(["space_001"], absence_hold_seconds=4)
+        observer.update({"space_001": "occupied"}, 0)
+        observer.update({"space_001": "occupied"}, 1)
+        for t in (2, 3, 4):
+            self.assertEqual(observer.update({"space_001": "available"}, t)["space_001"], "occupied")
+        for t in (6, 7, 20, 50):
+            self.assertNotEqual(observer.update({"space_001": "available"}, t)["space_001"], "available")
 
     def test_track_lost_is_not_exit(self):
         tracker = VehicleTracker("home-test-001", "camera", lost_seconds=3)

@@ -20,5 +20,12 @@
   ],
   "space_zones": {},
   "entry_zone": [],
-  "exit_zone": []
+  "exit_zone": [],
+  "tracker_file": "botsort-parking.yaml",
+  "image_size": 960,
+  "tracking_confidence": 0.15,
+  "occupied_hold_seconds": 8,
+  "allow_unverified_initial_empty": false,
+  "reid_window_seconds": 12,
+  "initially_confirmed_empty_uids": []
 }

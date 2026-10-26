@@ -22,6 +22,10 @@ from uuid import uuid4
 
 from stable_ids import StableIdMatcher
 
+# 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
+_TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
+DEFAULT_TRACKER = str(_TRACKER_PROFILE) if _TRACKER_PROFILE.is_file() else "botsort.yaml"
+
 # VisDroneのクラス名と標準COCOのクラス名を両方扱う。
 # ユーザーが以前学習したVisDroneモデルは、motor=二輪車、
 # pedestrian/people=歩行者などの名前を使っている。
@@ -82,6 +86,17 @@ def load_config(path: str) -> dict:
     for name in ("entry_zone", "exit_zone"):
         if content.get(name) and not valid_polygon(content[name]):
             raise ValueError(f"{name} の範囲が正しくありません")
+    confirmed = content.get("initially_confirmed_empty_uids", [])
+    if not isinstance(confirmed, list) or any(uid not in zones for uid in confirmed):
+        raise ValueError("initially_confirmed_empty_uids は登録済み区画IDにしてください")
+    for key in ("confidence", "tracking_confidence"):
+        value = float(content.get(key, .35 if key == "confidence" else .15))
+        if not 0 < value <= 1:
+            raise ValueError(f"{key} は0より大きく1以下で設定してください")
+    if float(content.get("occupied_hold_seconds", 8)) < 0:
+        raise ValueError("occupied_hold_seconds は0以上にしてください")
+    if float(content.get("reid_window_seconds", 12)) <= 0:
+        raise ValueError("reid_window_seconds は0より大きくしてください")
     return content
 
 
@@ -97,6 +112,7 @@ class Vehicle:
     track_id: int
     session_id: str = field(default_factory=lambda: str(uuid4()))
     phase: str = "entering"
+    arrived_from_outside: bool = False
     entered_at: str = field(default_factory=utc_now)
     parked_at: str | None = None
     left_space_at: str | None = None
@@ -119,6 +135,8 @@ class Vehicle:
         self.last_seen_at = utc_now()
         self.position_x, self.position_y = point
         self.locations.append((now, point))
+        if uid is None and self.phase in {"entering", "moving"}:
+            self.arrived_from_outside = True
         recent = [p for t, p in self.locations if now - t <= 3]
         stationary = len(recent) >= 3 and max(
             ((p[0] - recent[0][0]) ** 2 + (p[1] - recent[0][1]) ** 2) ** 0.5
@@ -133,7 +151,9 @@ class Vehicle:
                 elif now - self.candidate_since >= park_seconds:
                     self.phase, self.space_uid = "parked", uid
                     # 駐車開始は「確定した時刻」ではなく「停止を始めた時刻」。
-                    self.parked_at = self.candidate_started_at or utc_now()
+                    # 動画開始時点で既に駐車していた車は、駐車開始時刻が不明。
+                    # 入場/移動を画面で確認した車だけ開始時刻を確定する。
+                    self.parked_at = (self.candidate_started_at or utc_now()) if self.arrived_from_outside else None
             else:
                 self.candidate_uid = None
                 self.candidate_started_at = None
@@ -206,26 +226,65 @@ class VehicleTracker:
 
 
 class SpaceObserver:
-    """2フレーム連続で占有確認。空きは5秒連続確認後にだけ確定する。"""
-    def __init__(self, space_uids):
+    """誤った「空き」を防ぐため不確実な区画をunknownに戻す。
+
+    車両が一時的に検出されなくなっても「空き」にしない。過去に
+    占有された区画は、追跡上の出庫を確認した場合のみ「空き」に戻す。
+    初期時点で車のない区画も、明示設定がなければunknownのまま。
+    """
+
+    def __init__(self, space_uids, allow_initial_empty=False,
+                 absence_hold_seconds=8.0, initially_confirmed_empty_uids=()):
         self.states = {uid: "unknown" for uid in space_uids}
         self.candidates = {}
         self.since = {}
         self.frames = defaultdict(int)
+        self.allow_initial_empty = bool(allow_initial_empty)
+        self.initial_approved = set(initially_confirmed_empty_uids)
+        self.absence_hold_seconds = float(absence_hold_seconds)
+        self.last_vehicle_seen = {}
+        self.had_vehicle = set()
+        self.departure_verified = set()
 
-    def update(self, raw: dict[str, str], now: float) -> dict[str, str]:
-        for uid, desired in raw.items():
+    def update(self, raw: dict[str, str], now: float, departures=()) -> dict[str, str]:
+        for uid in departures:
+            if uid in self.states:
+                self.departure_verified.add(uid)
+        for uid, reported in raw.items():
+            if uid not in self.states:
+                continue
+            desired = reported
+            if reported == "occupied":
+                self.last_vehicle_seen[uid] = now
+                self.had_vehicle.add(uid)
+                self.departure_verified.discard(uid)
+            elif reported == "available":
+                last_seen = self.last_vehicle_seen.get(uid)
+                if last_seen is not None and now - last_seen < self.absence_hold_seconds:
+                    # 検出が瞬断しただけでは占有解除しない
+                    desired = "occupied"
+                elif uid in self.had_vehicle and uid not in self.departure_verified:
+                    # 車が見えなくなっただけでは退出と断定できない
+                    desired = "unknown"
+                elif (uid not in self.had_vehicle and not self.allow_initial_empty
+                      and uid not in self.initial_approved):
+                    # 初期フレームで見えない車があるかもしれない
+                    desired = "unknown"
+            elif reported not in {"blocked", "unknown"}:
+                desired = "unknown"
+
             if desired != self.candidates.get(uid):
                 self.candidates[uid] = desired
                 self.since[uid] = now
                 self.frames[uid] = 1
             else:
                 self.frames[uid] += 1
-            min_seconds = 5.0 if desired == "available" else 0.3
+            min_seconds = (5.0 if desired == "available"
+                           else 0.3 if desired in {"occupied", "blocked"}
+                           else 0.3)
             if self.frames[uid] >= 2 and now - self.since[uid] >= min_seconds:
                 self.states[uid] = desired
         return self.states.copy()
-
 
 class SupabaseWriter:
     """Supabase Authの管理者アカウントで更新。秘密鍵をブラウザーへ置かない。"""
@@ -302,30 +361,61 @@ def detector_boxes(result, width: int, height: int, allowed: set[str]) -> list[d
         # 下辺中央を車両が地面に接している位置の近似として用いる。
         point = (min(1., max(0., (x1 + x2) / (2 * width))),
                  min(1., max(0., y2 / height)))
-        output.append({"name": name, "point": point, "track_id": track_id,
-                       "confidence": float(score), "bbox": bbox})
+        # 下端の接地位置が区画境界をまたぐ場合は、安全側に「未確認」。
+        contact = [
+            (min(1., max(0., (x1 + (x2-x1)*fraction) / width)),
+             min(1., max(0., y2 / height)))
+            for fraction in (0.25, 0.5, 0.75)
+        ]
+        output.append({"name": name, "point": point, "bottom_points": contact,
+                       "track_id": track_id, "confidence": float(score), "bbox": bbox})
     return output
 
 
 
 def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> dict[str, str]:
-    """同じ判定規則をライブ・録画テストで共有する。車両が最優先、次に障害物。"""
-    occupied = {space_for(d["point"], zones) for d in vehicles}
-    blocked = {space_for(d["point"], zones) for d in blockers}
+    """接地点を優先。区画境界にかかる曖昧な車は空きとして案内しない。"""
+    occupied, blocked, uncertain = set(), set(), set()
+
+    def put(detection, definite):
+        center_uid = space_for(detection["point"], zones)
+        points = detection.get("bottom_points") or [detection["point"]]
+        touched = {space_for(p, zones) for p in points}
+        touched.discard(None)
+        if center_uid and (not touched or touched == {center_uid}):
+            definite.add(center_uid)
+        elif touched:
+            uncertain.update(touched)
+            if center_uid:
+                uncertain.add(center_uid)
+        elif center_uid:
+            definite.add(center_uid)
+
+    for vehicle in vehicles:
+        put(vehicle, occupied)
+    for blocker in blockers:
+        put(blocker, blocked)
     return {
-        uid: "occupied" if uid in occupied else "blocked" if uid in blocked
-        else "available" for uid in zones
+        uid: ("occupied" if uid in occupied else
+              "unknown" if uid in uncertain else
+              "blocked" if uid in blocked else "available")
+        for uid in zones
     }
 
-
-def infer_frame(vehicle_model, obstacle_model, frame, confidence: float):
+def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
+                tracker_file: str = DEFAULT_TRACKER, image_size: int = 960,
+                occupancy_confidence: float = 0.35):
     """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
     height, width = frame.shape[:2]
     results = vehicle_model.track(
-        frame, persist=True, tracker="bytetrack.yaml", conf=confidence, verbose=False,
+        frame, persist=True, tracker=tracker_file, conf=confidence,
+        imgsz=image_size, verbose=False,
     )
     vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
-    blockers = detector_boxes(results[0], width, height, BLOCKING_NAMES)
+    # 追跡器には低確信度の検出も渡すが、占有判定には最低限の信頼を求める。
+    # IDの連続性向上のため、検出した車両そのものはここでは除外しない。
+    blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
+                if d["confidence"] >= occupancy_confidence]
     if obstacle_model:
         results_extra = obstacle_model.predict(frame, conf=confidence, verbose=False)
         blockers.extend(detector_boxes(results_extra[0], width, height, BLOCKING_NAMES))
@@ -386,7 +476,12 @@ def main():
         del password
 
     zones = config["space_zones"]
-    observer = SpaceObserver(zones)
+    observer = SpaceObserver(
+        zones,
+        allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
+        absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+        initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
+    )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
@@ -401,14 +496,24 @@ def main():
                 print("映像を取得できません。更新停止後、利用者画面では自動的に未確認になります。")
                 break
             vehicles, blockers = infer_frame(
-                vehicle_model, obstacle_model, frame, float(config.get("confidence", 0.35)),
+                vehicle_model, obstacle_model, frame,
+                float(config.get("tracking_confidence", 0.15)),
+                tracker_file=str(config.get("tracker_file", DEFAULT_TRACKER)),
+                image_size=int(config.get("image_size", 960)),
+                occupancy_confidence=float(config.get("confidence", 0.35)),
             )
             now = time.monotonic()
             vehicles = stable_ids.update(vehicles, now, frame=frame)
-            for event in tracks.update(vehicles, zones, config.get("exit_zone", []), now):
+            events = tracks.update(vehicles, zones, config.get("exit_zone", []), now)
+            for event in events:
                 pending_sessions[event["session_id"]] = event
-            raw = classify_spaces(vehicles, blockers, zones)
-            statuses = observer.update(raw, now)
+            # 区画占有だけには信頼度が低い検出を使わない
+            occupancy_vehicles = [d for d in vehicles
+                                  if d["confidence"] >= float(config.get("confidence", 0.35))]
+            raw = classify_spaces(occupancy_vehicles, blockers, zones)
+            departures = [event["space_uid"] for event in events
+                          if event["phase"] == "exiting" and event.get("space_uid")]
+            statuses = observer.update(raw, now, departures=departures)
             changed = statuses != previous_statuses
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:

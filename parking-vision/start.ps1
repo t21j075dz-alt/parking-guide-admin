@@ -2,9 +2,10 @@
 # 使い方：PowerShellで .\start.ps1（動画テスト）
 # 動画・写真・録画は研究PCにだけ保存し、勝手に公開しない。
 param(
-  [ValidateSet("video", "calibrate", "camera", "cloud", "label", "train")]
+  [ValidateSet("video", "calibrate", "camera", "cloud", "label", "train", "compare")]
   [string]$Mode = "video",
   [string]$Video = "",
+  [string]$Config = "config.json",
   [string]$Images = "",
   [string]$ValidationImages = "",
   [string]$Python = "",
@@ -36,9 +37,10 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
-$config = Join-Path $PSScriptRoot "config.json"
-if ($Mode -in @("video", "calibrate", "camera", "cloud")) {
+$config = if ([IO.Path]::IsPathRooted($Config)) { $Config } else { Join-Path $PSScriptRoot $Config }
+if ($Mode -in @("video", "calibrate", "camera", "cloud", "compare")) {
   if (-not (Test-Path -LiteralPath $config)) {
+    if ($Config -ne "config.json") { throw "指定された設定ファイルが見つかりません: $config" }
     Copy-Item (Join-Path $PSScriptRoot "config.example.json") $config
     Write-Host "初回設定のため config.json を作成しました。"
     Write-Host "管理アプリの施設ID、クラウドの公開用キーと区画IDを確認して保存してください。"
@@ -48,14 +50,19 @@ if ($Mode -in @("video", "calibrate", "camera", "cloud")) {
   }
 }
 
-if ($Mode -in @("video", "calibrate") -and -not $Video) {
+if ($Mode -in @("video", "calibrate", "compare") -and -not $Video) {
   $Video = Read-Host "撮影した動画のフルパスを入力してください（例: C:\parking\test_house1.mp4）"
 }
-if ($Mode -in @("video", "calibrate") -and -not (Test-Path -LiteralPath $Video -PathType Leaf)) {
+if ($Mode -in @("video", "calibrate", "compare") -and -not (Test-Path -LiteralPath $Video -PathType Leaf)) {
   throw "動画ファイルが見つかりません。フルパスを確認してください: $Video"
 }
 
 switch ($Mode) {
+  "compare" {
+    Write-Host "【追跡方式の比較】BoT-SORTとByteTrackで同じ動画をそれぞれ解析します。"
+    & $pythonCommand "compare_tracking.py" "--config" $config "--video" $Video
+    break
+  }
   "video" {
     Write-Host "【録画動画の解析】クラウドには書き込みません。"
     # 最初の1回はカメラの写真と駐車枠の位置を結びつける。
