@@ -215,7 +215,7 @@ class SlotStayManager:
                 continue
             distance = hypot(point[0]-pending["point"][0], point[1]-pending["point"][1])
             # 停止候補は位置がほぼ不変。移動している車は確定しない。
-            if distance > .018 or now - pending["latest"] > 1.2:
+            if distance > .028 or now - pending["latest"] > 3.0:
                 self.candidates[uid] = {
                     "start": now, "latest": now, "point": point,
                     "confirmed_empty": pending["confirmed_empty"],
