@@ -4380,7 +4380,7 @@ async function refreshLiveMonitor() {
       liveMonitorFetch("parking_live_visibility", "is_published", facilityId),
       liveMonitorFetch("parking_live_status", "space_uid,status,checked_at", facilityId),
       liveMonitorFetch("parking_vehicle_sessions",
-        "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at", facilityId),
+        "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at,vehicle_color_estimate,vehicle_shape_ratio,visibility_state,start_time_verified,identity_basis", facilityId),
     ]);
     if (seq !== liveMonitorSequence || facilityId !== state.facilityId) return;
     liveMonitor.published.disabled = !visibility.length;
@@ -4405,8 +4405,10 @@ async function refreshLiveMonitor() {
         "この施設には登録された駐車枠がありません。", "No parking spaces have been registered.",
       ));
     }
-    const order = [...sessions].sort((a, b) =>
-      Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0)).slice(0, 15);
+    // 固定された駐車枠の滞在セッションを優先。以前の生YOLO追跡ログは表示しない。
+    const anchored = sessions.filter(s => s.identity_basis === "stationary_slot");
+    const order = anchored.sort((a, b) =>
+      Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0)).slice(0, 50);
     for (const vehicle of order) {
       let elapsed = "";
       if (vehicle.parked_at) {
@@ -4422,12 +4424,22 @@ async function refreshLiveMonitor() {
             " · parked for " + minutes + " min");
         }
       }
+      const visual = vehicle.visibility_state && vehicle.visibility_state !== "visible"
+        ? liveMonitorLanguage("・映像で未確認", " · temporarily not visible") : "";
+      const color = vehicle.vehicle_color_estimate && vehicle.vehicle_color_estimate !== "不明"
+        ? "・" + vehicle.vehicle_color_estimate : "";
+      const startUnknown = !vehicle.parked_at
+        ? liveMonitorLanguage("・駐車開始時刻不明", " · start time unknown") : "";
+      const basis = vehicle.identity_basis === "stationary_slot"
+        ? liveMonitorLanguage("（区画固定ID）", " (space-anchored ID)") : "";
       appendLiveItem(liveMonitor.sessions,
-        "#" + vehicle.track_id + " " + liveMonitorPhase(vehicle.phase)
-        + (vehicle.space_uid ? "・" + vehicle.space_uid : "") + elapsed);
+        (vehicle.space_uid || "未割当") + "｜#" + vehicle.track_id + basis
+        + "｜" + liveMonitorPhase(vehicle.phase)
+        + visual + color + elapsed + startUnknown);
     }
     if (!order.length) appendLiveItem(liveMonitor.sessions,
-      liveMonitorLanguage("まだ車両の記録はありません。", "No vehicle records yet."));
+      liveMonitorLanguage("まだ区画固定IDの駐車記録はありません。旧式の生ID記録は非表示です。",
+        "No space-anchored parking records yet. Old tracker IDs are hidden."));
     liveMonitor.message.textContent = liveMonitorLanguage(
       "更新 " + new Date().toLocaleTimeString("ja-JP") + "｜カメラ状況 " + statuses.length
       + "区画｜" + (visibility[0]?.is_published ? "公開中" : "非公開"),
