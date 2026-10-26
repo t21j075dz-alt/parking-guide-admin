@@ -1,3 +1,31 @@
+# 以前学習したVisDroneモデルをそのまま使う（追加学習不要）
+
+2026年10月21日に学習した独自モデルに含まれていた10クラス：
+
+| VisDroneモデルの名前 | アプリでの扱い |
+|---|---|
+| pedestrian / people | 人が立っている等の区画は「障害物あり」（personとして判定） |
+| bicycle / motor | 自転車 / 二輪車（motorはmotorcycleと読み替え） |
+| car / van / truck / bus | 車両による占有 |
+| tricycle / awning-tricycle | 三輪車による占有 |
+
+これらは**検出できるクラス名**であって、現地の検出精度が保証されたことを意味しません。
+このモデルにカラーコーンやショッピングカートのクラスは**ありません**。追加モデルを学習するまでは障害物として検出できるとは限りません。
+
+Windowsの config.json の vehicle_model には **学習済みbest.ptの実際のフルパス**を指定してください。例えば（自分のWindowsユーザー名へ変更）：
+
+    "vehicle_model": "C:/Users/your-name/parking-yolo-home/runs/parking_objects/visdrone_finetune_v1/weights/best.pt"
+
+追加障害物モデルが未学習なら obstacle_model は空文字のままにします。
+**すでにUltralyticsが使える別の仮想環境**を明示的に使えます：
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode video -Video "C:\parking\test_house1.mp4" -Python "C:\Users\your-name\parking-yolo-home\.venv-gpu\Scripts\python.exe" -Preview -SaveVideo
+
+以前ダウンロードしたZIPには修正前のmonitor.pyが入っているため、GitHubから最新版をダウンロードし直してください。config.jsonをすでに編集している場合は、再取得前にバックアップしてください。
+なお、モデルの重み（best.pt）は各PC内にあり、GitHubへはまだアップロードされていません。
+
+---
+
 # 録画動画・写真を使う次の研究実験（2026-10-27）
 
 **初めはPC内だけで解析し、クラウドへは公開しません。**
