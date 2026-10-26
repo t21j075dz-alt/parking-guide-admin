@@ -44,7 +44,8 @@ class SlotAnchoredTests(unittest.TestCase):
         self.assertIn("space_001", manager.active)
         self.assertEqual(manager.active["space_001"].park_start_video, 1.0)
         shown = manager.current_display(5)[0]
-        self.assertEqual(shown["duration_seconds"], 4)
+        self.assertEqual(shown["duration_seconds"], 3)
+        self.assertEqual(shown["observed_seconds"], 3)  # 最後に見えた時点で停止
         self.assertTrue(shown["started_at_observed"])
 
     def test_occluded_stay_survives_and_exits_only_after_verified_empty(self):
