@@ -87,7 +87,8 @@ def analyze(args) -> Path:
     zones = config["space_zones"]
     space_states = SpaceObserver(zones)
     tracker = VehicleTracker(config["facility_id"], config["camera_id"],
-                             float(config.get("park_seconds", 5)))
+                             float(config.get("park_seconds", 5)),
+                             lost_seconds=float(config.get("reid_window_seconds", 12)))
     stable_ids = StableIdMatcher(max_missing=float(config.get('reid_window_seconds', 12)))
     raw_identity_changes = []
     counts = {uid: Counter() for uid in zones}
