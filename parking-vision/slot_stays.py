@@ -197,6 +197,9 @@ class SlotStayManager:
                         self.prev_clear.add(uid)
                 continue
 
+            # セッション確定には区画側の占有確認も要求する。
+            if state != "occupied" and not stay:
+                continue
             point = tuple(det["point"])
             if stay:
                 stay.in_view = True
