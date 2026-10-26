@@ -206,26 +206,63 @@ class VehicleTracker:
 
 
 class SpaceObserver:
-    """2フレーム連続で占有確認。空きは5秒連続確認後にだけ確定する。"""
-    def __init__(self, space_uids):
+    """誤った「空き」を防ぐため不確実な区画をunknownに戻す。
+
+    車両が一時的に検出されなくなっても「空き」にしない。過去に
+    占有された区画は、追跡上の出庫を確認した場合のみ「空き」に戻す。
+    初期時点で車のない区画も、明示設定がなければunknownのまま。
+    """
+
+    def __init__(self, space_uids, allow_initial_empty=False,
+                 absence_hold_seconds=8.0):
         self.states = {uid: "unknown" for uid in space_uids}
         self.candidates = {}
         self.since = {}
         self.frames = defaultdict(int)
+        self.allow_initial_empty = bool(allow_initial_empty)
+        self.absence_hold_seconds = float(absence_hold_seconds)
+        self.last_vehicle_seen = {}
+        self.had_vehicle = set()
+        self.departure_verified = set()
 
-    def update(self, raw: dict[str, str], now: float) -> dict[str, str]:
-        for uid, desired in raw.items():
+    def update(self, raw: dict[str, str], now: float, departures=()) -> dict[str, str]:
+        for uid in departures:
+            if uid in self.states:
+                self.departure_verified.add(uid)
+        for uid, reported in raw.items():
+            if uid not in self.states:
+                continue
+            desired = reported
+            if reported == "occupied":
+                self.last_vehicle_seen[uid] = now
+                self.had_vehicle.add(uid)
+                self.departure_verified.discard(uid)
+            elif reported == "available":
+                last_seen = self.last_vehicle_seen.get(uid)
+                if last_seen is not None and now - last_seen < self.absence_hold_seconds:
+                    # 検出が瞬断しただけでは占有解除しない
+                    desired = "occupied"
+                elif uid in self.had_vehicle and uid not in self.departure_verified:
+                    # 車が見えなくなっただけでは退出と断定できない
+                    desired = "unknown"
+                elif uid not in self.had_vehicle and not self.allow_initial_empty:
+                    # 初期フレームで見えない車があるかもしれない
+                    desired = "unknown"
+            elif reported not in {"blocked", "unknown"}:
+                desired = "unknown"
+
             if desired != self.candidates.get(uid):
                 self.candidates[uid] = desired
                 self.since[uid] = now
                 self.frames[uid] = 1
             else:
                 self.frames[uid] += 1
-            min_seconds = 5.0 if desired == "available" else 0.3
+            min_seconds = (5.0 if desired == "available"
+                           else 0.3 if desired in {"occupied", "blocked"}
+                           else 0.3)
             if self.frames[uid] >= 2 and now - self.since[uid] >= min_seconds:
                 self.states[uid] = desired
         return self.states.copy()
-
 
 class SupabaseWriter:
     """Supabase Authの管理者アカウントで更新。秘密鍵をブラウザーへ置かない。"""
@@ -318,14 +355,20 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> 
     }
 
 
-def infer_frame(vehicle_model, obstacle_model, frame, confidence: float):
+def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
+                tracker_file: str = "botsort.yaml", image_size: int = 960,
+                occupancy_confidence: float = 0.35):
     """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
     height, width = frame.shape[:2]
     results = vehicle_model.track(
-        frame, persist=True, tracker="bytetrack.yaml", conf=confidence, verbose=False,
+        frame, persist=True, tracker=tracker_file, conf=confidence,
+        imgsz=image_size, verbose=False,
     )
     vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
-    blockers = detector_boxes(results[0], width, height, BLOCKING_NAMES)
+    # 追跡器には低確信度の検出も渡すが、占有判定には最低限の信頼を求める。
+    # IDの連続性向上のため、検出した車両そのものはここでは除外しない。
+    blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
+                if d["confidence"] >= occupancy_confidence]
     if obstacle_model:
         results_extra = obstacle_model.predict(frame, conf=confidence, verbose=False)
         blockers.extend(detector_boxes(results_extra[0], width, height, BLOCKING_NAMES))
@@ -386,7 +429,11 @@ def main():
         del password
 
     zones = config["space_zones"]
-    observer = SpaceObserver(zones)
+    observer = SpaceObserver(
+        zones,
+        allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
+        absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+    )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
@@ -401,14 +448,24 @@ def main():
                 print("映像を取得できません。更新停止後、利用者画面では自動的に未確認になります。")
                 break
             vehicles, blockers = infer_frame(
-                vehicle_model, obstacle_model, frame, float(config.get("confidence", 0.35)),
+                vehicle_model, obstacle_model, frame,
+                float(config.get("tracking_confidence", 0.15)),
+                tracker_file=str(config.get("tracker_file", "botsort.yaml")),
+                image_size=int(config.get("image_size", 960)),
+                occupancy_confidence=float(config.get("confidence", 0.35)),
             )
             now = time.monotonic()
             vehicles = stable_ids.update(vehicles, now, frame=frame)
-            for event in tracks.update(vehicles, zones, config.get("exit_zone", []), now):
+            events = tracks.update(vehicles, zones, config.get("exit_zone", []), now)
+            for event in events:
                 pending_sessions[event["session_id"]] = event
-            raw = classify_spaces(vehicles, blockers, zones)
-            statuses = observer.update(raw, now)
+            # 区画占有だけには信頼度が低い検出を使わない
+            occupancy_vehicles = [d for d in vehicles
+                                  if d["confidence"] >= float(config.get("confidence", 0.35))]
+            raw = classify_spaces(occupancy_vehicles, blockers, zones)
+            departures = [event["space_uid"] for event in events
+                          if event["phase"] == "exiting" and event.get("space_uid")]
+            statuses = observer.update(raw, now, departures=departures)
             changed = statuses != previous_statuses
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
