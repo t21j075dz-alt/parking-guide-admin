@@ -169,9 +169,11 @@ class Vehicle:
 
 
 class VehicleTracker:
-    def __init__(self, facility_id: str, camera_id: str, park_seconds: float = 5):
+    def __init__(self, facility_id: str, camera_id: str, park_seconds: float = 5,
+                 lost_seconds: float = 12):
         self.facility_id, self.camera_id = facility_id, camera_id
         self.park_seconds = park_seconds
+        self.lost_seconds = lost_seconds
         self.vehicles: dict[int, Vehicle] = {}
 
     def update(self, detections: list[dict], zones: dict, exit_zone: list,
@@ -196,7 +198,7 @@ class VehicleTracker:
             if entry.phase == "exited":
                 changed.append(entry.row())
                 del self.vehicles[track_id]
-            elif now - entry.seen_monotonic > 3:
+            elif now - entry.seen_monotonic > self.lost_seconds:
                 entry.phase = "lost"  # IDが消えたことを「退出」とは決めつけない
                 changed.append(entry.row())
                 del self.vehicles[track_id]
@@ -386,7 +388,8 @@ def main():
     zones = config["space_zones"]
     observer = SpaceObserver(zones)
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
-                            float(config.get("park_seconds", 5)))
+                            float(config.get("park_seconds", 5)),
+                            lost_seconds=float(config.get("reid_window_seconds", 12)))
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
