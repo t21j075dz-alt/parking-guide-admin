@@ -93,6 +93,7 @@ class SlotStay:
     first_seen_video: float
     first_seen_wall: str | None
     last_seen_video: float
+    last_seen_wall: str
     parked_confirmed_video: float
     park_start_video: float | None
     park_start_wall: str | None
@@ -109,12 +110,12 @@ class SlotStay:
         return {
             "session_id": self.session_id,
             "facility_id": facility_id, "camera_id": camera_id,
-            "track_id": self.camera_number, "phase": self.phase,
+            "track_id": self.camera_number, "phase": self.phase if self.in_view else "lost",
             "space_uid": self.uid,
             "entered_at": self.first_seen_wall or stamp(),
             "parked_at": self.park_start_wall,
             "left_space_at": None, "exited_at": None,
-            "last_seen_at": stamp(),
+            "last_seen_at": self.last_seen_wall,
             "position_x": self.point[0], "position_y": self.point[1],
         }
 
@@ -184,10 +185,13 @@ class SlotStayManager:
                 stay.in_view = True
                 stay.visibility = "visible"
                 stay.last_seen_video = now
+                stay.last_seen_wall = stamp()
                 stay.point = point
                 self.candidates.pop(uid, None)
                 continue
 
+            # 初期フレームにいた車の開始時刻は不明。空き確認後に
+            # 新しく侵入した車だけ駐車開始時刻を測定する。
             pending = self.candidates.get(uid)
             if pending is None:
                 self.candidates[uid] = {
@@ -221,6 +225,7 @@ class SlotStayManager:
                 first_seen_video=pending["start"],
                 first_seen_wall=pending["wall"],
                 last_seen_video=now,
+                last_seen_wall=stamp(),
                 parked_confirmed_video=now,
                 park_start_video=pending["start"] if observed else None,
                 park_start_wall=pending["wall"] if observed else None,
