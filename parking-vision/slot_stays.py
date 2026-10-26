@@ -147,6 +147,7 @@ class SlotStayManager:
         self.initial_presence = set()
         self.prev_clear = set(self.confirmed_empty)
         self.departure_pending = set()
+        self.candidate_detection_frames = {uid: 0 for uid in zones}
 
     def update(self, detections: list, states: dict, now: float,
                frame=None, departures=()) -> list[dict]:
@@ -156,6 +157,9 @@ class SlotStayManager:
             uid: get_slot_detection(detections, uid, self.zones)
             for uid in self.zones
         }
+        for uid, detection in raw.items():
+            if detection is not None:
+                self.candidate_detection_frames[uid] += 1
         if self.first_update:
             self.initial_presence = {uid for uid, d in raw.items() if d is not None}
             self.first_update = False
