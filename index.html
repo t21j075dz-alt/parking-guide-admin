@@ -15,7 +15,7 @@
 <script defer="" src="./sync-config.js"></script>
 <script defer="" src="./facility-catalog.js?v=20261011-fukuoka-100"></script>
 <script defer="" src="./admin-i18n.js?v=20261014-interaction"></script>
-<script defer="" src="./admin.js?v=20261014-interaction"></script>
+<script defer="" src="./admin.js?v=20261027-live"></script>
 <link href="./editor-workbench.css?v=20261014-interaction" rel="stylesheet"/>
 <script defer="" src="./editor-workbench.js?v=20261014-interaction"></script>
 </head>
@@ -63,6 +63,19 @@
 <button id="cloud-logout-button" type="button">ログアウト</button>
 </div>
 <p class="muted">ログイン中は編集内容を約1秒後に自動保存します。</p>
+</details>
+<!-- カメラ連携の状態。公開は明示的な管理者操作だけで変更する。 -->
+<details class="palette-section" id="live-monitor-panel">
+<summary>カメラによる空き状況・車両追跡</summary>
+<p class="muted">管理者ログイン後に確認できます。4秒ごとに更新します。</p>
+<p class="muted" id="live-monitor-message" role="status" aria-live="polite">現在の施設の情報を確認できます。</p>
+<button id="live-monitor-refresh" type="button">状態を更新する</button>
+<label class="check-row"><input id="live-monitor-published" type="checkbox" disabled/> 利用者アプリへ最新の空き状況を公開</label>
+<p class="muted">非公開でも管理者は確認できます。公開しても映像・車両ID・駐車時間は利用者へ表示しません。</p>
+<p><strong>区画の状態</strong></p>
+<ul class="live-monitor-list" id="live-monitor-spaces"></ul>
+<p><strong>最近の車両（管理者のみ）</strong></p>
+<ul class="live-monitor-list" id="live-monitor-sessions"></ul>
 </details>
 <!-- 白紙キャンバス上で敷地・建物・外周道路を先に作図する。 -->
 <details class="palette-section"><summary>敷地・建物・外周道路</summary>
