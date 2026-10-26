@@ -22,6 +22,10 @@ from uuid import uuid4
 
 from stable_ids import StableIdMatcher
 
+# 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
+_TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
+DEFAULT_TRACKER = str(_TRACKER_PROFILE) if _TRACKER_PROFILE.is_file() else "botsort.yaml"
+
 # VisDroneのクラス名と標準COCOのクラス名を両方扱う。
 # ユーザーが以前学習したVisDroneモデルは、motor=二輪車、
 # pedestrian/people=歩行者などの名前を使っている。
@@ -399,7 +403,7 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> 
     }
 
 def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
-                tracker_file: str = "botsort.yaml", image_size: int = 960,
+                tracker_file: str = DEFAULT_TRACKER, image_size: int = 960,
                 occupancy_confidence: float = 0.35):
     """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
     height, width = frame.shape[:2]
@@ -494,7 +498,7 @@ def main():
             vehicles, blockers = infer_frame(
                 vehicle_model, obstacle_model, frame,
                 float(config.get("tracking_confidence", 0.15)),
-                tracker_file=str(config.get("tracker_file", "botsort.yaml")),
+                tracker_file=str(config.get("tracker_file", DEFAULT_TRACKER)),
                 image_size=int(config.get("image_size", 960)),
                 occupancy_confidence=float(config.get("confidence", 0.35)),
             )
