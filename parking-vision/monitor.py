@@ -82,6 +82,17 @@ def load_config(path: str) -> dict:
     for name in ("entry_zone", "exit_zone"):
         if content.get(name) and not valid_polygon(content[name]):
             raise ValueError(f"{name} の範囲が正しくありません")
+    confirmed = content.get("initially_confirmed_empty_uids", [])
+    if not isinstance(confirmed, list) or any(uid not in zones for uid in confirmed):
+        raise ValueError("initially_confirmed_empty_uids は登録済み区画IDにしてください")
+    for key in ("confidence", "tracking_confidence"):
+        value = float(content.get(key, .35 if key == "confidence" else .15))
+        if not 0 < value <= 1:
+            raise ValueError(f"{key} は0より大きく1以下で設定してください")
+    if float(content.get("occupied_hold_seconds", 8)) < 0:
+        raise ValueError("occupied_hold_seconds は0以上にしてください")
+    if float(content.get("reid_window_seconds", 12)) <= 0:
+        raise ValueError("reid_window_seconds は0より大きくしてください")
     return content
 
 
@@ -219,12 +230,13 @@ class SpaceObserver:
     """
 
     def __init__(self, space_uids, allow_initial_empty=False,
-                 absence_hold_seconds=8.0):
+                 absence_hold_seconds=8.0, initially_confirmed_empty_uids=()):
         self.states = {uid: "unknown" for uid in space_uids}
         self.candidates = {}
         self.since = {}
         self.frames = defaultdict(int)
         self.allow_initial_empty = bool(allow_initial_empty)
+        self.initial_approved = set(initially_confirmed_empty_uids)
         self.absence_hold_seconds = float(absence_hold_seconds)
         self.last_vehicle_seen = {}
         self.had_vehicle = set()
@@ -250,7 +262,8 @@ class SpaceObserver:
                 elif uid in self.had_vehicle and uid not in self.departure_verified:
                     # 車が見えなくなっただけでは退出と断定できない
                     desired = "unknown"
-                elif uid not in self.had_vehicle and not self.allow_initial_empty:
+                elif (uid not in self.had_vehicle and not self.allow_initial_empty
+                      and uid not in self.initial_approved):
                     # 初期フレームで見えない車があるかもしれない
                     desired = "unknown"
             elif reported not in {"blocked", "unknown"}:
@@ -463,6 +476,7 @@ def main():
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
         absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+        initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
     )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
