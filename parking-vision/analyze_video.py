@@ -21,7 +21,7 @@ import sys
 
 from monitor import (
     SpaceObserver, VehicleTracker, STATUS_NAMES,
-    classify_spaces, infer_frame, load_config, overlay,
+    classify_spaces, infer_frame, load_config, overlay, space_for,
 )
 
 PHASE_NAMES = {
@@ -76,7 +76,7 @@ def analyze(args) -> Path:
         raise ValueError("動画のフレームレートを読み取れません。mp4などに変換してください")
     total_frames = max(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
     run_dir = Path(args.output).expanduser().resolve() / (
-        video.stem + "-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        video.stem + "-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     )
     run_dir.mkdir(parents=True, exist_ok=False)
     state_path = run_dir / "駐車枠の状態.csv"
@@ -149,15 +149,12 @@ def analyze(args) -> Path:
 
                 # 変化がなくても約1秒おきに書き出す。膨大なフレーム単位ログを避ける。
                 if states != last_statuses or now - last_logged >= 1:
+                    vehicle_counts = Counter(space_for(d["point"], zones) for d in vehicles)
+                    obstacle_counts = Counter(space_for(d["point"], zones) for d in blockers)
                     for uid, status in states.items():
                         state_csv.writerow([
                             round(now, 3), uid, STATUS_NAMES[status], status,
-                            sum(raw_space == uid for raw_space in [
-                                __space_point(d, zones) for d in vehicles
-                            ]),
-                            sum(raw_space == uid for raw_space in [
-                                __space_point(d, zones) for d in blockers
-                            ]),
+                            vehicle_counts.get(uid, 0), obstacle_counts.get(uid, 0),
                         ])
                     last_logged = now
                     last_statuses = states.copy()
@@ -208,11 +205,6 @@ def analyze(args) -> Path:
     print("完了。結果:", run_dir)
     print("駐車場案内に使う前に、出力と映像を目視で照合してください。")
     return run_dir
-
-
-def __space_point(detection, zones):
-    from monitor import space_for
-    return space_for(detection["point"], zones)
 
 
 def main():
