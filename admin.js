@@ -4432,10 +4432,18 @@ async function refreshLiveMonitor() {
         ? liveMonitorLanguage("・駐車開始時刻不明", " · start time unknown") : "";
       const basis = vehicle.identity_basis === "stationary_slot"
         ? liveMonitorLanguage("（区画固定ID）", " (space-anchored ID)") : "";
+      const displayId = Number(vehicle.track_id) >= 1000000
+        ? "P" + String(Number(vehicle.track_id) - 999999).padStart(3, "0")
+        : "#" + vehicle.track_id;
+      const shape = Number.isFinite(Number(vehicle.vehicle_shape_ratio))
+        && vehicle.vehicle_shape_ratio !== null
+        ? liveMonitorLanguage("・形状比(参考) " + Number(vehicle.vehicle_shape_ratio).toFixed(2),
+            " · image aspect ratio " + Number(vehicle.vehicle_shape_ratio).toFixed(2))
+        : "";
       appendLiveItem(liveMonitor.sessions,
-        (vehicle.space_uid || "未割当") + "｜#" + vehicle.track_id + basis
+        (vehicle.space_uid || "未割当") + "｜" + displayId + basis
         + "｜" + liveMonitorPhase(vehicle.phase)
-        + visual + color + elapsed + startUnknown);
+        + visual + color + shape + elapsed + startUnknown);
     }
     if (!order.length) appendLiveItem(liveMonitor.sessions,
       liveMonitorLanguage("まだ区画固定IDの駐車記録はありません。旧式の生ID記録は非表示です。",
