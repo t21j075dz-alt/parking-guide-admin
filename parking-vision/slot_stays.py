@@ -117,6 +117,11 @@ class SlotStay:
             "left_space_at": None, "exited_at": None,
             "last_seen_at": self.last_seen_wall,
             "position_x": self.point[0], "position_y": self.point[1],
+            "vehicle_color_estimate": self.color,
+            "vehicle_shape_ratio": self.aspect,
+            "visibility_state": self.visibility,
+            "start_time_verified": self.entered_observed,
+            "identity_basis": "stationary_slot",
         }
 
 
