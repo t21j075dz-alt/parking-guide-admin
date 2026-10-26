@@ -52,7 +52,7 @@ class SlotAnchoredTests(unittest.TestCase):
         manager = SlotStayManager(
             "home-test-001", "camera", ZONES, park_seconds=1,
             blind_uids=["space_001"])
-        for t in (0,1,2):
+        for t in (0,1,2,3):
             manager.update([car(t)], {"space_001":"occupied"}, float(t))
         stay_id = manager.active["space_001"].session_id
         manager.update([], {"space_001":"unknown"}, 3, departures=["space_001"])
@@ -65,12 +65,12 @@ class SlotAnchoredTests(unittest.TestCase):
         manager = SlotStayManager("home-test-001", "cam", ZONES, park_seconds=1,
                                   confirmed_initially_empty=["space_001"])
         manager.update([], {"space_001":"available"}, 0)
-        for t in (1,2,3): manager.update([car(t)], {"space_001":"occupied"}, t)
+        for t in (1,2,3,4): manager.update([car(t)], {"space_001":"occupied"}, t)
         old = manager.active["space_001"].session_id
         manager.update([], {"space_001":"unknown"}, 4, departures=["space_001"])
         manager.update([], {"space_001":"available"}, 10)
         self.assertNotIn("space_001", manager.active)
-        for t in (12,13,14): manager.update([car(900+t)], {"space_001":"occupied"}, t)
+        for t in (12,13,14,15): manager.update([car(900+t)], {"space_001":"occupied"}, t)
         self.assertNotEqual(manager.active["space_001"].session_id, old)
 
     def test_two_zones_have_distinct_slot_ids(self):
@@ -78,7 +78,7 @@ class SlotAnchoredTests(unittest.TestCase):
             "space_001":[[0,0],[.5,0],[.5,.5],[0,.5]],
             "space_002":[[.5,0],[1,0],[1,.5],[.5,.5]]}
         manager = SlotStayManager("home-test-001","cam",zones,park_seconds=1)
-        for t in (0,1,2):
+        for t in (0,1,2,3):
             manager.update([car(t,.25,.25),car(100+t,.75,.25)],
                            {"space_001":"occupied","space_002":"occupied"},t)
         self.assertEqual(len(manager.active),2)
