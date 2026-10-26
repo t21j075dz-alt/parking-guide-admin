@@ -58,6 +58,21 @@ if ($Mode -in @("video", "calibrate") -and -not (Test-Path -LiteralPath $Video -
 switch ($Mode) {
   "video" {
     Write-Host "【録画動画の解析】クラウドには書き込みません。"
+    # 最初の1回はカメラの写真と駐車枠の位置を結びつける。
+    # 初心者でも「動画を開始」だけで登録手順に進める。
+    $settings = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
+    $zones = @($settings.space_zones.PSObject.Properties)
+    if ($zones.Count -eq 0) {
+      Write-Host "カメラに写る駐車枠がまだ登録されていません。"
+      Write-Host "四隅を順番に4回クリックして登録してください。"
+      & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+      if ($LASTEXITCODE -ne 0) { throw "駐車枠の登録が完了しませんでした。" }
+      $settings = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
+      if (@($settings.space_zones.PSObject.Properties).Count -eq 0) {
+        throw "登録された駐車枠がありません。映像上で1つ以上の枠を登録してください。"
+      }
+      Write-Host "駐車枠の登録が完了しました。続けて動画を分析します。"
+    }
     $argsForPython = @("analyze_video.py", "--config", $config, "--video", $Video)
     if ($Preview) { $argsForPython += "--preview" }
     if ($SaveVideo) { $argsForPython += "--save-video" }
