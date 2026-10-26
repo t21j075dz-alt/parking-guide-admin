@@ -21,7 +21,7 @@ import sys
 
 from monitor import (
     SpaceObserver, VehicleTracker, STATUS_NAMES,
-    classify_spaces, infer_frame, load_config, overlay, space_for,
+    classify_spaces, infer_frame, load_config, overlay, space_for, DEFAULT_TRACKER,
 )
 from stable_ids import StableIdMatcher
 
@@ -122,7 +122,7 @@ def analyze(args) -> Path:
         obstacle_model = YOLO(obstacle_path) if obstacle_path else None
         confidence = float(config.get("confidence", 0.35))
         tracking_confidence = float(config.get("tracking_confidence", 0.15))
-        tracker_file = str(config.get("tracker_file", "botsort.yaml"))
+        tracker_file = str(config.get("tracker_file", DEFAULT_TRACKER))
         image_size = int(config.get("image_size", 960))
         with state_path.open("w", encoding="utf-8-sig", newline="") as status_stream, \
              event_path.open("w", encoding="utf-8-sig", newline="") as event_stream, \
