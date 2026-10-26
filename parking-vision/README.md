@@ -1,3 +1,56 @@
+# 【2026-10-27】日光駐車場の混雑映像から追跡・空き判定を見直し（v3）
+
+### 修正の根拠
+
+提供された「道の駅日光駐車場ライブカメラ_ニコニコ本陣.mp4」の旧バージョンの解析結果：
+**676フレーム（22.5秒）、8区画、235追跡セッション、YOLO生IDの再結合109回、追跡消失39件**。
+数値は旧結果で、235台通ったという意味ではありません。枠008は「占有→空き」になり、
+元映像では車が残っている可能性があるため安全側の判定が必要でした。
+
+### v3の変更
+
+1. **トラッカーをカメラに合わせる。** `botsort-parking.yaml` は固定カメラ向けBoT-SORT（背景移動補償なし、失踪追跡バッファ90フレーム）。`tracker_file` でByteTrackにも切り替え可能。BoT-SORTのReIDは標準で無効、外観特徴の簡易チェックは別の `stable_ids.py` で行う。
+2. **同じ車両の対応を厳密化。** 生YOLOの同一IDだけを信用せず、位置・矩形IoU・色分布・時刻を評価し、フレーム内では1対1対応に限定。複数候補で曖昧なら結合しない。
+3. **追跡しやすい検出と、占有と判定する検出を分離。** `tracking_confidence=0.15` をトラッカー入力に使い、占有には `confidence=0.35` 以上を要求。設定の根拠は初期仮説であり、まだ現地で最適化された値ではない。
+4. **誤った空き案内の防止。** 一度車の見えた枠で車が検出されなくなった場合、8秒間は駐車中の状態を保持し、出庫を実際に追跡できなければ**「確認できない」**に戻す。無検出＝空きとは扱わない。
+5. **開始時点ですでに止まっている車の駐車開始時刻は不明。** 統計上の駐車時間を捏造しない。
+6. **録画実験の検証可能性。** `車両ID対応.csv` を追加し、`stable_id_reassociations`、`original_yolo_id_count`、`unverified_free_frame_blocks` などを出力。
+7. **区画境界上の車両。** 車の接地位置を3点で確認。隣接枠にまたがる場合は安全側でunknownとし、空きと誤表示しない。
+
+### 日光動画を再解析する（自宅のconfig.jsonは維持する）
+
+最新版の `parking-vision` フォルダをPowerShellで開き、`config_nikko.json` に旧実験の8区画の座標が含まれていることを確認する。
+
+    & "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe" .\analyze_video.py --config .\config_nikko.json --video "C:\Users\anasu\Downloads\道の駅日光駐車場ライブカメラ_ニコニコ本陣.mp4" --output .\reports_nikko_v3 --save-video --preview
+
+さらに**同一モデル・同一区画・同一動画**で2種類のトラッカーを比較する（解析を2回行うため、時間がかかる場合あり）：
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode compare -Config "config_nikko.json" -Video "C:\Users\anasu\Downloads\道の駅日光駐車場ライブカメラ_ニコニコ本陣.mp4" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+
+結果は `reports_comparison/追跡方式比較.csv` と各条件別の `分析結果.json` に保存。
+**追跡セッション数が少ないことはID追跡の正解率とは異なる。** 追跡IDF1/HOTAなどを評価するには、
+一定フレームの車に目視で真のIDを付けた正解データが必要。
+
+### 設定を変更する場合の例（JSONの一部）
+
+    "tracker_file": "botsort-parking.yaml",
+    "tracking_confidence": 0.15,
+    "confidence": 0.35,
+    "image_size": 960,
+    "occupied_hold_seconds": 8,
+    "reid_window_seconds": 12,
+    "initially_confirmed_empty_uids": [],
+    "allow_unverified_initial_empty": false
+
+- `image_size`: 遠距離の車両検出が弱いときにGPUメモリと速度を確認しながら1280へ変更して比較可能。
+- `initially_confirmed_empty_uids`: カメラ映像で**開始時点の空きを人が確認した**区画IDのみ入力。撮影条件・画角が変われば再確認する。
+- `allow_unverified_initial_empty`: true は研究の旧仕様比較のみに使用。**本番運用はfalseにすること。** falseのとき、未確認の枠は初期状態unknownであり、利用者に空きとして案内しない。
+- 自動判断でoccupiedからavailableへ移すには、車が区画から移動して出庫中になった追跡が必要。移動が判定できない場合はunknownのまま。
+- `config_nikko.json` はテスト用施設。過去の録画を現在の空きとしてSupabaseへ送らない。
+- ここに記載のしきい値は初期設定であり**実機推論での改善効果はまだ未測定**。変更前後の映像とCSVで検証する。
+
+---
+
 # 自宅駐車場の録画結果を管理・利用者アプリと連携する
 
 **録画とリアルタイムは別の機能です。** 録画ファイルは過去の映像なので、現在の駐車場の空き情報として利用者へ配信しません。
