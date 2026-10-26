@@ -29,7 +29,7 @@ class ParkingLogicTest(unittest.TestCase):
         self.assertTrue(tracker.vehicles[7].parked_at)
 
     def test_track_lost_is_not_exit(self):
-        tracker = VehicleTracker("home-test-001", "camera")
+        tracker = VehicleTracker("home-test-001", "camera", lost_seconds=3)
         tracker.update([{"track_id": 2, "point": (0.8, 0.8)}], self.zones, [], 1)
         events = tracker.update([], self.zones, [], 5)
         self.assertTrue(any(e["phase"] == "lost" for e in events))
