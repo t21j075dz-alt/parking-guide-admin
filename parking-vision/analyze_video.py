@@ -23,6 +23,8 @@ from monitor import (
     SpaceObserver, VehicleTracker, STATUS_NAMES,
     classify_spaces, infer_frame, load_config, overlay, space_for,
 )
+from stable_ids import StableIdMatcher
+
 
 PHASE_NAMES = {
     "entering": "入場確認中", "moving": "移動中", "parked": "駐車中",
@@ -86,6 +88,8 @@ def analyze(args) -> Path:
     space_states = SpaceObserver(zones)
     tracker = VehicleTracker(config["facility_id"], config["camera_id"],
                              float(config.get("park_seconds", 5)))
+    stable_ids = StableIdMatcher(max_missing=float(config.get('reid_window_seconds', 12)))
+    raw_identity_changes = []
     counts = {uid: Counter() for uid in zones}
     events_by_phase = Counter()
     tracker_sessions = set()
@@ -120,6 +124,15 @@ def analyze(args) -> Path:
                 now = video_timestamp(cap, frames, fps, previous_now)
                 previous_now = now
                 vehicles, blockers = infer_frame(vehicle_model, obstacle_model, frame, confidence)
+                vehicles = stable_ids.update(vehicles, now, frame=frame)
+                for detection in vehicles:
+                    raw = detection.get("raw_track_id")
+                    stable = detection.get("track_id")
+                    if raw is not None and stable is not None and raw != stable:
+                        # フレーム単位ではなくユニークな対応の変更を集計。
+                        change = (stable, raw)
+                        if change not in raw_identity_changes:
+                            raw_identity_changes.append(change)
                 events = tracker.update(vehicles, zones, config.get("exit_zone", []), now)
                 for event in events:
                     session_id = event["session_id"]
@@ -195,6 +208,11 @@ def analyze(args) -> Path:
         "obstacle_model_enabled": bool(config.get("obstacle_model")),
         "observations": summarize_observations(counts, frames),
         "tracked_session_count": len(tracker_sessions),
+        "stable_id_reassociations": stable_ids.reassociated,
+        "track_id_connections": [
+            {"stable_id": stable, "original_yolo_id": raw}
+            for stable, raw in raw_identity_changes
+        ],
         "phase_change_count": dict(events_by_phase),
         "completed_parking_sessions": len(durations),
         "confirmed_parking_seconds": durations,
