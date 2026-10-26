@@ -265,7 +265,10 @@ class SlotStayManager:
             "visibility": s.visibility,
             "color_estimate": s.color,
             "bounding_box_aspect": s.aspect,
-            "duration_seconds": round(max(0, now - s.park_start_video), 2)
+            "duration_seconds": round(max(0, min(now, s.last_seen_video) - s.park_start_video), 2)
             if s.park_start_video is not None else None,
+            "observed_seconds": round(
+                max(0, min(now, s.last_seen_video) - s.first_seen_video), 2
+            ),
             "started_at_observed": s.entered_observed,
         } for s in self.active.values()]
