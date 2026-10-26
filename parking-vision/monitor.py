@@ -462,7 +462,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     return vehicles, blockers
 
 
-def overlay(frame, zones, statuses, vehicle_detections, obstacles):
+def overlay(frame, zones, statuses, vehicle_detections, obstacles, slot_stays=()):
     import cv2
     h, w = frame.shape[:2]
     for uid, poly in zones.items():
@@ -477,6 +477,20 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles):
         label = f"{d['name']} ID{d['track_id']}" if d["track_id"] is not None else d["name"]
         cv2.putText(frame, label, (int(px * w), int(py * h)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 255, 20), 2)
+    # 生YOLOの番号ではなく、物理駐車枠に固定した滞在IDを明示。
+    for stay in slot_stays:
+        uid = stay["space_uid"]
+        if uid not in zones:
+            continue
+        polygon = zones[uid]
+        cx = sum(p[0] for p in polygon) / len(polygon)
+        cy = sum(p[1] for p in polygon) / len(polygon)
+        duration = stay.get("duration_seconds")
+        mins = (f"{duration:.1f}s" if duration is not None else "start unknown")
+        label = f"STAY {stay['vehicle_id']} {mins}"
+        cv2.putText(frame, label,
+                    (int(cx * w), min(h-8, int(cy * h))),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 60, 255), 2)
 
 
 def main():
@@ -621,7 +635,8 @@ def main():
                     pending_sessions.clear()
                 previous_statuses, last_push = statuses.copy(), now
             if args.preview:
-                overlay(frame, zones, statuses, vehicles, blockers)
+                overlay(frame, zones, statuses, vehicles, blockers,
+                        slot_stays=stay_manager.current_display(now))
                 cv2.imshow("Parking camera (q to quit)", frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
