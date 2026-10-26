@@ -2,10 +2,12 @@
 from collections import Counter
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 
-from monitor import VehicleTracker, classify_spaces, load_config
+from monitor import (VehicleTracker, classify_spaces, load_config,
+                     detector_boxes, VEHICLE_NAMES, BLOCKING_NAMES)
 from analyze_video import summarize_observations
 
 
@@ -48,6 +50,45 @@ class NextStageLogicTest(unittest.TestCase):
         self.assertEqual(result["available"]["share_percent"], 70.)
         self.assertEqual(result["unknown"]["frames"], 3)
         self.assertNotIn("accuracy", result)
+
+
+    def test_old_visdrone_model_class_names(self):
+        """2026年10月21日のモデルが出力する10種類を取りこぼさない。"""
+        names = {
+            0: "pedestrian", 1: "people", 2: "bicycle", 3: "car",
+            4: "van", 5: "truck", 6: "tricycle", 7: "awning-tricycle",
+            8: "bus", 9: "motor",
+        }
+
+        class FakeArray:
+            def __init__(self, values):
+                self.values = values
+
+            def int(self):
+                return self
+
+            def cpu(self):
+                return self
+
+            def tolist(self):
+                return self.values
+
+        result = SimpleNamespace(
+            names=names,
+            boxes=SimpleNamespace(
+                xyxy=FakeArray([[10, 10, 50, 60] for _ in names]),
+                cls=FakeArray(list(names)),
+                conf=FakeArray([0.9] * len(names)),
+                id=FakeArray(list(names)),
+            ),
+        )
+        vehicles = detector_boxes(result, 100, 100, VEHICLE_NAMES)
+        blockers = detector_boxes(result, 100, 100, BLOCKING_NAMES)
+        self.assertEqual(len(vehicles), 8)
+        self.assertEqual(len(blockers), 2)
+        self.assertIn("motorcycle", [row["name"] for row in vehicles])
+        self.assertIn("awning_tricycle", [row["name"] for row in vehicles])
+        self.assertEqual([row["name"] for row in blockers], ["person", "person"])
 
 
 if __name__ == "__main__":
