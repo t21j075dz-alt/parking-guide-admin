@@ -21,9 +21,10 @@ import sys
 
 from monitor import (
     SpaceObserver, VehicleTracker, STATUS_NAMES,
-    classify_spaces, infer_frame, load_config, overlay, space_for, DEFAULT_TRACKER,
+    classify_spaces, infer_frame, load_config, overlay, space_for, inside, DEFAULT_TRACKER,
 )
 from stable_ids import StableIdMatcher
+from slot_stays import SlotStayManager
 
 
 PHASE_NAMES = {
@@ -86,7 +87,15 @@ def analyze(args) -> Path:
     mapping_path = run_dir / "車両ID対応.csv"
     detection_path = run_dir / "フレーム別車両検出.csv"
     summary_path = run_dir / "分析結果.json"
+    stay_path = run_dir / "駐車枠固定IDと駐車時間.csv"
     zones = config["space_zones"]
+    stays = SlotStayManager(
+        config["facility_id"], config["camera_id"], zones,
+        park_seconds=float(config.get("park_seconds", 5)),
+        confirmed_initially_empty=config.get("initially_confirmed_empty_uids", []),
+        blind_uids=config.get("camera_blind_space_uids", []),
+        occlusion_dependencies=config.get("occluded_by_spaces", {}),
+    )
     space_states = SpaceObserver(
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
@@ -127,11 +136,16 @@ def analyze(args) -> Path:
         with state_path.open("w", encoding="utf-8-sig", newline="") as status_stream, \
              event_path.open("w", encoding="utf-8-sig", newline="") as event_stream, \
              mapping_path.open("w", encoding="utf-8-sig", newline="") as mapping_stream, \
-             detection_path.open("w", encoding="utf-8-sig", newline="") as detection_stream:
+             detection_path.open("w", encoding="utf-8-sig", newline="") as detection_stream, \
+             stay_path.open("w", encoding="utf-8-sig", newline="") as stay_stream:
             state_csv = csv.writer(status_stream)
             event_csv = csv.writer(event_stream)
             mapping_csv = csv.writer(mapping_stream)
             detection_csv = csv.writer(detection_stream)
+            stay_csv = csv.writer(stay_stream)
+            stay_csv.writerow(["動画の時刻(秒)", "駐車枠UID", "固定車両番号", "滞在セッションID",
+                               "状態", "見えているか", "車色（推定）", "外形縦横比（参考）",
+                               "駐車時間(秒・観測開始を確認した場合のみ)", "駐車開始確認"])
             detection_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス",
                                     "確信度", "x1", "y1", "x2", "y2", "駐車枠ID"])
             mapping_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス", "検出信頼度"])
@@ -149,6 +163,11 @@ def analyze(args) -> Path:
                     tracker_file=tracker_file, image_size=image_size,
                     occupancy_confidence=confidence,
                 )
+                # 実験対象の敷地外にある道路・建物の車は計数しない。
+                site = config.get("monitored_site_polygon") or []
+                if site:
+                    vehicles = [d for d in vehicles if inside(d["point"], site)]
+                    blockers = [d for d in blockers if inside(d["point"], site)]
                 vehicles = stable_ids.update(vehicles, now, frame=frame)
                 for detection in vehicles:
                     raw = detection.get("raw_track_id")
@@ -200,6 +219,26 @@ def analyze(args) -> Path:
                 departures = [event["space_uid"] for event in events
                               if event["phase"] == "exiting" and event.get("space_uid")]
                 states = space_states.update(raw, now, departures=departures)
+                # 奥側の区画が手前の車に遮られる構造を手動で設定。
+                occluded = set(config.get("camera_blind_space_uids", []))
+                for uid, fronts in config.get("occluded_by_spaces", {}).items():
+                    if any(states.get(front) == "occupied" for front in fronts):
+                        occluded.add(uid)
+                for uid in occluded:
+                    if raw.get(uid) != "occupied":
+                        states[uid] = "unknown"
+                stays.update(occupancy_vehicles, states, now,
+                             frame=frame, departures=departures)
+                if frames % max(1, round(fps)) == 1 or frames == 1:
+                    for entry in stays.current_display(now):
+                        stay_csv.writerow([
+                            round(now, 3), entry["space_uid"], entry["vehicle_id"],
+                            entry["session_id"], entry["phase"],
+                            entry["visibility"], entry["color_estimate"],
+                            entry["bounding_box_aspect"],
+                            entry["duration_seconds"] if entry["duration_seconds"] is not None else "",
+                            "確認済み" if entry["started_at_observed"] else "開始時刻不明",
+                        ])
                 prevented_false_free_frames += sum(
                     raw[uid] == "available" and states[uid] != "available"
                     and uid in space_states.had_vehicle for uid in raw
@@ -220,7 +259,7 @@ def analyze(args) -> Path:
                     last_logged = now
                     last_statuses = states.copy()
                 if args.preview or args.save_video:
-                    overlay(frame, zones, states, vehicles, blockers)
+                    overlay(frame, zones, states, vehicles, blockers, slot_stays=stays.current_display(now))
                     if args.save_video:
                         if video_writer is None:
                             h, w = frame.shape[:2]
@@ -256,6 +295,13 @@ def analyze(args) -> Path:
         "obstacle_model_enabled": bool(config.get("obstacle_model")),
         "observations": summarize_observations(counts, frames),
         "tracked_session_count": len(tracker_sessions),
+        "slot_anchored_stay_count": len(stays.active) + len(stays.finished),
+        "slot_anchored_active": stays.current_display(now),
+        "slot_anchored_finished_count": len(stays.finished),
+        "slot_duration_confirmed_count": sum(
+            1 for s in list(stays.active.values()) + stays.finished
+            if s.park_start_video is not None
+        ),
         "original_yolo_id_count": len(raw_track_ids),
         "stable_id_reassociations": stable_ids.reassociated,
         "ambiguous_id_matches_rejected": stable_ids.ambiguous,
