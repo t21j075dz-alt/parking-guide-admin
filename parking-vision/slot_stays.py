@@ -146,10 +146,12 @@ class SlotStayManager:
         self.first_update = True
         self.initial_presence = set()
         self.prev_clear = set(self.confirmed_empty)
+        self.departure_pending = set()
 
     def update(self, detections: list, states: dict, now: float,
                frame=None, departures=()) -> list[dict]:
         events = []
+        self.departure_pending.update(uid for uid in departures if uid in self.zones)
         raw = {
             uid: get_slot_detection(detections, uid, self.zones)
             for uid in self.zones
@@ -175,7 +177,7 @@ class SlotStayManager:
                     stay.in_view = False
                     stay.visibility = "occluded" if uid in occluded else "lost"
                     # 画角外への消失を出庫と誤認しない。明確な出庫後のみ完了する。
-                    if uid in departures and state == "available" and uid not in occluded:
+                    if uid in self.departure_pending and state == "available" and uid not in occluded:
                         stay.phase = "exiting"
                         stay.finished = True
                         self.finished.append(stay)
@@ -183,6 +185,8 @@ class SlotStayManager:
                                        "session_id": stay.session_id,
                                        "time": now, "record": stay})
                         del self.active[uid]
+                        self.departure_pending.discard(uid)
+                        self.prev_clear.add(uid)
                 continue
 
             point = tuple(det["point"])
@@ -240,6 +244,7 @@ class SlotStayManager:
             )
             self.next_id += 1
             self.active[uid] = stay
+            self.departure_pending.discard(uid)
             self.prev_clear.discard(uid)
             self.candidates.pop(uid, None)
             events.append({"event": "parked", "uid": uid,
