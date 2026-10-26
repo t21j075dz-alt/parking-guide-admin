@@ -15,7 +15,7 @@
 <script defer="" src="./sync-config.js"></script>
 <script defer="" src="./facility-catalog.js?v=20261011-fukuoka-100"></script>
 <script defer="" src="./admin-i18n.js?v=20261014-interaction"></script>
-<script defer="" src="./admin.js?v=20261027-video"></script>
+<script defer="" src="./admin.js?v=20261027-slot-v4"></script>
 <script defer="" src="./recording-demo.js?v=20261027"></script>
 <link href="./editor-workbench.css?v=20261014-interaction" rel="stylesheet"/>
 <script defer="" src="./editor-workbench.js?v=20261014-interaction"></script>
@@ -67,8 +67,8 @@
 </details>
 <!-- カメラ連携の状態。公開は明示的な管理者操作だけで変更する。 -->
 <details class="palette-section" id="live-monitor-panel">
-<summary>カメラによる空き状況・車両追跡</summary>
-<p class="muted">管理者ログイン後に確認できます。4秒ごとに更新します。</p>
+<summary>カメラによる空き状況・駐車枠固定ID</summary>
+<p class="muted">管理者ログイン後に確認できます。4秒ごとに更新します。停止車両は区画固定の滞在IDで表示します。検出が途切れた場合、駐車開始が不明な場合は区別します。</p>
 <p class="muted" id="live-monitor-message" role="status" aria-live="polite">現在の施設の情報を確認できます。</p>
 <button id="live-monitor-refresh" type="button">状態を更新する</button>
 <label class="check-row"><input id="live-monitor-published" type="checkbox" disabled/> 利用者アプリへ最新の空き状況を公開</label>
