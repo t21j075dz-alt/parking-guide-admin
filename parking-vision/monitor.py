@@ -92,7 +92,9 @@ class Vehicle:
     space_uid: str | None = None
     candidate_uid: str | None = None
     candidate_since: float = 0.0
+    candidate_started_at: str | None = None
     outside_since: float = 0.0
+    outside_started_at: str | None = None
     locations: deque = field(default_factory=lambda: deque(maxlen=90))
 
     def observe(self, point: tuple[float, float], uid: str | None,
@@ -111,11 +113,14 @@ class Vehicle:
             if uid and stationary:
                 if self.candidate_uid != uid:
                     self.candidate_uid, self.candidate_since = uid, now
+                    self.candidate_started_at = utc_now()
                 elif now - self.candidate_since >= park_seconds:
                     self.phase, self.space_uid = "parked", uid
-                    self.parked_at = utc_now()
+                    # 駐車開始は「確定した時刻」ではなく「停止を始めた時刻」。
+                    self.parked_at = self.candidate_started_at or utc_now()
             else:
                 self.candidate_uid = None
+                self.candidate_started_at = None
                 if self.phase == "entering" and len(self.locations) > 3:
                     self.phase = "moving"
 
@@ -123,11 +128,13 @@ class Vehicle:
             if uid != self.space_uid:
                 if self.outside_since == 0.0:
                     self.outside_since = now
+                    self.outside_started_at = utc_now()
                 elif now - self.outside_since >= 2:
                     self.phase = "exiting"
-                    self.left_space_at = utc_now()
+                    self.left_space_at = self.outside_started_at or utc_now()
             else:
                 self.outside_since = 0.0
+                self.outside_started_at = None
 
         if in_exit and self.phase in {"moving", "exiting"}:
             self.phase = "exited"
@@ -208,11 +215,10 @@ class SupabaseWriter:
         self.url = url.rstrip("/")
         self.key = key
         self.email = email
-        self.password = password
         self.access_token = ""
         self.refresh_token = ""
         self.expires_at = 0.0
-        self._sign_in()
+        self._sign_in(password)
 
     def _call(self, url: str, body: dict | list, token: str = "",
               prefer: str = "") -> dict:
@@ -227,10 +233,10 @@ class SupabaseWriter:
             data = response.read()
             return json.loads(data) if data else {}
 
-    def _sign_in(self):
+    def _sign_in(self, password: str):
         response = self._call(
             f"{self.url}/auth/v1/token?grant_type=password",
-            {"email": self.email, "password": self.password},
+            {"email": self.email, "password": password},
         )
         self._store_tokens(response)
 
@@ -282,6 +288,31 @@ def detector_boxes(result, width: int, height: int, allowed: set[str]) -> list[d
     return output
 
 
+
+def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> dict[str, str]:
+    """同じ判定規則をライブ・録画テストで共有する。車両が最優先、次に障害物。"""
+    occupied = {space_for(d["point"], zones) for d in vehicles}
+    blocked = {space_for(d["point"], zones) for d in blockers}
+    return {
+        uid: "occupied" if uid in occupied else "blocked" if uid in blocked
+        else "available" for uid in zones
+    }
+
+
+def infer_frame(vehicle_model, obstacle_model, frame, confidence: float):
+    """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
+    height, width = frame.shape[:2]
+    results = vehicle_model.track(
+        frame, persist=True, tracker="bytetrack.yaml", conf=confidence, verbose=False,
+    )
+    vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
+    blockers = detector_boxes(results[0], width, height, BLOCKING_NAMES)
+    if obstacle_model:
+        results_extra = obstacle_model.predict(frame, conf=confidence, verbose=False)
+        blockers.extend(detector_boxes(results_extra[0], width, height, BLOCKING_NAMES))
+    return vehicles, blockers
+
+
 def overlay(frame, zones, statuses, vehicle_detections, obstacles):
     import cv2
     h, w = frame.shape[:2]
@@ -318,6 +349,11 @@ def main():
     camera = cv2.VideoCapture(source)
     if not camera.isOpened():
         raise SystemExit("カメラを開けません。config.json の source を確認してください")
+    # 録画ファイルを誤って「今現在の駐車場」として公開しないための防止策。
+    if isinstance(source, str) and Path(source).suffix.lower() in {
+        ".mp4", ".mov", ".avi", ".mkv", ".webm"
+    } and not args.dry_run:
+        raise SystemExit("録画ファイルはリアルタイム公開できません。analyze_video.py を使用してください")
     vehicle_model = YOLO(config.get("vehicle_model", "yolo11n.pt"))
     obstacle_path = config.get("obstacle_model")
     obstacle_model = YOLO(obstacle_path) if obstacle_path else None
@@ -343,28 +379,13 @@ def main():
             if not ok:
                 print("映像を取得できません。更新停止後、利用者画面では自動的に未確認になります。")
                 break
-            height, width = frame.shape[:2]
-            results = vehicle_model.track(
-                frame, persist=True, tracker="bytetrack.yaml",
-                conf=float(config.get("confidence", 0.35)), verbose=False,
+            vehicles, blockers = infer_frame(
+                vehicle_model, obstacle_model, frame, float(config.get("confidence", 0.35)),
             )
-            vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
-            blockers = detector_boxes(results[0], width, height, BLOCKING_NAMES)
-            if obstacle_model:
-                blocks = obstacle_model.predict(
-                    frame, conf=float(config.get("confidence", 0.35)), verbose=False,
-                )
-                blockers.extend(detector_boxes(blocks[0], width, height, BLOCKING_NAMES))
-                # カスタムモデルにも車が含まれる場合、追跡は元の車両モデルだけで行う。
             now = time.monotonic()
             for event in tracks.update(vehicles, zones, config.get("exit_zone", []), now):
                 pending_sessions[event["session_id"]] = event
-            occupied = {space_for(d["point"], zones) for d in vehicles}
-            blocked = {space_for(d["point"], zones) for d in blockers}
-            raw = {
-                uid: "occupied" if uid in occupied else "blocked" if uid in blocked
-                else "available" for uid in zones
-            }
+            raw = classify_spaces(vehicles, blockers, zones)
             statuses = observer.update(raw, now)
             changed = statuses != previous_statuses
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
