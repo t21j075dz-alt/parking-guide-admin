@@ -54,9 +54,12 @@ def valid_polygon(points) -> bool:
 
 def load_config(path: str) -> dict:
     content = json.loads(Path(path).read_text(encoding="utf-8"))
-    for key in ("facility_id", "camera_id", "source", "supabase_url", "publishable_key"):
+    for key in ("facility_id", "camera_id", "supabase_url", "publishable_key"):
         if not content.get(key):
             raise ValueError(f"設定ファイルの {key} を入力してください")
+    # USBカメラ番号0は有効。Pythonでは bool(0) == False なので別判定する。
+    if content.get("source") is None or content.get("source") == "":
+        raise ValueError("カメラの source を入力してください")
     zones = content.get("space_zones") or {}
     if not zones:
         raise ValueError("駐車枠の撮影範囲が未登録です。先に calibrate.py を実行してください")
