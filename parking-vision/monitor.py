@@ -489,7 +489,7 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, slot_stays=()
         cy = sum(p[1] for p in polygon) / len(polygon)
         duration = stay.get("duration_seconds")
         mins = (f"{duration:.1f}s" if duration is not None else "start unknown")
-        label = f"STAY {stay['vehicle_id']} {mins}"
+        label = f"STAY P{max(1, stay['vehicle_id'] - 999999):03d} {mins}"
         cv2.putText(frame, label,
                     (int(cx * w), min(h-8, int(cy * h))),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 60, 255), 2)
