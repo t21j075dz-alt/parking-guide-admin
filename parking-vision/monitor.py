@@ -367,19 +367,20 @@ def main():
             }
             statuses = observer.update(raw, now)
             changed = statuses != previous_statuses
-            should_send = changed or bool(pending_sessions) or now - last_push >= 5
+            should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
                 if writer:
                     rows = [{
                         "facility_id": config["facility_id"], "space_uid": uid,
-                        "status": status, "confidence": 0.75 if status != "unknown" else None,
+                        "status": status, "confidence": None,  # 測定していない確信度を捏造しない
                         "source": "yolo", "checked_at": utc_now(),
                     } for uid, status in statuses.items()]
                     try:
                         writer.upsert("parking_live_status", rows, "facility_id,space_uid")
                         # 追跡IDは同じカメラ稼働中だけ有効。車の画像は保存しない。
                         session_rows = {entry.session_id: entry.row() for entry in tracks.vehicles.values()}
-                        session_rows.update(pending_sessions)
+                        for sid, event in pending_sessions.items():
+                            session_rows.setdefault(sid, event)  # 終了済みイベントのみ復元する
                         writer.upsert("parking_vehicle_sessions", list(session_rows.values()), "session_id")
                         pending_sessions.clear()
                     except (error.URLError, error.HTTPError, OSError, KeyError) as exc:
@@ -404,5 +405,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except error.HTTPError as exc:
+        sys.exit(f"クラウド認証・保存に失敗しました（HTTP {exc.code}）。ログインと権限を確認してください")
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         sys.exit(f"設定を確認してください: {exc}")
