@@ -1,0 +1,14 @@
+# 定点カメラ向け BoT-SORT 設定。2026-10の日光録画実験から改善開始。
+# YOLO重みファイルには影響しない。ByteTrack比較はtracker_file: "bytetrack.yaml"
+tracker_type: botsort
+track_high_thresh: 0.30
+track_low_thresh: 0.10
+new_track_thresh: 0.40
+track_buffer: 90
+match_thresh: 0.80
+fuse_score: true
+gmc_method: none
+proximity_thresh: 0.5
+appearance_thresh: 0.8
+with_reid: false
+model: auto
