@@ -4303,3 +4303,184 @@ restoreRemoteSession();
 initializeTheme();
 initializeFacilities();
 render();
+
+
+/* =========================================================
+   カメラ連携の確認画面（管理者専用）
+   管理レイアウトとは別テーブルを読み取り、編集内容には触れない。
+   利用者への公開は本人が明示してONにするまで変更しない。
+   ========================================================= */
+const liveMonitor = {
+  panel: document.querySelector("#live-monitor-panel"),
+  message: document.querySelector("#live-monitor-message"),
+  refresh: document.querySelector("#live-monitor-refresh"),
+  published: document.querySelector("#live-monitor-published"),
+  spaces: document.querySelector("#live-monitor-spaces"),
+  sessions: document.querySelector("#live-monitor-sessions"),
+};
+let liveMonitorLoading = false;
+let liveMonitorSequence = 0;
+
+function appendLiveItem(list, message) {
+  const item = document.createElement("li");
+  item.textContent = message; // データベースの文字列をHTMLとして解釈しない
+  list.append(item);
+}
+function liveMonitorLanguage(ja, en) {
+  return document.documentElement.lang === "en" ? en : ja;
+}
+function liveMonitorPhase(phase) {
+  const labels = {
+    entering: ["入場確認中", "Entering"], moving: ["移動中", "Moving"],
+    parked: ["駐車中", "Parked"], exiting: ["出庫中", "Exiting"],
+    exited: ["退出済み", "Exited"], lost: ["追跡できなくなった", "Tracking lost"],
+  };
+  const [ja, en] = labels[phase] || ["確認できない", "Unknown"];
+  return liveMonitorLanguage(ja, en);
+}
+function liveMonitorStatus(status) {
+  const labels = {
+    available: ["空き", "Available"], occupied: ["駐車中", "Occupied"],
+    blocked: ["障害物あり", "Blocked"], unknown: ["確認できない", "Unknown"],
+  };
+  const [ja, en] = labels[status] || labels.unknown;
+  return liveMonitorLanguage(ja, en);
+}
+async function liveMonitorFetch(table, select, facilityId) {
+  const config = getRemoteConfig();
+  const query = "facility_id=eq." + encodeURIComponent(facilityId)
+    + "&select=" + encodeURIComponent(select);
+  const response = await fetch(config.url + "/rest/v1/" + table + "?" + query, {
+    headers: { apikey: config.publishableKey, Authorization: "Bearer " + state.remoteAccessToken },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  return response.json();
+}
+
+/** ライブ情報は4秒間隔。ただし非表示中は通信しない。 */
+async function refreshLiveMonitor() {
+  if (!liveMonitor.panel?.open || liveMonitorLoading) return;
+  const config = getRemoteConfig();
+  const facilityId = state.facilityId;
+  if (!config.enabled || !state.remoteAccessToken || !facilityId) {
+    liveMonitor.message.textContent = liveMonitorLanguage(
+      "表示するには「ユーザーアプリへ自動反映」からログインしてください。",
+      "Sign in under Sync to user app to view live information.",
+    );
+    liveMonitor.published.disabled = true;
+    return;
+  }
+  liveMonitorLoading = true;
+  const seq = ++liveMonitorSequence;
+  liveMonitor.message.textContent = liveMonitorLanguage("最新の情報を確認しています…", "Checking live information…");
+  try {
+    const [visibility, statuses, sessions] = await Promise.all([
+      liveMonitorFetch("parking_live_visibility", "is_published", facilityId),
+      liveMonitorFetch("parking_live_status", "space_uid,status,checked_at", facilityId),
+      liveMonitorFetch("parking_vehicle_sessions",
+        "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at", facilityId),
+    ]);
+    if (seq !== liveMonitorSequence || facilityId !== state.facilityId) return;
+    liveMonitor.published.disabled = !visibility.length;
+    liveMonitor.published.checked = visibility[0]?.is_published === true;
+    liveMonitor.spaces.replaceChildren();
+    liveMonitor.sessions.replaceChildren();
+
+    const statusByUid = new Map(statuses.map(s => [s.space_uid, s]));
+    const registered = (getCurrentLayout()?.objects || [])
+      .filter(obj => obj.objectType === "parkingSpace");
+    const now = Date.now();
+    for (const object of registered) {
+      const status = statusByUid.get(object.uid);
+      const age = Date.parse(status?.checked_at || "");
+      const current = Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
+      const label = current ? status.status : "unknown";
+      appendLiveItem(liveMonitor.spaces,
+        String(object.spaceNumber || object.name || object.uid) + "：" + liveMonitorStatus(label));
+    }
+    if (!registered.length) {
+      appendLiveItem(liveMonitor.spaces, liveMonitorLanguage(
+        "この施設には登録された駐車枠がありません。", "No parking spaces have been registered.",
+      ));
+    }
+    const order = [...sessions].sort((a, b) =>
+      Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0)).slice(0, 15);
+    for (const vehicle of order) {
+      let elapsed = "";
+      if (vehicle.parked_at) {
+        const start = Date.parse(vehicle.parked_at);
+        const finish = vehicle.left_space_at ? Date.parse(vehicle.left_space_at) : now;
+        if (Number.isFinite(start) && Number.isFinite(finish) && finish >= start) {
+          const minutes = Math.floor((finish - start) / 60000);
+          elapsed = liveMonitorLanguage("・駐車時間 " + minutes + "分",
+            " · parked for " + minutes + " min");
+        }
+      }
+      appendLiveItem(liveMonitor.sessions,
+        "#" + vehicle.track_id + " " + liveMonitorPhase(vehicle.phase)
+        + (vehicle.space_uid ? "・" + vehicle.space_uid : "") + elapsed);
+    }
+    if (!order.length) appendLiveItem(liveMonitor.sessions,
+      liveMonitorLanguage("まだ車両の記録はありません。", "No vehicle records yet."));
+    liveMonitor.message.textContent = liveMonitorLanguage(
+      "更新 " + new Date().toLocaleTimeString("ja-JP") + "｜カメラ状況 " + statuses.length
+      + "区画｜" + (visibility[0]?.is_published ? "公開中" : "非公開"),
+      "Updated " + new Date().toLocaleTimeString("en-US") + " | " + statuses.length
+      + " reported spaces | " + (visibility[0]?.is_published ? "Public" : "Private"),
+    );
+  } catch {
+    liveMonitor.message.textContent = liveMonitorLanguage(
+      "情報を取得できません。ログイン・閲覧権限・ネット接続をご確認ください。",
+      "Cannot load status. Check sign-in, access rights and network.",
+    );
+  } finally {
+    liveMonitorLoading = false;
+  }
+}
+liveMonitor.panel?.addEventListener("toggle", () => {
+  if (liveMonitor.panel.open) void refreshLiveMonitor();
+});
+liveMonitor.refresh?.addEventListener("click", () => void refreshLiveMonitor());
+liveMonitor.published?.addEventListener("change", async () => {
+  const facilityId = state.facilityId;
+  const enabled = liveMonitor.published.checked;
+  if (enabled && !window.confirm(liveMonitorLanguage(
+    "この施設の空き状況を、ログインしていない利用者にも公開します。映像・個別車両の記録は公開しません。公開してよろしいですか？",
+    "Publish this facility's space availability to everyone? Video and vehicle records remain private.",
+  ))) {
+    liveMonitor.published.checked = false;
+    return;
+  }
+  liveMonitor.published.disabled = true;
+  try {
+    const config = getRemoteConfig();
+    const url = config.url + "/rest/v1/parking_live_visibility?facility_id=eq."
+      + encodeURIComponent(facilityId);
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        apikey: config.publishableKey,
+        Authorization: "Bearer " + state.remoteAccessToken,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({ is_published: enabled, updated_at: new Date().toISOString() }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const rows = response.ok ? await response.json() : [];
+    if (!response.ok || !rows.length) throw new Error("Failed to change visibility");
+  } catch {
+    liveMonitor.message.textContent = liveMonitorLanguage(
+      "公開設定を変更できませんでした。管理者権限を確認してください。",
+      "Could not change visibility. Check administrator permissions.",
+    );
+  } finally {
+    liveMonitorLoading = false;
+    void refreshLiveMonitor();
+  }
+});
+window.setInterval(() => {
+  if (liveMonitor.panel?.open && !document.hidden) void refreshLiveMonitor();
+}, 4000);

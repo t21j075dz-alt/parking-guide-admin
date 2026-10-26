@@ -1,0 +1,10 @@
+# アノテーション済み画像を別途準備してください
+path: ./dataset
+train: images/train
+val: images/val
+names:
+  0: traffic_cone
+  1: shopping_cart
+  2: barrier
+  3: bollard
+  4: obstacle

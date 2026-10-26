@@ -18,6 +18,14 @@ window.AdminI18n = (() => {
 都道府県|Prefecture
 施設|Facility
 ユーザーアプリへ自動反映|Sync to user app
+カメラによる空き状況・車両追跡|Camera availability & vehicle tracking
+管理者ログイン後に確認できます。4秒ごとに更新します。|Sign in as an administrator. Updates every four seconds.
+現在の施設の情報を確認できます。|View camera information for the selected facility.
+状態を更新する|Refresh status
+利用者アプリへ最新の空き状況を公開|Publish live availability to user app
+非公開でも管理者は確認できます。公開しても映像・車両ID・駐車時間は利用者へ表示しません。|Admins can view private data. Video, vehicle IDs and parking duration are never shown to users.
+区画の状態|Parking spaces
+最近の車両（管理者のみ）|Recent vehicles (admins only)
 クラウド連携は未設定です。|Cloud sync is not configured.
 管理者メール|Administrator email
 パスワード|Password
