@@ -54,6 +54,26 @@ class ParkingLogicTest(unittest.TestCase):
         self.assertNotEqual(states["A"], "available")
         self.assertNotEqual(states["B"], "available")
 
+    def test_operator_verified_initial_empty_is_allowed_only_for_checked_spaces(self):
+        observer = SpaceObserver(
+            ["space_001", "space_002"],
+            initially_confirmed_empty_uids=["space_001"],
+        )
+        first = {"space_001": "available", "space_002": "available"}
+        observer.update(first, 0)
+        observed = observer.update(first, 6)
+        self.assertEqual(observed["space_001"], "available")
+        self.assertEqual(observed["space_002"], "unknown")
+
+    def test_initially_occupied_then_undetected_never_claims_free(self):
+        observer = SpaceObserver(["space_001"], absence_hold_seconds=4)
+        observer.update({"space_001": "occupied"}, 0)
+        observer.update({"space_001": "occupied"}, 1)
+        for t in (2, 3, 4):
+            self.assertEqual(observer.update({"space_001": "available"}, t)["space_001"], "occupied")
+        for t in (6, 7, 20, 50):
+            self.assertNotEqual(observer.update({"space_001": "available"}, t)["space_001"], "available")
+
     def test_track_lost_is_not_exit(self):
         tracker = VehicleTracker("home-test-001", "camera", lost_seconds=3)
         tracker.update([{"track_id": 2, "point": (0.8, 0.8)}], self.zones, [], 1)
