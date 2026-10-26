@@ -22,4 +22,4 @@ jobs:
         working-directory: parking-vision
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
-        run: python -m py_compile parking-vision/monitor.py parking-vision/calibrate.py parking-vision/train_obstacles.py
+        run: python -m py_compile parking-vision/monitor.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py

@@ -5,3 +5,12 @@ runs/
 *.pt
 *.mp4
 *.avi
+
+# 研究データ（顔・ナンバー等が写ることがあるためGitHubへ公開しない）
+dataset/
+reports/
+*.csv
+*.jpg
+*.jpeg
+*.png
+*.webp

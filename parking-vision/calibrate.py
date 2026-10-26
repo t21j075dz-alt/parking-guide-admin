@@ -11,10 +11,11 @@ import cv2
 def main():
     parser = argparse.ArgumentParser(description="カメラに写る駐車枠の位置を登録")
     parser.add_argument("--config", default="config.json")
+    parser.add_argument("--source", help="写真の枠を登録する動画・カメラURL（設定ファイルより優先）")
     args = parser.parse_args()
     path = Path(args.config)
     config = json.loads(path.read_text(encoding="utf-8"))
-    source = config.get("source", 0)
+    source = args.source if args.source is not None else config.get("source", 0)
     if isinstance(source, str) and source.isdecimal():
         source = int(source)
     camera = cv2.VideoCapture(source)

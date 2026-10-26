@@ -4411,7 +4411,11 @@ async function refreshLiveMonitor() {
       let elapsed = "";
       if (vehicle.parked_at) {
         const start = Date.parse(vehicle.parked_at);
-        const finish = vehicle.left_space_at ? Date.parse(vehicle.left_space_at) : now;
+        // 車を見失った後の時間を、実際に駐車していた時間として加算しない。
+        const lastSeen = Date.parse(vehicle.last_seen_at || "");
+        const finish = vehicle.left_space_at
+          ? Date.parse(vehicle.left_space_at)
+          : vehicle.phase === "parked" ? now : lastSeen;
         if (Number.isFinite(start) && Number.isFinite(finish) && finish >= start) {
           const minutes = Math.floor((finish - start) / 60000);
           elapsed = liveMonitorLanguage("・駐車時間 " + minutes + "分",
