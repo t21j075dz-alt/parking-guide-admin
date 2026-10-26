@@ -4406,9 +4406,20 @@ async function refreshLiveMonitor() {
       ));
     }
     // 固定された駐車枠の滞在セッションを優先。以前の生YOLO追跡ログは表示しない。
-    const anchored = sessions.filter(s => s.identity_basis === "stationary_slot");
-    const order = anchored.sort((a, b) =>
-      Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0)).slice(0, 50);
+    const anchored = sessions.filter(s => {
+      const age = Date.parse(s.last_seen_at || "");
+      return s.identity_basis === "stationary_slot"
+        && registered.some(obj => obj.uid === s.space_uid)
+        && Number.isFinite(age) && age <= now + 5000
+        && now - age < 120000;
+    }).sort((a, b) => Date.parse(b.last_seen_at) - Date.parse(a.last_seen_at));
+    // カメラ再起動後の古い滞在記録は、同一区画の最新の1件で上書き表示する。
+    const usedUids = new Set();
+    const order = anchored.filter(s => {
+      if (usedUids.has(s.space_uid)) return false;
+      usedUids.add(s.space_uid);
+      return true;
+    }).slice(0, 50);
     for (const vehicle of order) {
       let elapsed = "";
       if (vehicle.parked_at) {
