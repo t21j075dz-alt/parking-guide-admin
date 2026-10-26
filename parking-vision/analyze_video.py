@@ -84,6 +84,7 @@ def analyze(args) -> Path:
     state_path = run_dir / "駐車枠の状態.csv"
     event_path = run_dir / "車両の行動記録.csv"
     mapping_path = run_dir / "車両ID対応.csv"
+    detection_path = run_dir / "フレーム別車両検出.csv"
     summary_path = run_dir / "分析結果.json"
     zones = config["space_zones"]
     space_states = SpaceObserver(
@@ -125,10 +126,14 @@ def analyze(args) -> Path:
         image_size = int(config.get("image_size", 960))
         with state_path.open("w", encoding="utf-8-sig", newline="") as status_stream, \
              event_path.open("w", encoding="utf-8-sig", newline="") as event_stream, \
-             mapping_path.open("w", encoding="utf-8-sig", newline="") as mapping_stream:
+             mapping_path.open("w", encoding="utf-8-sig", newline="") as mapping_stream, \
+             detection_path.open("w", encoding="utf-8-sig", newline="") as detection_stream:
             state_csv = csv.writer(status_stream)
             event_csv = csv.writer(event_stream)
             mapping_csv = csv.writer(mapping_stream)
+            detection_csv = csv.writer(detection_stream)
+            detection_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス",
+                                    "確信度", "x1", "y1", "x2", "y2", "駐車枠ID"])
             mapping_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス", "検出信頼度"])
             state_csv.writerow(["動画の時刻(秒)", "駐車枠ID", "判定", "判定コード", "車両検知数", "障害物検知数"])
             event_csv.writerow(["動画の時刻(秒)", "追跡セッションID", "カメラ内番号", "状態", "状態コード", "駐車枠ID", "駐車時間(秒・確定分のみ)"])
@@ -151,6 +156,13 @@ def analyze(args) -> Path:
                     if raw is None or stable is None:
                         continue
                     raw_track_ids.add(raw)
+                    bbox = detection.get("bbox") or (None, None, None, None)
+                    detection_csv.writerow([
+                        round(now, 3), stable, raw, detection["name"],
+                        round(detection["confidence"], 4),
+                        *[round(value, 1) if value is not None else "" for value in bbox],
+                        space_for(detection["point"], zones) or "",
+                    ])
                     change = (stable, raw)
                     if change in id_links_logged:
                         continue
