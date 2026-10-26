@@ -90,6 +90,7 @@ def analyze(args) -> Path:
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
         absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+        initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
     )
     tracker = VehicleTracker(config["facility_id"], config["camera_id"],
                              float(config.get("park_seconds", 5)),
