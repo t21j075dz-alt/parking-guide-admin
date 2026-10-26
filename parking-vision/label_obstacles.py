@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""クリック＆ドラッグだけでコーン・カートなどの追加学習データを作る。
+r"""クリック＆ドラッグだけでコーン・カートなどの追加学習データを作る。
 
 例:
  python label_obstacles.py --images "C:\Users\Owner\Desktop\parking-yolo-starter\myparkingphoto_20261022\original"
