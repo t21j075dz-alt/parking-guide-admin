@@ -83,9 +83,14 @@ def analyze(args) -> Path:
     run_dir.mkdir(parents=True, exist_ok=False)
     state_path = run_dir / "駐車枠の状態.csv"
     event_path = run_dir / "車両の行動記録.csv"
+    mapping_path = run_dir / "車両ID対応.csv"
     summary_path = run_dir / "分析結果.json"
     zones = config["space_zones"]
-    space_states = SpaceObserver(zones)
+    space_states = SpaceObserver(
+        zones,
+        allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
+        absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+    )
     tracker = VehicleTracker(config["facility_id"], config["camera_id"],
                              float(config.get("park_seconds", 5)),
                              lost_seconds=float(config.get("reid_window_seconds", 12)))
@@ -101,6 +106,9 @@ def analyze(args) -> Path:
     previous_now = -1.0
     last_logged = -1.0
     last_statuses = {}
+    raw_track_ids = set()
+    prevented_false_free_frames = 0
+    id_links_logged = set()
     parked_since = {}
     durations = []
     print("録画を分析します。クラウドへの書き込みは行いません。")
@@ -111,10 +119,16 @@ def analyze(args) -> Path:
         obstacle_path = config.get("obstacle_model")
         obstacle_model = YOLO(obstacle_path) if obstacle_path else None
         confidence = float(config.get("confidence", 0.35))
+        tracking_confidence = float(config.get("tracking_confidence", 0.15))
+        tracker_file = str(config.get("tracker_file", "botsort.yaml"))
+        image_size = int(config.get("image_size", 960))
         with state_path.open("w", encoding="utf-8-sig", newline="") as status_stream, \
-             event_path.open("w", encoding="utf-8-sig", newline="") as event_stream:
+             event_path.open("w", encoding="utf-8-sig", newline="") as event_stream, \
+             mapping_path.open("w", encoding="utf-8-sig", newline="") as mapping_stream:
             state_csv = csv.writer(status_stream)
             event_csv = csv.writer(event_stream)
+            mapping_csv = csv.writer(mapping_stream)
+            mapping_csv.writerow(["動画の時刻(秒)", "安定車両ID", "YOLO元ID", "クラス", "検出信頼度"])
             state_csv.writerow(["動画の時刻(秒)", "駐車枠ID", "判定", "判定コード", "車両検知数", "障害物検知数"])
             event_csv.writerow(["動画の時刻(秒)", "追跡セッションID", "カメラ内番号", "状態", "状態コード", "駐車枠ID", "駐車時間(秒・確定分のみ)"])
             while True:
@@ -124,16 +138,28 @@ def analyze(args) -> Path:
                 frames += 1
                 now = video_timestamp(cap, frames, fps, previous_now)
                 previous_now = now
-                vehicles, blockers = infer_frame(vehicle_model, obstacle_model, frame, confidence)
+                vehicles, blockers = infer_frame(
+                    vehicle_model, obstacle_model, frame, tracking_confidence,
+                    tracker_file=tracker_file, image_size=image_size,
+                    occupancy_confidence=confidence,
+                )
                 vehicles = stable_ids.update(vehicles, now, frame=frame)
                 for detection in vehicles:
                     raw = detection.get("raw_track_id")
                     stable = detection.get("track_id")
-                    if raw is not None and stable is not None and raw != stable:
-                        # フレーム単位ではなくユニークな対応の変更を集計。
-                        change = (stable, raw)
-                        if change not in raw_identity_changes:
-                            raw_identity_changes.append(change)
+                    if raw is None or stable is None:
+                        continue
+                    raw_track_ids.add(raw)
+                    change = (stable, raw)
+                    if change in id_links_logged:
+                        continue
+                    id_links_logged.add(change)
+                    mapping_csv.writerow([
+                        round(now, 3), stable, raw,
+                        detection["name"], round(detection["confidence"], 4),
+                    ])
+                    if raw != stable:
+                        raw_identity_changes.append(change)
                 events = tracker.update(vehicles, zones, config.get("exit_zone", []), now)
                 for event in events:
                     session_id = event["session_id"]
@@ -156,14 +182,22 @@ def analyze(args) -> Path:
                         PHASE_NAMES.get(phase, "未確認"), phase,
                         event.get("space_uid") or "", duration,
                     ])
-                raw = classify_spaces(vehicles, blockers, zones)
-                states = space_states.update(raw, now)
+                occupancy_vehicles = [d for d in vehicles if d["confidence"] >= confidence]
+                raw = classify_spaces(occupancy_vehicles, blockers, zones)
+                departures = [event["space_uid"] for event in events
+                              if event["phase"] == "exiting" and event.get("space_uid")]
+                states = space_states.update(raw, now, departures=departures)
+                prevented_false_free_frames += sum(
+                    raw[uid] == "available" and states[uid] != "available"
+                    and uid in space_states.had_vehicle for uid in raw
+                )
                 for uid, status in states.items():
                     counts[uid][status] += 1
 
                 # 変化がなくても約1秒おきに書き出す。膨大なフレーム単位ログを避ける。
                 if states != last_statuses or now - last_logged >= 1:
-                    vehicle_counts = Counter(space_for(d["point"], zones) for d in vehicles)
+                    vehicle_counts = Counter(space_for(d["point"], zones)
+                                             for d in occupancy_vehicles)
                     obstacle_counts = Counter(space_for(d["point"], zones) for d in blockers)
                     for uid, status in states.items():
                         state_csv.writerow([
@@ -209,7 +243,14 @@ def analyze(args) -> Path:
         "obstacle_model_enabled": bool(config.get("obstacle_model")),
         "observations": summarize_observations(counts, frames),
         "tracked_session_count": len(tracker_sessions),
+        "original_yolo_id_count": len(raw_track_ids),
         "stable_id_reassociations": stable_ids.reassociated,
+        "ambiguous_id_matches_rejected": stable_ids.ambiguous,
+        "unverified_free_frame_blocks": prevented_false_free_frames,
+        "tracker_file": tracker_file,
+        "tracking_confidence": tracking_confidence,
+        "occupancy_confidence": confidence,
+        "allow_unverified_initial_empty": space_states.allow_initial_empty,
         "track_id_connections": [
             {"stable_id": stable, "original_yolo_id": raw}
             for stable, raw in raw_identity_changes
@@ -218,7 +259,7 @@ def analyze(args) -> Path:
         "completed_parking_sessions": len(durations),
         "confirmed_parking_seconds": durations,
         "cloud_uploaded": False,
-        "important": "検知結果の集計であり、正解率ではありません。目視の正解データとの比較が必要です。"
+        "important": "検知結果の集計であり正解率ではありません。状態unknownは安全側の判定です。目視による正解ラベルと照合してください。"
     }
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print("完了。結果:", run_dir)
