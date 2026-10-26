@@ -2067,3 +2067,15 @@ html[data-theme="dark"] .polygon-object[data-object-type="parkingLot"] .polygon-
 .inline-error { color:#b91c1c; font-size:.85rem; }
 .right-panel input, .right-panel select { min-height:2.6rem; }
 .right-panel fieldset { border-radius:.65rem; }
+
+/* リアルタイム監視。小さい画面でも読みやすく、スクロールできる一覧。 */
+.live-monitor-list {
+  margin: .45rem 0 .9rem;
+  padding-left: 1.35rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+#live-monitor-panel .check-row { margin: .6rem 0; }
+#live-monitor-message { line-height: 1.6; }
