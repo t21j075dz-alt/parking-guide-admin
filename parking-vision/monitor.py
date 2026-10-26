@@ -97,6 +97,7 @@ class Vehicle:
     track_id: int
     session_id: str = field(default_factory=lambda: str(uuid4()))
     phase: str = "entering"
+    arrived_from_outside: bool = False
     entered_at: str = field(default_factory=utc_now)
     parked_at: str | None = None
     left_space_at: str | None = None
@@ -119,6 +120,8 @@ class Vehicle:
         self.last_seen_at = utc_now()
         self.position_x, self.position_y = point
         self.locations.append((now, point))
+        if uid is None and self.phase in {"entering", "moving"}:
+            self.arrived_from_outside = True
         recent = [p for t, p in self.locations if now - t <= 3]
         stationary = len(recent) >= 3 and max(
             ((p[0] - recent[0][0]) ** 2 + (p[1] - recent[0][1]) ** 2) ** 0.5
@@ -133,7 +136,9 @@ class Vehicle:
                 elif now - self.candidate_since >= park_seconds:
                     self.phase, self.space_uid = "parked", uid
                     # 駐車開始は「確定した時刻」ではなく「停止を始めた時刻」。
-                    self.parked_at = self.candidate_started_at or utc_now()
+                    # 動画開始時点で既に駐車していた車は、駐車開始時刻が不明。
+                    # 入場/移動を画面で確認した車だけ開始時刻を確定する。
+                    self.parked_at = (self.candidate_started_at or utc_now()) if self.arrived_from_outside else None
             else:
                 self.candidate_uid = None
                 self.candidate_started_at = None
@@ -339,21 +344,46 @@ def detector_boxes(result, width: int, height: int, allowed: set[str]) -> list[d
         # 下辺中央を車両が地面に接している位置の近似として用いる。
         point = (min(1., max(0., (x1 + x2) / (2 * width))),
                  min(1., max(0., y2 / height)))
-        output.append({"name": name, "point": point, "track_id": track_id,
-                       "confidence": float(score), "bbox": bbox})
+        # 下端の接地位置が区画境界をまたぐ場合は、安全側に「未確認」。
+        contact = [
+            (min(1., max(0., (x1 + (x2-x1)*fraction) / width)),
+             min(1., max(0., y2 / height)))
+            for fraction in (0.25, 0.5, 0.75)
+        ]
+        output.append({"name": name, "point": point, "bottom_points": contact,
+                       "track_id": track_id, "confidence": float(score), "bbox": bbox})
     return output
 
 
 
 def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> dict[str, str]:
-    """同じ判定規則をライブ・録画テストで共有する。車両が最優先、次に障害物。"""
-    occupied = {space_for(d["point"], zones) for d in vehicles}
-    blocked = {space_for(d["point"], zones) for d in blockers}
-    return {
-        uid: "occupied" if uid in occupied else "blocked" if uid in blocked
-        else "available" for uid in zones
-    }
+    """接地点を優先。区画境界にかかる曖昧な車は空きとして案内しない。"""
+    occupied, blocked, uncertain = set(), set(), set()
 
+    def put(detection, definite):
+        center_uid = space_for(detection["point"], zones)
+        points = detection.get("bottom_points") or [detection["point"]]
+        touched = {space_for(p, zones) for p in points}
+        touched.discard(None)
+        if center_uid and (not touched or touched == {center_uid}):
+            definite.add(center_uid)
+        elif touched:
+            uncertain.update(touched)
+            if center_uid:
+                uncertain.add(center_uid)
+        elif center_uid:
+            definite.add(center_uid)
+
+    for vehicle in vehicles:
+        put(vehicle, occupied)
+    for blocker in blockers:
+        put(blocker, blocked)
+    return {
+        uid: ("occupied" if uid in occupied else
+              "unknown" if uid in uncertain else
+              "blocked" if uid in blocked else "available")
+        for uid in zones
+    }
 
 def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
                 tracker_file: str = "botsort.yaml", image_size: int = 960,
