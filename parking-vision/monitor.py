@@ -21,6 +21,8 @@ from urllib import error, parse, request
 from uuid import uuid4
 
 from stable_ids import StableIdMatcher
+from slot_stays import SlotStayManager
+from admin_layout import verify as verify_admin_layout, read_export as read_admin_layout_export
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
 _TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
@@ -86,6 +88,23 @@ def load_config(path: str) -> dict:
     for name in ("entry_zone", "exit_zone"):
         if content.get(name) and not valid_polygon(content[name]):
             raise ValueError(f"{name} の範囲が正しくありません")
+    monitored_site = content.get("monitored_site_polygon", [])
+    if monitored_site and not valid_polygon(monitored_site):
+        raise ValueError("monitored_site_polygon は画像内の正規化した3点以上の敷地境界にしてください")
+    blind = content.get("camera_blind_space_uids", [])
+    if not isinstance(blind, list) or any(uid not in zones for uid in blind):
+        raise ValueError("camera_blind_space_uids に登録していない区画があります")
+    occluded_by = content.get("occluded_by_spaces", {})
+    if not isinstance(occluded_by, dict) or any(
+        uid not in zones or not isinstance(fronts, list) or any(front not in zones or front == uid for front in fronts)
+        for uid, fronts in occluded_by.items()
+    ):
+        raise ValueError("occluded_by_spaces は登録済み区画UIDの対応を指定してください")
+    if content.get("admin_layout_export"):
+        metadata = read_admin_layout_export(
+            content["admin_layout_export"], content["facility_id"], zones
+        )
+        print("管理アプリの登録済み区画と一致:", len(metadata), "区画")
     confirmed = content.get("initially_confirmed_empty_uids", [])
     if not isinstance(confirmed, list) or any(uid not in zones for uid in confirmed):
         raise ValueError("initially_confirmed_empty_uids は登録済み区画IDにしてください")
@@ -331,6 +350,27 @@ class SupabaseWriter:
         )
         self._store_tokens(data)
 
+    def fetch_layout(self, facility_id: str):
+        """本人の管理者ログインを用いて管理レイアウトUIDを確認する。"""
+        self._ensure_token()
+        query = parse.urlencode({
+            "facility_id": "eq." + facility_id,
+            "select": "facility_id,layout_data", "limit": 1,
+        })
+        req = request.Request(
+            self.url + "/rest/v1/parking_layouts?" + query,
+            headers={
+                "apikey": self.key,
+                "Authorization": "Bearer " + self.access_token,
+            },
+            method="GET",
+        )
+        with request.urlopen(req, timeout=10) as response:
+            rows = json.loads(response.read())
+        if not rows:
+            raise ValueError("管理アプリに登録された施設レイアウトが見つかりません")
+        return rows[0]["layout_data"]
+
     def upsert(self, table: str, records: list[dict], conflict: str):
         if not records:
             return
@@ -422,7 +462,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     return vehicles, blockers
 
 
-def overlay(frame, zones, statuses, vehicle_detections, obstacles):
+def overlay(frame, zones, statuses, vehicle_detections, obstacles, slot_stays=()):
     import cv2
     h, w = frame.shape[:2]
     for uid, poly in zones.items():
@@ -434,9 +474,25 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (250, 255, 255), 2)
     for d in vehicle_detections + obstacles:
         px, py = d["point"]
-        label = f"{d['name']} ID{d['track_id']}" if d["track_id"] is not None else d["name"]
+        # 移動車両の生IDはデバッグにのみ必要。通常は区画固定の滞在IDを表示し、
+        # 画面を無数の不安定な番号で埋めない。
+        label = "vehicle" if d["name"] in {"car", "van", "vehicle"} else d["name"]
         cv2.putText(frame, label, (int(px * w), int(py * h)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 255, 20), 2)
+    # 生YOLOの番号ではなく、物理駐車枠に固定した滞在IDを明示。
+    for stay in slot_stays:
+        uid = stay["space_uid"]
+        if uid not in zones:
+            continue
+        polygon = zones[uid]
+        cx = sum(p[0] for p in polygon) / len(polygon)
+        cy = sum(p[1] for p in polygon) / len(polygon)
+        duration = stay.get("duration_seconds")
+        mins = (f"{duration:.1f}s" if duration is not None else "start unknown")
+        label = f"STAY P{max(1, stay['vehicle_id'] - 999999):03d} {mins}"
+        cv2.putText(frame, label,
+                    (int(cx * w), min(h-8, int(cy * h))),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 60, 255), 2)
 
 
 def main():
@@ -476,6 +532,19 @@ def main():
         del password
 
     zones = config["space_zones"]
+    if writer and config.get("verify_admin_layout_on_cloud", True):
+        # クラウドへ誤った施設/区画IDを公開しないために必ず事前照合する。
+        metadata = verify_admin_layout(
+            writer.fetch_layout(config["facility_id"]), config["facility_id"], zones
+        )
+        print("管理アプリの登録枠と照合成功:", len(metadata), "区画")
+    stay_manager = SlotStayManager(
+        config["facility_id"], config["camera_id"], zones,
+        park_seconds=float(config.get("park_seconds", 5)),
+        confirmed_initially_empty=config.get("initially_confirmed_empty_uids", []),
+        blind_uids=config.get("camera_blind_space_uids", []),
+        occlusion_dependencies=config.get("occluded_by_spaces", {}),
+    )
     observer = SpaceObserver(
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
@@ -488,7 +557,7 @@ def main():
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
-    pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
+    pending_sessions = {}  # 駐車区画の固定セッションだけを管理アプリへ送信する
     try:
         while True:
             ok, frame = camera.read()
@@ -503,6 +572,11 @@ def main():
                 occupancy_confidence=float(config.get("confidence", 0.35)),
             )
             now = time.monotonic()
+            # 登録済み敷地外の車を追跡対象から除外する。背景道路の車はカウントしない。
+            site = config.get("monitored_site_polygon") or []
+            if site:
+                vehicles = [d for d in vehicles if inside(d["point"], site)]
+                blockers = [d for d in blockers if inside(d["point"], site)]
             vehicles = stable_ids.update(vehicles, now, frame=frame)
             events = tracks.update(vehicles, zones, config.get("exit_zone", []), now)
             for event in events:
@@ -514,6 +588,24 @@ def main():
             departures = [event["space_uid"] for event in events
                           if event["phase"] == "exiting" and event.get("space_uid")]
             statuses = observer.update(raw, now, departures=departures)
+            # 管理アプリで設定された視野の死角は、車を検出できた場合を除き空き扱いしない。
+            blind = set(config.get("camera_blind_space_uids", []))
+            for uid, fronts in config.get("occluded_by_spaces", {}).items():
+                if any(statuses.get(front) == "occupied" for front in fronts):
+                    blind.add(uid)
+            for uid in blind:
+                if raw.get(uid) != "occupied":
+                    statuses[uid] = "unknown"
+
+            # 生IDに依存しない、「駐車枠に固定した駐車セッション」を発行。
+            stay_events = stay_manager.update(
+                occupancy_vehicles, statuses, now,
+                frame=frame, departures=departures,
+            )
+            for event in stay_events:
+                pending_sessions[event["session_id"]] = event["record"].row(
+                    config["facility_id"], config["camera_id"]
+                )
             changed = statuses != previous_statuses
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
@@ -525,11 +617,16 @@ def main():
                     } for uid, status in statuses.items()]
                     try:
                         writer.upsert("parking_live_status", rows, "facility_id,space_uid")
-                        # 追跡IDは同じカメラ稼働中だけ有効。車の画像は保存しない。
-                        session_rows = {entry.session_id: entry.row() for entry in tracks.vehicles.values()}
-                        for sid, event in pending_sessions.items():
-                            session_rows.setdefault(sid, event)  # 終了済みイベントのみ復元する
-                        writer.upsert("parking_vehicle_sessions", list(session_rows.values()), "session_id")
+                        # 生IDが頻繁に変化する移動車両はクラウドへ送らない。
+                        # 1駐車枠につき1つの滞在IDを持つ固定セッションだけ送信。
+                        session_rows = {
+                            row["session_id"]: row for row in stay_manager.active_rows()
+                        }
+                        session_rows.update(pending_sessions)
+                        writer.upsert(
+                            "parking_vehicle_sessions", list(session_rows.values()),
+                            "session_id",
+                        )
                         pending_sessions.clear()
                     except (error.URLError, error.HTTPError, OSError, KeyError) as exc:
                         print(f"クラウド共有に失敗: {exc}（認証・権限・通信をご確認ください）")
@@ -540,7 +637,8 @@ def main():
                     pending_sessions.clear()
                 previous_statuses, last_push = statuses.copy(), now
             if args.preview:
-                overlay(frame, zones, statuses, vehicles, blockers)
+                overlay(frame, zones, statuses, vehicles, blockers,
+                        slot_stays=stay_manager.current_display(now))
                 cv2.imshow("Parking camera (q to quit)", frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break

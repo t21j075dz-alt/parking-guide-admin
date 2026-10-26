@@ -4380,7 +4380,7 @@ async function refreshLiveMonitor() {
       liveMonitorFetch("parking_live_visibility", "is_published", facilityId),
       liveMonitorFetch("parking_live_status", "space_uid,status,checked_at", facilityId),
       liveMonitorFetch("parking_vehicle_sessions",
-        "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at", facilityId),
+        "track_id,phase,space_uid,entered_at,parked_at,left_space_at,last_seen_at,vehicle_color_estimate,vehicle_shape_ratio,visibility_state,start_time_verified,identity_basis", facilityId),
     ]);
     if (seq !== liveMonitorSequence || facilityId !== state.facilityId) return;
     liveMonitor.published.disabled = !visibility.length;
@@ -4405,8 +4405,21 @@ async function refreshLiveMonitor() {
         "この施設には登録された駐車枠がありません。", "No parking spaces have been registered.",
       ));
     }
-    const order = [...sessions].sort((a, b) =>
-      Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0)).slice(0, 15);
+    // 固定された駐車枠の滞在セッションを優先。以前の生YOLO追跡ログは表示しない。
+    const anchored = sessions.filter(s => {
+      const age = Date.parse(s.last_seen_at || "");
+      return s.identity_basis === "stationary_slot"
+        && registered.some(obj => obj.uid === s.space_uid)
+        && Number.isFinite(age) && age <= now + 5000
+        && now - age < 120000;
+    }).sort((a, b) => Date.parse(b.last_seen_at) - Date.parse(a.last_seen_at));
+    // カメラ再起動後の古い滞在記録は、同一区画の最新の1件で上書き表示する。
+    const usedUids = new Set();
+    const order = anchored.filter(s => {
+      if (usedUids.has(s.space_uid)) return false;
+      usedUids.add(s.space_uid);
+      return true;
+    }).slice(0, 50);
     for (const vehicle of order) {
       let elapsed = "";
       if (vehicle.parked_at) {
@@ -4422,12 +4435,42 @@ async function refreshLiveMonitor() {
             " · parked for " + minutes + " min");
         }
       }
+      const visual = vehicle.visibility_state && vehicle.visibility_state !== "visible"
+        ? liveMonitorLanguage("・映像で未確認", " · temporarily not visible") : "";
+      const color = vehicle.vehicle_color_estimate && vehicle.vehicle_color_estimate !== "不明"
+        ? "・" + vehicle.vehicle_color_estimate : "";
+      let observedMinimum = "";
+      if (!vehicle.parked_at && vehicle.entered_at) {
+        const seen = Date.parse(vehicle.entered_at);
+        const lastSeen = Date.parse(vehicle.last_seen_at || "");
+        if (Number.isFinite(seen) && Number.isFinite(lastSeen) && lastSeen >= seen) {
+          const mins = Math.floor((lastSeen - seen) / 60000);
+          observedMinimum = liveMonitorLanguage(
+            "・少なくとも観測 " + mins + "分",
+            " · seen at least " + mins + " min",
+          );
+        }
+      }
+      const startUnknown = !vehicle.parked_at
+        ? liveMonitorLanguage("・駐車開始時刻不明", " · start time unknown") : "";
+      const basis = vehicle.identity_basis === "stationary_slot"
+        ? liveMonitorLanguage("（区画固定ID）", " (space-anchored ID)") : "";
+      const displayId = Number(vehicle.track_id) >= 1000000
+        ? "P" + String(Number(vehicle.track_id) - 999999).padStart(3, "0")
+        : "#" + vehicle.track_id;
+      const shape = Number.isFinite(Number(vehicle.vehicle_shape_ratio))
+        && vehicle.vehicle_shape_ratio !== null
+        ? liveMonitorLanguage("・形状比(参考) " + Number(vehicle.vehicle_shape_ratio).toFixed(2),
+            " · image aspect ratio " + Number(vehicle.vehicle_shape_ratio).toFixed(2))
+        : "";
       appendLiveItem(liveMonitor.sessions,
-        "#" + vehicle.track_id + " " + liveMonitorPhase(vehicle.phase)
-        + (vehicle.space_uid ? "・" + vehicle.space_uid : "") + elapsed);
+        (vehicle.space_uid || "未割当") + "｜" + displayId + basis
+        + "｜" + liveMonitorPhase(vehicle.phase)
+        + visual + color + shape + elapsed + observedMinimum + startUnknown);
     }
     if (!order.length) appendLiveItem(liveMonitor.sessions,
-      liveMonitorLanguage("まだ車両の記録はありません。", "No vehicle records yet."));
+      liveMonitorLanguage("まだ区画固定IDの駐車記録はありません。旧式の生ID記録は非表示です。",
+        "No space-anchored parking records yet. Old tracker IDs are hidden."));
     liveMonitor.message.textContent = liveMonitorLanguage(
       "更新 " + new Date().toLocaleTimeString("ja-JP") + "｜カメラ状況 " + statuses.length
       + "区画｜" + (visibility[0]?.is_published ? "公開中" : "非公開"),

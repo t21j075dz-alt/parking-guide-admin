@@ -1,3 +1,201 @@
+# 自宅駐車場 本番導入手順（2026-10-27 / Home staging）
+
+この導入は **カメラでの目視確認 → ローカル試験 → 管理者だけにクラウド試験 → 利用者公開の判断** の4段階です。
+一括で公開しません。日光の録画・実験区画座標は自宅には持ち込まず、
+施設ID `home-test-001` を使います。
+
+## 0. 事前確認
+
+- 自宅の管理者レイアウトはSupabaseに登録されています（2026-10-27に8枠UIDを確認）。
+  `space_001`〜`space_008` のUIDを使います。
+- ZIPには学習済みの重み `best.pt` や秘密の設定値は含めません。
+- 通信を有効にする場合、カメラPC側の `config_home_live.json` に
+  `supabase_url` と公開用 `publishable_key` が必要です。
+  `service_role` や秘密鍵を記入しないでください。
+- `config_home_live.json`、撮影動画・画像は**公開GitHubにアップロードしない**でください。
+- **カメラの角度・レンズが変わったら再校正してください。**
+  昔の `test_house1.mp4` の区画座標をそのまま使わないのが安全です。
+
+## 1. 自宅専用configを新規生成（元の設定には触れない）
+
+PowerShellを `parking-vision` フォルダで開く。以下の元ファイルは、
+以前の自宅実験で作った `config.json` の実際の保存先を指定する。
+
+```powershell
+& "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe" .\setup_home.py --from-config "C:\Users\anasu\Downloads\parking-guide-admin-main\parking-vision\config.json" --output .\config_home_live.json --camera 0
+```
+
+旧 `config.json` は保存したまま。新しい `config_home_live.json` では
+施設を自宅に固定、入力をUSBカメラ0へ変更、区画・敷地・死角を未登録状態へ戻します。
+学習済み `vehicle_model` のパスはコピーします。
+カメラがIPカメラなら `--camera` に**PCから接続可能なRTSP URL**を指定し、
+認証情報は端末内にだけ保存してください。
+
+管理者アプリの **JSON出力** で取得した `parking-layouts.json` がある場合は
+`--admin-layout "ファイルの実際のパス"` を追加すると、管理アプリの枠UID一覧を先に読み込みます。
+これは**位置座標を自動で変換するものではありません。**
+
+## 2. 実際のカメラで区画・敷地境界を再登録
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode calibrate -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+ウィンドウの表示に従い、見える枠の四隅を4点ずつ登録。
+映らない枠は `s` でスキップする（**管理アプリにある8枠を無理に登録しない**）。
+`l` で敷地全体の外周四隅を登録、`q` で保存。
+敷地全体が一枚の四角形にできない場合は、見える範囲を安全側に限定する。
+奥の枠が手前の車に隠れる場合は設定JSONに `occluded_by_spaces` をUIDで記入する。
+
+**空きが目視確認できた枠だけ**、`initially_confirmed_empty_uids` に列挙する。
+未確認の区画は `unknown` のまま。正確に判定できるまでは無理に公開しない。
+
+## 3. PCだけでライブ試験
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode camera -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+このモードは**Supabaseに何も送らない**。
+車が見えている区画で `occupied`、見えない区画で `unknown` が妥当か確認する。
+カメラ位置が変わった時は必ず校正し直す。ウィンドウで `q` を押すと停止。
+
+駐車開始時間はカメラが空き状態からの駐車を観測したときだけ確定。
+初めから停車中の車には「駐車開始時刻不明」と表示する。
+不明の車でも区画固定IDは継続し、車色は推定値のみ記録する。
+
+## 4. 管理者アプリへクラウド送信（公開はしない）
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode cloud -Config "config_home_live.json" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+`cloud` は明示の確認入力とSupabase管理者ログインが必要。
+開始前にSupabase上の施設 `home-test-001` とカメラの全UIDを照合する。
+アクセス権がない場合はRLSによって書き込みが拒否される。
+この段階では利用者アプリへの自動公開を**しない**。
+管理者アプリで同施設を選び「カメラによる空き状況・駐車枠固定ID」を開くと
+区画状態、P001などの固定ID、色推定、駐車時間を確認できる。
+
+## 5. 利用者へ公開する前の合否条件
+
+- 実際に空いていない区画をavailableと案内したケースがないことを目視データで検証。
+- 少なくとも数回の「駐車→一時遮蔽→出庫」を再現し、P001などが変わらないことを確認。
+- 区画UIDが実際の表示位置・枠番号と一致。
+- カメラ断、暗所、遮蔽時に不正な空き案内が起きないことを確認。
+- 現状は**ソフトウェアの動作試験まで**。実測正解率とプライバシー対策を確認した後、
+  必要なら管理者アプリ側の「利用者アプリへ最新の空き状況を公開」を明示的にON。
+
+**注意：** 最新の日光v4結果では `slot_anchored_stay_count=0` であり、
+停止車両のセッション計測はまだ現地映像で成功を確認していません。
+判定対象を自宅に移すにあたり、区画位置の再登録と候補検出のログで原因を調べます。
+「成功しました」とは扱いません。
+
+---
+
+# v4（2026-10-27）：駐車区画を基準にした車両ID・死角・管理アプリ連携
+
+## この変更の理由（測定結果）
+
+ユーザーの道の駅日光の録画22.5秒、676フレーム、8区画をv3で解析すると、
+YOLO生追跡ID189件、v3安定ID167件、再接続27件、曖昧候補棄却235件。
+車が止まっていても生IDが変わるため、**追跡番号で駐車台数・時間を数えない**。
+
+v4では2つのIDを分ける。
+
+* 移動中の一時的な追跡ID：YOLO/BoT-SORTによる補助情報。変わることがある。管理画面の駐車車両数には使用しない。
+* 駐車を確認した区画固定ID：`space_uid` に1つの滞在UUIDと表示用ID（1000000番台）を発行。車が同じ区画に継続している限り、生追跡IDが変わっても固定する。区画から出たことが確定しなければセッションを勝手に閉じない。
+
+「停止したこと」の検出には、同じ区画内で接地点が大きく動かない状態が
+`park_seconds`（例5秒）以上継続したかを使う。時間は録画の秒数で計算。
+開始時から駐車していた場合は**開始時刻不明**として空欄にする。
+実際の駐車時間を知るには、空きが確認された状態から車が到着するところを
+同じカメラで見ていなければならない。
+
+### 設定：敷地境界の登録
+
+駐車枠設定を保存した `config_nikko.json` を引き継ぎ、最新版の
+`parking-vision` フォルダで以下を実行する。
+
+```powershell
+cd "C:\Users\anasu\Downloads\駐車場AI_v4\parking-vision"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode calibrate -Config "config_nikko.json" -Video "C:\Users\anasu\Downloads\道の駅日光駐車場ライブカメラ_ニコニコ本陣.mp4" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe"
+```
+
+**カメラの写真が表示されたら `l` キーを押し、対象敷地の外周4点をクリック、`q` で保存。**
+対象外の一般道路などの車は、敷地内の車両として数えなくなる。
+敷地全体を1つの四角形で囲えない場合は、映像カメラの向きや
+区画ごとの対象範囲を見直してから設定する。画角外は検出できない。
+
+`config_nikko.json` に以下が追加される。
+
+```json
+{
+  "monitored_site_polygon": [[0.10,0.25],[0.95,0.25],[0.95,0.85],[0.10,0.85]],
+  "camera_blind_space_uids": ["space_008"],
+  "occluded_by_spaces": {"space_007": ["space_006"]},
+  "verify_admin_layout_on_cloud": true
+}
+```
+
+上記は**書き方の例であり、日光の映像の正しい座標ではない**。
+枠や敷地の位置は映像を見ながら登録すること。
+
+* `camera_blind_space_uids`：死角となる区画。車の存在を直接検出できない場合は**不明**で案内しない。
+* `occluded_by_spaces`：奥側の区画IDをキーにし、それを隠す手前の区画IDを配列で指定。手前が駐車中で奥が見えなくなった場合、奥は**不明**とする。
+* 死角で以前見えていた車の滞在IDは失わず内部で保持するが、見えないものを「現在駐車中と目視確認済み」とは扱わない。
+* **完全に隠れた区画について、カメラ1台から真の空車状態を判定できるとは限らない。** 正確な案内が必要なら、もう1台のカメラや追加センサ、視点変更が必要。
+
+### 管理アプリの実際の区画定義との連携
+
+管理アプリの「JSON出力」で取得できる `parking-layouts.json` には
+施設ID、`parkingSpace` オブジェクトの **UID、表示番号、駐車枠の種類** が含まれる。
+そのファイルのフルパスを `admin_layout_export` に設定すると、動画実験を始める前に
+カメラの `space_uid` と管理アプリのUIDが完全に一致するか検証し、
+不一致があれば停止する。
+
+本番の `-Mode cloud` は管理者アカウントでサインインし、
+**Supabaseの現在の `parking_layouts` にある施設のUIDを自動照合**する。
+カメラの `space_001` が管理アプリの別区画に対応してしまう危険を防ぐ。
+レイアウトの `x,y` は地図上の座標で、カメラ画像の `x,y` と同じではない。
+**自動で座標を流用しない。** カメラの枠は `calibrate.py` で別途指定する。
+
+### 再解析・確認用CSV
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Mode video -Config "config_nikko.json" -Video "C:\Users\anasu\Downloads\道の駅日光駐車場ライブカメラ_ニコニコ本陣.mp4" -Python "C:\Users\anasu\parking-yolo-home\.venv-gpu\Scripts\python.exe" -Preview -SaveVideo
+```
+
+既存の5ファイルに加え `駐車枠固定IDと駐車時間.csv` を保存する。
+`分析結果.json` に `slot_anchored_stay_count` を追加。
+これは**停止を一定時間確認できた区画別の滞在件数**であり、
+動画に映る全車両の台数ではない。
+旧 `tracked_session_count` は移動車の追跡分裂を含む診断値。
+
+### 車両の色・形・ナンバー
+
+* 車色はカメラ画像のHSV分布を参考に、白系・黒系・銀灰系・赤系・青系などに**概算分類**。
+* 形は検出枠の縦横比だけを**参考情報**として記録する。遠近・斜め角度による歪みが大きく、車種識別の保証なし。
+* **乗用車とバンは同じ「四輪車」グループ**として安定IDを照合する。
+* **ナンバープレートOCRは未実装**。研究用の画像を無断で送信・保存しない。将来必要なら、
+  利用目的・権限・保持期間を定め、現地の同意/掲示などの確認を経て、
+  車両対応補助として端末内でのみ処理する方式を別途設計する。
+* カメラ画像・ナンバープレートはSupabaseに保存しない。管理者のみが
+  色の概算や画像上の縦横比、区画固定ID、最後に見えた時刻を閲覧できる。
+
+### 何を精度評価すべきか
+
+(1) 区画ごとの人手正解との照合、誤空き判定率、
+(2) 駐車中に同じセッションIDが保たれる率、
+(3) 実際に入った車を捉えて駐車開始時刻を確定できた割合、
+(4) 区画が「不明」になった割合、
+(5) 死角のある区画での誤案内率。
+
+現段階では純粋なロジックの自動テストが成功しただけで、**日光/自宅動画での新バージョンの実測精度は未確認**。
+カメラ設置・太陽光・夜間・積雪・色の似た車による差を検証する必要がある。
+
+---
+
 ## 目視で正解データを用意し、誤った空き案内率を測る
 
 解析時に `フレーム別車両検出.csv`（動画秒・アプリ車両ID・YOLO元ID・クラス・矩形座標）が**PC内だけ**に保存されます。

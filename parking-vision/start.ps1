@@ -50,10 +50,10 @@ if ($Mode -in @("video", "calibrate", "camera", "cloud", "compare")) {
   }
 }
 
-if ($Mode -in @("video", "calibrate", "compare") -and -not $Video) {
+if ($Mode -in @("video", "compare") -and -not $Video) {
   $Video = Read-Host "撮影した動画のフルパスを入力してください（例: C:\parking\test_house1.mp4）"
 }
-if ($Mode -in @("video", "calibrate", "compare") -and -not (Test-Path -LiteralPath $Video -PathType Leaf)) {
+if ($Mode -in @("video", "compare") -and -not (Test-Path -LiteralPath $Video -PathType Leaf)) {
   throw "動画ファイルが見つかりません。フルパスを確認してください: $Video"
 }
 
@@ -72,7 +72,13 @@ switch ($Mode) {
     if ($zones.Count -eq 0) {
       Write-Host "カメラに写る駐車枠がまだ登録されていません。"
       Write-Host "四隅を順番に4回クリックして登録してください。"
+      if ($Video) {
+      if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) { throw "指定された動画がありません: $Video" }
       & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+    } else {
+      Write-Host "設定ファイルのカメラsourceを使用します。録画ではなく実カメラの静止画を取得します。"
+      & $pythonCommand "calibrate.py" "--config" $config
+    }
       if ($LASTEXITCODE -ne 0) { throw "駐車枠の登録が完了しませんでした。" }
       $settings = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
       if (@($settings.space_zones.PSObject.Properties).Count -eq 0) {
@@ -87,8 +93,15 @@ switch ($Mode) {
     break
   }
   "calibrate" {
-    Write-Host "【枠の登録】動画の駐車区画を四隅で登録してください。"
-    & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+    Write-Host "【枠の登録】設定のカメラまたは指定動画から画像を取得します。"
+    if ($Video) {
+      if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) {
+        throw "指定された動画がありません: $Video"
+      }
+      & $pythonCommand "calibrate.py" "--config" $config "--source" $Video
+    } else {
+      & $pythonCommand "calibrate.py" "--config" $config
+    }
     break
   }
   "camera" {
