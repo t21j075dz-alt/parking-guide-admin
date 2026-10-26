@@ -169,9 +169,9 @@ def analyze(args) -> Path:
                     duration = ""
                     if phase == "parked":
                         active = tracker.vehicles.get(event["track_id"])
-                        parked_since[session_id] = (
-                            active.candidate_since if active is not None else now
-                        )
+                        if active is not None and active.parked_at is not None:
+                            # 初めから駐車中だった車は開始時間が不明なので除外
+                            parked_since[session_id] = active.candidate_since
                     elif phase == "exiting" and session_id in parked_since:
                         active = tracker.vehicles.get(event["track_id"])
                         began_exiting = active.outside_since if active is not None else now
@@ -258,6 +258,7 @@ def analyze(args) -> Path:
         "phase_change_count": dict(events_by_phase),
         "completed_parking_sessions": len(durations),
         "confirmed_parking_seconds": durations,
+        "parking_duration_note": "動画開始時点で既に駐車中だった車の開始時刻・時間は測定対象外",
         "cloud_uploaded": False,
         "important": "検知結果の集計であり正解率ではありません。状態unknownは安全側の判定です。目視による正解ラベルと照合してください。"
     }
