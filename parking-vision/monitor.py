@@ -474,7 +474,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, slot_stays=()
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (250, 255, 255), 2)
     for d in vehicle_detections + obstacles:
         px, py = d["point"]
-        label = f"{d['name']} ID{d['track_id']}" if d["track_id"] is not None else d["name"]
+        # 移動車両の生IDはデバッグにのみ必要。通常は区画固定の滞在IDを表示し、
+        # 画面を無数の不安定な番号で埋めない。
+        label = "vehicle" if d["name"] in {"car", "van", "vehicle"} else d["name"]
         cv2.putText(frame, label, (int(px * w), int(py * h)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 255, 20), 2)
     # 生YOLOの番号ではなく、物理駐車枠に固定した滞在IDを明示。
