@@ -32,7 +32,9 @@ def get_slot_detection(detections: list, uid: str, zones: dict):
         if space_for(d["point"], zones) != uid:
             continue
         touched = {space_for(p, zones) for p in d.get("bottom_points", [d["point"]])}
-        if touched != {uid}:
+        # 他の区画との重なりがなければ、検出枠の端が通路へ
+        # はみ出しても候補から捨てない（遠距離の車への対策）。
+        if any(other is not None and other != uid for other in touched):
             continue
         candidates.append(d)
     if not candidates:
