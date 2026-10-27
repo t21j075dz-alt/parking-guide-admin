@@ -14,7 +14,9 @@ Write-Host "【安全】今回はカメラの判定テストだけ。Supabaseへ
 $pythonCandidates = @(
   (Join-Path $userProfileDirectory "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
   (Join-Path $userProfileDirectory "parking-vision\.venv-cpu\Scripts\python.exe"),
-  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe")
+  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "Desktop\parking-yolo-starter\.venv\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "Downloads\parking-yolo-starter\.venv\Scripts\python.exe")
 )
 $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 if (-not $python) { throw "【エラー】研究用Pythonが見つかりません。デスクトップまたはノートPCのYOLO環境を確認してください。" }
@@ -69,7 +71,14 @@ if (-not (Test-Path -LiteralPath $configFile)) {
     (Join-Path $userProfileDirectory "parking-vision\weights\visdrone_finetune_best.pt")
   )
   $model = $models | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-  if (-not $model) { throw "【中止】研究で学習したbest.ptが見つかりません。元ファイルは変更していません。" }
+  if (-not $model) {
+    Write-Host "【ノートPC】学習済みbest.ptはPCごとに保存場所が違います。"
+    $modelInput = Read-Host "研究で学習したbest.ptのフルパスを入力"
+    if (-not (Test-Path -LiteralPath $modelInput -PathType Leaf)) {
+      throw "【中止】学習済みモデルのファイルが見つかりません。ファイルは変更していません。"
+    }
+    $model = (Resolve-Path -LiteralPath $modelInput).Path
+  }
 
   $settings = Get-Content -LiteralPath $example -Raw -Encoding UTF8 | ConvertFrom-Json
   $settings.facility_id = "home-test-001"
@@ -94,6 +103,17 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   if ($settings.facility_id -ne "home-test-001") { throw "既存config.jsonは別施設です。上書きしません。設定を確認してください。" }
   Write-Host "【再利用】既存のconfig.jsonを変更せずに使います。"
   Write-Host "【登録区画】$(@($settings.space_uids) -join ', ')"
+  if (-not (Test-Path -LiteralPath $settings.vehicle_model -PathType Leaf)) {
+    Write-Host "【ノートPC】以前のPCのモデルのパスが使用できません。"
+    $modelInput = Read-Host "このPC内にある学習済みbest.ptのフルパス"
+    if (-not (Test-Path -LiteralPath $modelInput -PathType Leaf)) {
+      throw "【中止】モデルが見つかりません。設定は変更しません。"
+    }
+    $settings.vehicle_model = (Resolve-Path -LiteralPath $modelInput).Path
+    $newJson = $settings | ConvertTo-Json -Depth 20
+    [System.IO.File]::WriteAllText($configFile, $newJson + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "【保存】このPCのモデルのパスを設定しました。"
+  }
 }
 
 # 外付けWebカメラの映像を確認した後だけ、そのカメラで撮影する。
