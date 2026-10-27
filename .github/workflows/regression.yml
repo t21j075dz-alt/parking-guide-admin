@@ -22,7 +22,7 @@ jobs:
         working-directory: parking-vision
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
-        run: python -m py_compile parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
+        run: python -m py_compile parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/yolo_visual_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
 
   powershell-51-syntax:
     name: Windows PowerShell 5.1 syntax
