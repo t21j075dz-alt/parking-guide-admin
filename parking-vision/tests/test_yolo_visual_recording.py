@@ -11,11 +11,12 @@ from yolo_visual_recording import YoloVisualRecorder
 
 
 class Frame:
-    def __init__(self, width=640, height=480):
+    def __init__(self, width=640, height=480, marker=""):
         self.shape = (height, width, 3)
+        self.marker = marker
 
     def copy(self):
-        return Frame(self.shape[1], self.shape[0])
+        return Frame(self.shape[1], self.shape[0], self.marker)
 
 
 class Writer:
@@ -96,14 +97,13 @@ class AnnotatedRecordingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             cv2 = Cv2Stub()
             rec = YoloVisualRecorder(tmp, cv2, session_start=0., fps=5)
-            first = Frame(width=300)
-            second = Frame(width=300)
+            first = Frame(width=300, marker="first")
+            second = Frame(width=300, marker="second")
             rec.write(first, now=1)
             rec.write(second, now=2)
             rec.close()
-            self.assertIs(cv2.videos[0].frames[0], first)
-            self.assertTrue(all(f is first for f in cv2.videos[0].frames[:-1]))
-            self.assertIs(cv2.videos[0].frames[-1], second)
+            self.assertTrue(all(f.marker == "first" for f in cv2.videos[0].frames[:-1]))
+            self.assertEqual(cv2.videos[0].frames[-1].marker, "second")
 
     def test_long_inference_gap_is_split(self):
         with tempfile.TemporaryDirectory() as tmp:
