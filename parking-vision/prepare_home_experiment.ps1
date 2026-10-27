@@ -62,16 +62,8 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   $selectedSpace = $spaces[$number - 1]
   Write-Host "【選択】$($selectedSpace.name) / $($selectedSpace.uid)"
 
-  Write-Host ""
-  Write-Host "【2】実際に映っているカメラを指定してください。"
-  Write-Host "USBカメラが1台なら通常は 0 です。IPカメラならRTSPのURLです。"
-  $sourceText = Read-Host "カメラ番号またはRTSP URL [0]"
-  if ([string]::IsNullOrWhiteSpace($sourceText)) { $sourceText = "0" }
-  if ($sourceText -notmatch '^\d+$' -and $sourceText -notmatch '^rtsps?://') {
-    throw "【中止】録画ファイルや不明なカメラ入力はライブ共有用に登録できません。"
-  }
-  $source = if ($sourceText -match '^\d+$') { [int]$sourceText } else { $sourceText }
-
+  # 番号から内蔵/外付けは判断できないため、実映像で選んでもらう。
+  # 初期設定ではsource=-1のままにし、別プログラムで確認後に保存する。
   $models = @(
     (Join-Path $userProfileDirectory "parking-yolo-home\runs\parking_objects\visdrone_finetune_v1\weights\best.pt"),
     (Join-Path $userProfileDirectory "parking-vision\weights\visdrone_finetune_best.pt")
@@ -84,7 +76,8 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   $settings.camera_id = "home-camera-01"
   $settings.supabase_url = $url
   $settings.publishable_key = $publishable
-  $settings.source = $source
+  $settings.source = -1
+  $settings.camera_verified_external = $false
   $settings.vehicle_model = [string]$model
   $settings.obstacle_model = "" # 追加学習モデルが完成するまで無効
   $settings.image_size = 640
@@ -103,6 +96,15 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   Write-Host "【登録区画】$(@($settings.space_uids) -join ', ')"
 }
 
+# 外付けWebカメラの映像を確認した後だけ、そのカメラで撮影する。
+# 旧config.jsonにsource=0があっても、外付けと確認できるまでは使わない。
+if ($settings.camera_verified_external -ne $true -or $settings.source -isnot [int] -or $settings.source -lt 0) {
+  Write-Host ""
+  Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
+  & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
+  if ($LASTEXITCODE -ne 0) { throw "【中止】外付けWebカメラを確認できませんでした。" }
+  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
+}
 # 撮影範囲が未登録なら、実際のカメラを見ながら登録。過去の録画のP001座標は流用しない。
 $zones = @($settings.space_zones.PSObject.Properties)
 if ($zones.Count -eq 0) {
@@ -118,9 +120,10 @@ if ($zones.Count -eq 0) {
   }
 }
 Write-Host ""
-Write-Host "【準備完了】カメラ画面の枠設定ができています。"
+Write-Host "【準備完了】外付けカメラと枠の設定ができています。"
 Write-Host "【対応中】車両・人（障害物候補）を判定。コーン・カートの専用認識は追加学習が必要。"
 Write-Host "【安全】空き未確認は unknown。今はインターネットへ判定データを送りません。"
+Write-Host "【録画】判定中は自動録画します。保存先はこのPCの AppData\Local\ParkingResearch\Recordings です。"
 $go = Read-Host "今すぐクラウド送信なしでカメラ判定を表示しますか？ [Y/n]"
 if ($go -eq "" -or $go -match '^[yY]$') {
   Write-Host "【操作】映像画面で q を押すと終了します。"
