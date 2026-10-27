@@ -3,7 +3,7 @@
 """駐車場カメラ → YOLO → 車両追跡 → Supabase。
 
 使い方: python monitor.py --config config.json --preview
-※ カメラの画像はクラウドに送らず、区画の状態と匿名の追跡情報だけを送ります。
+※ カメラ映像はノートPC内に分割録画します。クラウドには状態と匿名追跡情報のみ送ります。
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import time
 from urllib import error, parse, request
 from uuid import uuid4
 
+from camera_recording import RecordingCamera, open_camera
 from stable_ids import StableIdMatcher
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -77,6 +78,13 @@ def load_config(path: str) -> dict:
     # USBカメラ番号0は有効。Pythonでは bool(0) == False なので別判定する。
     if content.get("source") is None or content.get("source") == "":
         raise ValueError("カメラの source を入力してください")
+    # 自宅実験は外付けUSBカメラだけを許可。旧configのsource=0を内蔵と取り違えない。
+    if content.get("facility_id") == "home-test-001":
+        if (not isinstance(content["source"], int) or content["source"] < 0
+                or content.get("camera_verified_external") is not True):
+            raise ValueError(
+                "外付けUSB Webカメラが未確認です。ホーム駐車場_かんたん準備.cmd を実行してください"
+            )
     zones = content.get("space_zones") or {}
     if not zones:
         raise ValueError("駐車枠の撮影範囲が未登録です。先に calibrate.py を実行してください")
@@ -453,9 +461,7 @@ def main():
         raise SystemExit("必要なライブラリがありません。python -m pip install -r requirements.txt") from ex
 
     source = config["source"]
-    if isinstance(source, str) and source.isdecimal():
-        source = int(source)
-    camera = cv2.VideoCapture(source)
+    camera = open_camera(cv2, source, config.get("camera_backend", "auto"))
     if not camera.isOpened():
         raise SystemExit("カメラを開けません。config.json の source を確認してください")
     # 録画ファイルを誤って「今現在の駐車場」として公開しないための防止策。
@@ -489,12 +495,19 @@ def main():
     last_push, last_print = 0., 0.
     previous_statuses = None
     pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
+    # 画像取得とローカル録画は別スレッド。重いYOLO処理中も映像を保存する。
+    recording = RecordingCamera(
+        camera, cv2,
+        fps=int(config.get("recording_fps", 10)),
+        segment_seconds=int(config.get("recording_segment_seconds", 600)),
+    )
+    sequence = 0
     try:
+        folder = recording.start()
+        print(f"【録画保存先】{folder}")
+        print("【録画について】PC内のみ保存／音声なし／映像と区画状態の変化を後から確認できます")
         while True:
-            ok, frame = camera.read()
-            if not ok:
-                print("映像を取得できません。更新停止後、利用者画面では自動的に未確認になります。")
-                break
+            frame, sequence = recording.next_frame(sequence)
             vehicles, blockers = infer_frame(
                 vehicle_model, obstacle_model, frame,
                 float(config.get("tracking_confidence", 0.15)),
@@ -515,6 +528,8 @@ def main():
                           if event["phase"] == "exiting" and event.get("space_uid")]
             statuses = observer.update(raw, now, departures=departures)
             changed = statuses != previous_statuses
+            if changed:
+                recording.log_status(statuses)
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
                 if writer:
@@ -545,9 +560,12 @@ def main():
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
     finally:
+        recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         camera.release()
         if args.preview:
             cv2.destroyAllWindows()
+        if recording.folder:
+            print(f"【録画を見返す】{recording.folder}")
 
 
 if __name__ == "__main__":

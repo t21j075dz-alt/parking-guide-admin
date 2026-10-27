@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import cv2
+from camera_recording import open_camera
 
 
 def main():
@@ -18,7 +19,7 @@ def main():
     source = args.source if args.source is not None else config.get("source", 0)
     if isinstance(source, str) and source.isdecimal():
         source = int(source)
-    camera = cv2.VideoCapture(source)
+    camera = open_camera(cv2, source, config.get("camera_backend", "auto"))
     ok, frame = camera.read()
     camera.release()
     if not ok:

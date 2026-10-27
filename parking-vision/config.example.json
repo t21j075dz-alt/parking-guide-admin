@@ -1,7 +1,7 @@
 {
   "facility_id": "home-test-001",
   "camera_id": "home-camera-01",
-  "source": 0,
+  "source": -1,
   "supabase_url": "https://gahoqlpuufqjqpyaaykt.supabase.co",
   "publishable_key": "ここにsync-config.jsのpublishableKeyを入力",
   "vehicle_model": "yolo11n.pt",
@@ -27,5 +27,9 @@
   "occupied_hold_seconds": 8,
   "allow_unverified_initial_empty": false,
   "reid_window_seconds": 12,
-  "initially_confirmed_empty_uids": []
+  "initially_confirmed_empty_uids": [],
+  "camera_backend": "auto",
+  "camera_verified_external": false,
+  "recording_fps": 10,
+  "recording_segment_seconds": 600
 }

@@ -14,7 +14,9 @@ Write-Host "【安全】今回はカメラの判定テストだけ。Supabaseへ
 $pythonCandidates = @(
   (Join-Path $userProfileDirectory "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
   (Join-Path $userProfileDirectory "parking-vision\.venv-cpu\Scripts\python.exe"),
-  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe")
+  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "Desktop\parking-yolo-starter\.venv\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "Downloads\parking-yolo-starter\.venv\Scripts\python.exe")
 )
 $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 if (-not $python) { throw "【エラー】研究用Pythonが見つかりません。デスクトップまたはノートPCのYOLO環境を確認してください。" }
@@ -62,29 +64,29 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   $selectedSpace = $spaces[$number - 1]
   Write-Host "【選択】$($selectedSpace.name) / $($selectedSpace.uid)"
 
-  Write-Host ""
-  Write-Host "【2】実際に映っているカメラを指定してください。"
-  Write-Host "USBカメラが1台なら通常は 0 です。IPカメラならRTSPのURLです。"
-  $sourceText = Read-Host "カメラ番号またはRTSP URL [0]"
-  if ([string]::IsNullOrWhiteSpace($sourceText)) { $sourceText = "0" }
-  if ($sourceText -notmatch '^\d+$' -and $sourceText -notmatch '^rtsps?://') {
-    throw "【中止】録画ファイルや不明なカメラ入力はライブ共有用に登録できません。"
-  }
-  $source = if ($sourceText -match '^\d+$') { [int]$sourceText } else { $sourceText }
-
+  # 番号から内蔵/外付けは判断できないため、実映像で選んでもらう。
+  # 初期設定ではsource=-1のままにし、別プログラムで確認後に保存する。
   $models = @(
     (Join-Path $userProfileDirectory "parking-yolo-home\runs\parking_objects\visdrone_finetune_v1\weights\best.pt"),
     (Join-Path $userProfileDirectory "parking-vision\weights\visdrone_finetune_best.pt")
   )
   $model = $models | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-  if (-not $model) { throw "【中止】研究で学習したbest.ptが見つかりません。元ファイルは変更していません。" }
+  if (-not $model) {
+    Write-Host "【ノートPC】学習済みbest.ptはPCごとに保存場所が違います。"
+    $modelInput = Read-Host "研究で学習したbest.ptのフルパスを入力"
+    if (-not (Test-Path -LiteralPath $modelInput -PathType Leaf)) {
+      throw "【中止】学習済みモデルのファイルが見つかりません。ファイルは変更していません。"
+    }
+    $model = (Resolve-Path -LiteralPath $modelInput).Path
+  }
 
   $settings = Get-Content -LiteralPath $example -Raw -Encoding UTF8 | ConvertFrom-Json
   $settings.facility_id = "home-test-001"
   $settings.camera_id = "home-camera-01"
   $settings.supabase_url = $url
   $settings.publishable_key = $publishable
-  $settings.source = $source
+  $settings.source = -1
+  $settings.camera_verified_external = $false
   $settings.vehicle_model = [string]$model
   $settings.obstacle_model = "" # 追加学習モデルが完成するまで無効
   $settings.image_size = 640
@@ -101,8 +103,28 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   if ($settings.facility_id -ne "home-test-001") { throw "既存config.jsonは別施設です。上書きしません。設定を確認してください。" }
   Write-Host "【再利用】既存のconfig.jsonを変更せずに使います。"
   Write-Host "【登録区画】$(@($settings.space_uids) -join ', ')"
+  if (-not (Test-Path -LiteralPath $settings.vehicle_model -PathType Leaf)) {
+    Write-Host "【ノートPC】以前のPCのモデルのパスが使用できません。"
+    $modelInput = Read-Host "このPC内にある学習済みbest.ptのフルパス"
+    if (-not (Test-Path -LiteralPath $modelInput -PathType Leaf)) {
+      throw "【中止】モデルが見つかりません。設定は変更しません。"
+    }
+    $settings.vehicle_model = (Resolve-Path -LiteralPath $modelInput).Path
+    $newJson = $settings | ConvertTo-Json -Depth 20
+    [System.IO.File]::WriteAllText($configFile, $newJson + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "【保存】このPCのモデルのパスを設定しました。"
+  }
 }
 
+# 外付けWebカメラの映像を確認した後だけ、そのカメラで撮影する。
+# 旧config.jsonにsource=0があっても、外付けと確認できるまでは使わない。
+if ($settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+) {
+  Write-Host ""
+  Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
+  & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
+  if ($LASTEXITCODE -ne 0) { throw "【中止】外付けWebカメラを確認できませんでした。" }
+  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
+}
 # 撮影範囲が未登録なら、実際のカメラを見ながら登録。過去の録画のP001座標は流用しない。
 $zones = @($settings.space_zones.PSObject.Properties)
 if ($zones.Count -eq 0) {
@@ -118,9 +140,43 @@ if ($zones.Count -eq 0) {
   }
 }
 Write-Host ""
-Write-Host "【準備完了】カメラ画面の枠設定ができています。"
+Write-Host "【準備完了】外付けカメラと枠の設定ができています。"
 Write-Host "【対応中】車両・人（障害物候補）を判定。コーン・カートの専用認識は追加学習が必要。"
 Write-Host "【安全】空き未確認は unknown。今はインターネットへ判定データを送りません。"
+Write-Host "【録画】判定中は自動録画します。保存先はこのPCの AppData\Local\ParkingResearch\Recordings です。"
+$go = Read-Host "今すぐクラウド送信なしでカメラ判定を表示しますか？ [Y/n]"
+if ($go -eq "" -or $go -match '^[yY]$') {
+  Write-Host "【操作】映像画面で q を押すと終了します。"
+  & $python (Join-Path $PSScriptRoot "monitor.py") --config $configFile --preview --dry-run
+  if ($LASTEXITCODE -ne 0) { throw "カメラ判定でエラーが発生しました。上の表示を確認してください。" }
+}
+Write-Host "【次の操作】共有する際は ホーム駐車場_ライブ共有.cmd を起動してください。"
+) {
+  Write-Host ""
+  Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
+  & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
+  if ($LASTEXITCODE -ne 0) { throw "【中止】外付けWebカメラを確認できませんでした。" }
+  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+# 撮影範囲が未登録なら、実際のカメラを見ながら登録。過去の録画のP001座標は流用しない。
+$zones = @($settings.space_zones.PSObject.Properties)
+if ($zones.Count -eq 0) {
+  Write-Host ""
+  Write-Host "【3】画面上で実際の駐車枠の角を4か所クリックします。"
+  Write-Host "【操作】左クリック×4 → 自動登録 → qで保存して終了"
+  Write-Host "【注意】カメラを動かした場合は、もう一度登録する必要があります。"
+  & $python (Join-Path $PSScriptRoot "calibrate.py") --config $configFile
+  if ($LASTEXITCODE -ne 0) { throw "【エラー】枠の登録ができませんでした" }
+  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
+  if (@($settings.space_zones.PSObject.Properties).Count -eq 0) {
+    throw "【中止】駐車枠が登録されていません。枠を4か所指定してください。"
+  }
+}
+Write-Host ""
+Write-Host "【準備完了】外付けカメラと枠の設定ができています。"
+Write-Host "【対応中】車両・人（障害物候補）を判定。コーン・カートの専用認識は追加学習が必要。"
+Write-Host "【安全】空き未確認は unknown。今はインターネットへ判定データを送りません。"
+Write-Host "【録画】判定中は自動録画します。保存先はこのPCの AppData\Local\ParkingResearch\Recordings です。"
 $go = Read-Host "今すぐクラウド送信なしでカメラ判定を表示しますか？ [Y/n]"
 if ($go -eq "" -or $go -match '^[yY]$') {
   Write-Host "【操作】映像画面で q を押すと終了します。"
