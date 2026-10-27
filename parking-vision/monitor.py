@@ -21,6 +21,7 @@ from urllib import error, parse, request
 from uuid import uuid4
 
 from camera_recording import RecordingCamera, open_camera
+from yolo_visual_recording import YoloVisualRecorder
 from stable_ids import StableIdMatcher
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -430,21 +431,82 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     return vehicles, blockers
 
 
-def overlay(frame, zones, statuses, vehicle_detections, obstacles):
+def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
+    """YOLOの認識結果を、研究発表で見返せる映像に描画する。
+
+    検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
+    OpenCVの文字機能は日本語非対応なので、英語ラベルと凡例を用いる。
+    生のカメラ画像は変更せず、別の画像を返す。
+    """
     import cv2
-    h, w = frame.shape[:2]
-    for uid, poly in zones.items():
-        points = [(int(x * w), int(y * h)) for x, y in poly]
+
+    height, width = frame.shape[:2]
+    phases = phases or {}
+    # 下部に説明帯を足し、白飛びした画像の上でも文字を読めるようにする。
+    view = cv2.copyMakeBorder(
+        frame.copy(), 0, 98, 0, 0, cv2.BORDER_CONSTANT, value=(22, 25, 29)
+    )
+    labels = {
+        "available": ("AVAILABLE", (70, 195, 70)),
+        "occupied": ("OCCUPIED", (0, 155, 255)),
+        "blocked": ("BLOCKED", (65, 70, 235)),
+        "unknown": ("UNKNOWN", (195, 195, 195)),
+    }
+
+    def draw_text(message, pos, scale=.52, color=(255, 255, 255), thickness=1):
+        x, y = int(pos[0]), int(pos[1])
+        x, y = max(4, x), max(16, y)
+        cv2.putText(view, message, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    scale, (0, 0, 0), thickness + 3, cv2.LINE_AA)
+        cv2.putText(view, message, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    scale, color, thickness, cv2.LINE_AA)
+
+    for uid, polygon in zones.items():
+        points = [(int(x * width), int(y * height)) for x, y in polygon]
+        state, color = labels.get(statuses.get(uid, "unknown"), labels["unknown"])
         for first, second in zip(points, points[1:] + points[:1]):
-            cv2.line(frame, first, second, (0, 200, 255), 2)
-        status = statuses.get(uid, "unknown")
-        cv2.putText(frame, f"{uid}: {status}", points[0],
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (250, 255, 255), 2)
-    for d in vehicle_detections + obstacles:
-        px, py = d["point"]
-        label = f"{d['name']} ID{d['track_id']}" if d["track_id"] is not None else d["name"]
-        cv2.putText(frame, label, (int(px * w), int(py * h)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 255, 20), 2)
+            cv2.line(view, first, second, color, 3, cv2.LINE_AA)
+        draw_text(f"{uid}: {state}", points[0], .58, color, 2)
+
+    for detection in vehicle_detections + obstacles:
+        bbox = detection.get("bbox")
+        if not bbox or len(bbox) != 4:
+            continue
+        x1, y1, x2, y2 = (int(v) for v in bbox)
+        x1 = max(0, min(width - 1, x1))
+        x2 = max(0, min(width - 1, x2))
+        y1 = max(0, min(height - 1, y1))
+        y2 = max(0, min(height - 1, y2))
+        is_obstacle = detection in obstacles
+        color = (70, 80, 240) if is_obstacle else (70, 255, 80)
+        cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
+        ident = detection.get("track_id")
+        track_label = ("ID" + str(ident)) if ident is not None else "ID?"
+        confidence = detection.get("confidence")
+        value = f"{float(confidence):.2f}" if confidence is not None else "-"
+        phase = phases.get(int(ident), "") if ident is not None else ""
+        line = f"{detection.get('name', 'object')} {track_label} {value}"
+        if phase:
+            line += f" {phase.upper()}"
+        text_y = y1 - 7 if y1 >= 31 else min(height - 8, y2 + 17)
+        draw_text(line, (x1, text_y), .48, color, 2)
+
+    # RECではなくYOLO ANALYSIS。推論が間に合わずコマを複製しても
+    # 「毎フレーム新しい判定が走った」と誤解されないように時刻を固定。
+    stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    draw_text(f"YOLO ANALYSIS AT {stamp}", (12, height + 25), .58, (255, 255, 255), 2)
+    draw_text(
+        f"VEHICLES: {len(vehicle_detections)}   BLOCKERS: {len(obstacles)}"
+        "   GREEN=vehicle   RED=obstacle",
+        (12, height + 50), .48,
+    )
+    draw_text(
+        "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
+        (12, height + 72), .45,
+    )
+    draw_text("Frozen frames between YOLO updates are not new detections",
+              (12, height + 91), .40, (180, 185, 190))
+    return view
 
 
 def main():
@@ -503,10 +565,17 @@ def main():
         segment_seconds=int(config.get("recording_segment_seconds", 600)),
     )
     sequence = 0
+    visual_recorder = None
     try:
         folder = recording.start()
+        # 生映像とYOLO判定済み映像は同じ実験フォルダに別々に保存する。
+        visual_recorder = YoloVisualRecorder(
+            folder, cv2, session_start=recording._started,
+            fps=int(config.get("yolo_recording_fps", 5)),
+            segment_seconds=int(config.get("recording_segment_seconds", 600)),
+        )
         print(f"【録画保存先】{folder}")
-        print("【録画について】PC内のみ保存／音声なし／映像と区画状態の変化を後から確認できます")
+        print("【録画について】生映像とYOLO判定付き動画をPC内に別々に保存します")
         while True:
             frame, sequence = recording.next_frame(sequence)
             vehicles, blockers = infer_frame(
@@ -555,12 +624,19 @@ def main():
                 if not writer:
                     pending_sessions.clear()
                 previous_statuses, last_push = statuses.copy(), now
+            # プレビューを出さない時も必ずYOLO判定結果を録画する。
+            # bboxは元カメラ画像内の座標なので、処理後に新しい画像を作る。
+            phases = {int(tid): record.phase for tid, record in tracks.vehicles.items()}
+            annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
+            visual_recorder.write(annotated, now=time.monotonic())
             if args.preview:
-                overlay(frame, zones, statuses, vehicles, blockers)
-                cv2.imshow("Parking camera (q to quit)", frame)
+                cv2.imshow("Parking camera (q to quit)", annotated)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
     finally:
+        # 再生可能なMP4にするため、停止時には両方のライターを閉じる。
+        if visual_recorder is not None:
+            visual_recorder.close()
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         camera.release()
         if args.preview:
