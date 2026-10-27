@@ -118,7 +118,7 @@ if (-not (Test-Path -LiteralPath $configFile)) {
 
 # 外付けWebカメラの映像を確認した後だけ、そのカメラで撮影する。
 # 旧config.jsonにsource=0があっても、外付けと確認できるまでは使わない。
-if ($settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+ {) {
+if ($settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+$') {
   Write-Host ""
   Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
   & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
