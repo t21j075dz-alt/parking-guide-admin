@@ -19,12 +19,25 @@ class NextStageLogicTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             cfg = {
                 "facility_id": "home-test-001", "camera_id": "home-camera",
-                "source": 0, "supabase_url": "https://example.supabase.co",
+                "source": 0, "camera_verified_external": True,
+                "supabase_url": "https://example.supabase.co",
                 "publishable_key": "test-public-key", "space_zones": self.zone,
             }
             filename = Path(directory) / "config.json"
             filename.write_text(json.dumps(cfg), encoding="utf-8")
             self.assertEqual(load_config(str(filename))["source"], 0)
+
+    def test_unverified_camera_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cfg = {
+                "facility_id": "home-test-001", "camera_id": "home-camera",
+                "source": 0, "supabase_url": "https://example.supabase.co",
+                "publishable_key": "test-public-key", "space_zones": self.zone,
+            }
+            filename = Path(directory) / "config.json"
+            filename.write_text(json.dumps(cfg), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "外付けUSB"):
+                load_config(str(filename))
 
     def test_nearby_person_blocks_empty_space(self):
         person = [{"point": (0.25, 0.25), "name": "person"}]
