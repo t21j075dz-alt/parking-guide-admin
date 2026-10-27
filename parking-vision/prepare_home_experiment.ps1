@@ -152,7 +152,7 @@ Write-Host ""
 Write-Host "【準備完了】外付けカメラと枠の設定ができています。"
 Write-Host "【対応中】車両・人（障害物候補）を判定。コーン・カートの専用認識は追加学習が必要。"
 Write-Host "【安全】空き未確認は unknown。今はインターネットへ判定データを送りません。"
-Write-Host "【録画】判定中は自動録画します。保存先はこのPCの AppData\Local\ParkingResearch\Recordings です。"
+Write-Host "【録画】生映像とYOLO判定付き映像を両方保存します。保存先は AppData\Local\ParkingResearch\Recordings です。"
 $go = Read-Host "今すぐクラウド送信なしでカメラ判定を表示しますか？ [Y/n]"
 if ($go -eq "" -or $go -match '^[yY]$') {
   Write-Host "【操作】映像画面で q を押すと終了します。"
