@@ -1,4 +1,4 @@
-# 自宅駐車場を、管理アプリの区画IDと固定カメラに安全に結び付ける。
+﻿# 自宅駐車場を、管理アプリの区画IDと固定カメラに安全に結び付ける。
 # 既存config.jsonは上書きしない。映像もSupabaseへ送信しない。
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
