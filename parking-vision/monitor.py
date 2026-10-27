@@ -461,7 +461,8 @@ def main():
         raise SystemExit("必要なライブラリがありません。python -m pip install -r requirements.txt") from ex
 
     source = config["source"]
-    camera = open_camera(cv2, source, config.get("camera_backend", "auto"))
+    camera = open_camera(cv2, source, config.get("camera_backend", "auto"),
+                         config.get("camera_manual_exposure"))
     if not camera.isOpened():
         raise SystemExit("カメラを開けません。config.json の source を確認してください")
     # 録画ファイルを誤って「今現在の駐車場」として公開しないための防止策。
