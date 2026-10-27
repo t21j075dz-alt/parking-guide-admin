@@ -1,4 +1,4 @@
-# 本物の固定カメラ映像だけをクラウドへ送る。
+﻿# 本物の固定カメラ映像だけをクラウドへ送る。
 # 動画・写真・車両ナンバーをSupabaseへアップロードしない。
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
