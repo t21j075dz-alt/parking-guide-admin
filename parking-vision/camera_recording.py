@@ -19,8 +19,10 @@ import time
 from uuid import uuid4
 
 
-def open_camera(cv2, source, backend="auto"):
-    """カメラ選択時と判定時に同じWindowsバックエンドを使う。"""
+def open_camera(cv2, source, backend="auto", manual_exposure=None):
+    """映像取得・録画・判定で同じカメラと露出設定を使う。"""
+    from camera_exposure import is_valid_manual_exposure, set_manual_exposure
+
     if isinstance(source, str) and source.isdecimal():
         source = int(source)
     if isinstance(source, int):
@@ -28,8 +30,18 @@ def open_camera(cv2, source, backend="auto"):
             raise ValueError("外付けWebカメラが未選択です。かんたん準備を実行してください。")
         names = {"dshow": "CAP_DSHOW", "msmf": "CAP_MSMF"}
         if os.name == "nt" and backend in names:
-            return cv2.VideoCapture(source, getattr(cv2, names[backend]))
-    return cv2.VideoCapture(source)
+            camera = cv2.VideoCapture(source, getattr(cv2, names[backend]))
+        else:
+            camera = cv2.VideoCapture(source)
+    else:
+        camera = cv2.VideoCapture(source)
+
+    # カメラを開き直すと露出がリセットされる機種のため、毎回反映する。
+    if camera.isOpened() and is_valid_manual_exposure(manual_exposure):
+        if not set_manual_exposure(camera, cv2, manual_exposure):
+            print("【露出】保存済みの設定をカメラに適用できません。"
+                  "カメラの設定画面で自動露出をOFFにしてください。", flush=True)
+    return camera
 
 
 def default_recording_root() -> Path:
