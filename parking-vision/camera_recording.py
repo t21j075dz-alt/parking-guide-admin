@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import shutil
@@ -84,6 +84,8 @@ class RecordingCamera:
         self._segment_started = 0.0
         self._next_write = 0.0
         self._started = 0.0
+        self._wall_start = None  # 実時間と動画内時刻を同じ起点にそろえる。
+        self._last_written_frame = None
         self._last_disk_check = 0.0
         self._file_index = None
         self._status_file = None
@@ -110,6 +112,7 @@ class RecordingCamera:
         self._status_file.flush()
 
         self._started = time.monotonic()
+        self._wall_start = datetime.now().astimezone()
         self._thread = threading.Thread(target=self._worker, name="parking-camera-recording",
                                         daemon=True)
         self._thread.start()
@@ -158,6 +161,7 @@ class RecordingCamera:
         self._writer = writer
         self._segment_started = now
         self._next_write = now
+        self._last_written_frame = None
         self._index_writer.writerow([
             filename, f"{now - self._started:.3f}",
             datetime.now().astimezone().isoformat(timespec="seconds")
@@ -166,24 +170,50 @@ class RecordingCamera:
         print(f"【録画中】{path}", flush=True)
 
     def _record(self, frame, now):
+        """実時間の固定間隔で動画を保存し、CVSの経過秒数と再生位置を合わせる。
+
+        たとえばカメラ実測8fps・録画設定10fpsなら、足りない2コマ分は
+        直前画像で補う。毎回のread後に次回時刻をnowへリセットしない。
+        5秒を超える取得停止は画像を捏造せず、新しい動画として記録する。
+        """
         self._check_storage(now)
         if self._writer is None or now - self._segment_started >= self.segment_seconds:
             self._close_video()
             self._open_video(frame, now)
-        if now < self._next_write:
-            return
 
-        # 動画の再生時間を実時間に近づける。欠落した元映像そのものは補完しない。
-        repeats = min(60, 1 + int((now - self._next_write) * self.fps))
-        view = frame.copy()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.cv2.putText(
-            view, "REC " + timestamp, (12, 28),
-            self.cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2
-        )
-        for _ in range(repeats):
+        # 録画FPSを基準とする絶対時刻。readが遅い機種でも時間は縮めない。
+        if now < self._next_write:
+            self._last_written_frame = frame.copy()
+            return
+        due = int((now - self._next_write) * self.fps + 1e-6) + 1
+        if due > self.fps * 5:
+            # 5秒超の大きな穴は、連続録画だったと偽らない。
+            print("【注意】カメラの映像取得が5秒以上途切れました。"
+                  "録画を新しいファイルに分けます。", flush=True)
+            self._close_video()
+            self._open_video(frame, now)
+            due = 1
+
+        for index in range(due):
+            # 欠落区間には、最後に実際に取得できた画像を使う。
+            # 最後の1コマだけ現在の最新画像に切り替える。
+            source = (
+                self._last_written_frame
+                if index < due - 1 and self._last_written_frame is not None
+                else frame
+            )
+            view = source.copy()
+            frame_time = self._next_write + index / self.fps
+            shown_at = self._wall_start + timedelta(seconds=frame_time - self._started)
+            timestamp = shown_at.strftime("%Y-%m-%d %H:%M:%S")
+            self.cv2.putText(
+                view, "REC " + timestamp, (12, 28),
+                self.cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2
+            )
             self._writer.write(view)
-        self._next_write = now + 1 / self.fps
+
+        self._next_write += due / self.fps
+        self._last_written_frame = frame.copy()
 
     def _close_video(self):
         if self._writer is not None:
