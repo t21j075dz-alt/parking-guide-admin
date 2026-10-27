@@ -18,7 +18,7 @@ if ($settings.allow_unverified_initial_empty -eq $true) {
   throw "【中止】未確認の空きを許可する危険な設定です。falseに戻してください。"
 }
 if ($null -eq $settings.source -or $settings.source -eq "" -or
-    $settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+ {) {
+    $settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+$') {
   throw "【中止】外付けUSB Webカメラが確認されていません。かんたん準備から選択してください。"
 }
 if ($settings.source -is [string]) {
