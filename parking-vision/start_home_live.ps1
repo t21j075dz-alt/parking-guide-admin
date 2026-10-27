@@ -39,7 +39,9 @@ foreach ($property in $zones) {
 $pythonCandidates = @(
   (Join-Path $env:USERPROFILE "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
   (Join-Path $env:USERPROFILE "parking-vision\.venv-cpu\Scripts\python.exe"),
-  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe")
+  (Join-Path $PSScriptRoot ".venv\Scripts\python.exe"),
+  (Join-Path $env:USERPROFILE "Desktop\parking-yolo-starter\.venv\Scripts\python.exe"),
+  (Join-Path $env:USERPROFILE "Downloads\parking-yolo-starter\.venv\Scripts\python.exe")
 )
 $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
   Select-Object -First 1
