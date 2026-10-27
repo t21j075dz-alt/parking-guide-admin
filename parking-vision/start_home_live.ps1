@@ -17,8 +17,9 @@ if ($zones.Count -eq 0) {
 if ($settings.allow_unverified_initial_empty -eq $true) {
   throw "【中止】未確認の空きを許可する危険な設定です。falseに戻してください。"
 }
-if ($null -eq $settings.source -or $settings.source -eq "") {
-  throw "【中止】実カメラが設定されていません。"
+if ($null -eq $settings.source -or $settings.source -eq "" -or
+    $settings.camera_verified_external -ne $true -or $settings.source -isnot [int] -or $settings.source -lt 0) {
+  throw "【中止】外付けUSB Webカメラが確認されていません。かんたん準備から選択してください。"
 }
 if ($settings.source -is [string]) {
   if ($settings.source -notmatch '^rtsps?://' -and $settings.source -notmatch '^\d+$') {
@@ -54,11 +55,15 @@ Write-Host "【注意】実カメラの画角と枠の設定がずれていな�
 Write-Host ""
 Write-Host "ログイン後に、駐車枠の状態と匿名の車両追跡データをSupabaseへ送信します。"
 Write-Host "動画映像・写真・ナンバープレートは送信しません。"
+Write-Host "【録画】ライブ実行中は自動でPC内に録画します（音声なし・10分ごとに分割）。"
 $consent = Read-Host "実カメラで共有を開始する場合のみ「共有」と入力"
 if ($consent -ne "共有") {
   Write-Host "【中止】クラウドには送信していません。"
   exit 0
 }
+# 昨日と同じ番号でもカメラが入れ替わる場合があるため、毎回映像を確認する。
+& $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile --check-only
+if ($LASTEXITCODE -ne 0) { throw "【中止】外付けUSB Webカメラを確認できなかったため共有しません。" }
 Write-Host ""
 Write-Host "Supabaseの管理者アカウントでログインしてください。"
 Write-Host "パスワードは画面に表示されません。映像を終了するときは q を押します。"
@@ -66,4 +71,5 @@ Write-Host "パスワードは画面に表示されません。映像を終了�
 if ($LASTEXITCODE -ne 0) {
   throw "【エラー】ライブ判定の開始または通信に失敗しました。上の説明を確認してください。"
 }
-Write-Host "【終了】カメラ共有を停止しました。アプリでは20秒以上経過した情報を「未確認」とします。"
+Write-Host "【終了】カメラ共有と録画を停止しました。アプリでは20秒以上経過した情報を「未確認」とします。"
+Write-Host "【再生】「録画フォルダを開く.cmd」で保存済みの映像を確認できます。"
