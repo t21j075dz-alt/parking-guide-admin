@@ -23,3 +23,29 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
         run: python -m py_compile parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
+
+  powershell-51-syntax:
+    name: Windows PowerShell 5.1 syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check every PowerShell file without running camera or network code
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path 'parking-vision' -Recurse -Filter '*.ps1' -File
+          if ($files.Count -eq 0) { throw 'No PowerShell files found' }
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $file.FullName, [ref]$tokens, [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              foreach ($issue in $parseErrors) {
+                Write-Host ($file.FullName + ':' + $issue.Extent.StartLineNumber + ' ' + $issue.Message)
+              }
+              throw ('PowerShell 5.1 syntax error: ' + $file.Name)
+            }
+            Write-Host ('OK: ' + $file.Name)
+          }
