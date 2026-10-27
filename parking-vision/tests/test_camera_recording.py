@@ -1,5 +1,7 @@
 """Webカメラをつながずに、録画と追跡CSVの保存を検証する。"""
 import csv
+from datetime import datetime
+import io
 from pathlib import Path
 import tempfile
 import time
@@ -96,6 +98,50 @@ class RecordingTest(unittest.TestCase):
             with (folder / "録画ファイル一覧.csv").open(encoding="utf-8-sig") as file:
                 index = list(csv.reader(file))
             self.assertEqual(index[1][0], "映像_001.mp4")
+
+    def _make_clock_only_recorder(self, directory, fps=10):
+        """デバイスなしで任意の時刻のフレームを投入する。"""
+        camera = FakeCamera()
+        cv2 = FakeCv2()
+        recorder = RecordingCamera(camera, cv2, root=directory,
+                                   fps=fps, segment_seconds=600,
+                                   min_free_bytes=0)
+        recorder.folder = Path(directory)
+        recorder._started = 100.0
+        recorder._wall_start = datetime.now().astimezone()
+        recorder._file_index = io.StringIO()
+        recorder._index_writer = csv.writer(recorder._file_index)
+        return recorder, cv2
+
+    def test_recording_duration_matches_real_time_at_8fps_camera(self):
+        """8fpsカメラでも動画を10fpsで保存すれば、30秒間は約30秒にする。"""
+        with tempfile.TemporaryDirectory() as directory:
+            recorder, cv2 = self._make_clock_only_recorder(directory, fps=10)
+            for frame_number in range(241):
+                recorder._record(FakeFrame(), 100 + frame_number / 8)
+            self.assertEqual(len(cv2.writers), 1)
+            self.assertLessEqual(abs(cv2.writers[0].frames / 10 - 30.0), .11)
+            recorder._close_video()
+
+    def test_recording_duration_matches_real_time_at_30fps_camera(self):
+        """カメラ側のfpsが高い場合も、実時間と動画再生時間を合わせる。"""
+        with tempfile.TemporaryDirectory() as directory:
+            recorder, cv2 = self._make_clock_only_recorder(directory, fps=10)
+            for frame_number in range(901):
+                recorder._record(FakeFrame(), 100 + frame_number / 30)
+            self.assertLessEqual(abs(cv2.writers[0].frames / 10 - 30.0), .11)
+            recorder._close_video()
+
+    def test_large_camera_gap_starts_new_file(self):
+        """映像取得が6秒止まった場合、偽の連続映像にせず分割する。"""
+        with tempfile.TemporaryDirectory() as directory:
+            recorder, cv2 = self._make_clock_only_recorder(directory, fps=10)
+            recorder._record(FakeFrame(), 100)
+            recorder._record(FakeFrame(), 106.5)
+            self.assertEqual(len(cv2.writers), 2)
+            self.assertTrue(cv2.writers[0].closed)
+            self.assertEqual(cv2.writers[1].frames, 1)
+            recorder._close_video()
 
     def test_fails_closed_when_video_cannot_be_saved(self):
         with tempfile.TemporaryDirectory() as directory:
