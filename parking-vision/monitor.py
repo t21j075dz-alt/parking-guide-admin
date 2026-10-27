@@ -600,6 +600,10 @@ def main():
             changed = statuses != previous_statuses
             if changed:
                 recording.log_status(statuses)
+            # ネットワーク更新が遅くても、推論直後の判定映像を先に保存する。
+            phases = {int(tid): record.phase for tid, record in tracks.vehicles.items()}
+            annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
+            visual_recorder.write(annotated, now=time.monotonic())
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
                 if writer:
@@ -624,11 +628,7 @@ def main():
                 if not writer:
                     pending_sessions.clear()
                 previous_statuses, last_push = statuses.copy(), now
-            # プレビューを出さない時も必ずYOLO判定結果を録画する。
-            # bboxは元カメラ画像内の座標なので、処理後に新しい画像を作る。
-            phases = {int(tid): record.phase for tid, record in tracks.vehicles.items()}
-            annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
-            visual_recorder.write(annotated, now=time.monotonic())
+            # 非プレビューでも上で保存済み。画面には同じ判定結果を表示する。
             if args.preview:
                 cv2.imshow("Parking camera (q to quit)", annotated)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
