@@ -127,10 +127,19 @@ if ($settings.camera_verified_external -ne $true -or [string]$settings.source -n
 }
 # 撮影範囲が未登録なら、実際のカメラを見ながら登録。過去の録画のP001座標は流用しない。
 $zones = @($settings.space_zones.PSObject.Properties)
-if ($zones.Count -eq 0) {
+$shouldCalibrate = ($zones.Count -eq 0)
+if (-not $shouldCalibrate) {
+  Write-Host "【既存設定】すでに $($zones.Count) 区画が登録されています。"
+  $redo = Read-Host "映像が白飛びしたり、カメラの画角を変えた場合は再調整しますか？ [Y/n]"
+  $shouldCalibrate = ([string]::IsNullOrWhiteSpace($redo) -or $redo -match '^[yY]$')
+}
+if ($shouldCalibrate) {
   Write-Host ""
-  Write-Host "【3】画面上で実際の駐車枠の角を4か所クリックします。"
-  Write-Host "【操作】左クリック×4 → 自動登録 → qで保存して終了"
+  Write-Host "【3】ライブ映像を見て駐車枠の四隅を指定します。"
+  Write-Host "【操作】ライブ映像で駐車枠が見えるように露出・画角を調整してください。"
+  Write-Host "【露出】Pでカメラの詳細設定（DirectShow）／-で暗く・+で明るく。"
+  Write-Host "【枠登録】Spaceで一時停止 → 四隅を4回クリック → qで保存して終了。"
+  Write-Host "【中止】見えなければEscで設定を保存せず終了できます。"
   Write-Host "【注意】カメラを動かした場合は、もう一度登録する必要があります。"
   & $python (Join-Path $PSScriptRoot "calibrate.py") --config $configFile
   if ($LASTEXITCODE -ne 0) { throw "【エラー】枠の登録ができませんでした" }

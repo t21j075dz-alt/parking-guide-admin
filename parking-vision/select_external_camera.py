@@ -85,7 +85,7 @@ def main():
 
         if args.check_only:
             backend = str(settings.get("camera_backend", "auto"))
-            camera = open_camera(cv2, number, backend)
+            camera = open_camera(cv2, number, backend, settings.get("camera_manual_exposure"))
             if not camera.isOpened():
                 camera.release()
                 raise SystemExit("【中止】保存済みの外付けカメラに接続できません。準備から確認してください")
