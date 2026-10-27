@@ -2,7 +2,7 @@
 # 既存config.jsonは上書きしない。映像もSupabaseへ送信しない。
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
-$home = $env:USERPROFILE
+$userProfileDirectory = $env:USERPROFILE
 $configFile = Join-Path $PSScriptRoot "config.json"
 $example = Join-Path $PSScriptRoot "config.example.json"
 $syncFile = Join-Path (Split-Path $PSScriptRoot -Parent) "sync-config.js"
@@ -12,8 +12,8 @@ Write-Host "========== 自宅駐車場：かんたん準備 =========="
 Write-Host "【安全】今回はカメラの判定テストだけ。Supabaseへ送信・一般公開しません。"
 
 $pythonCandidates = @(
-  (Join-Path $home "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
-  (Join-Path $home "parking-vision\.venv-cpu\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
+  (Join-Path $userProfileDirectory "parking-vision\.venv-cpu\Scripts\python.exe"),
   (Join-Path $PSScriptRoot ".venv\Scripts\python.exe")
 )
 $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
@@ -73,8 +73,8 @@ if (-not (Test-Path -LiteralPath $configFile)) {
   $source = if ($sourceText -match '^\d+$') { [int]$sourceText } else { $sourceText }
 
   $models = @(
-    (Join-Path $home "parking-yolo-home\runs\parking_objects\visdrone_finetune_v1\weights\best.pt"),
-    (Join-Path $home "parking-vision\weights\visdrone_finetune_best.pt")
+    (Join-Path $userProfileDirectory "parking-yolo-home\runs\parking_objects\visdrone_finetune_v1\weights\best.pt"),
+    (Join-Path $userProfileDirectory "parking-vision\weights\visdrone_finetune_best.pt")
   )
   $model = $models | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
   if (-not $model) { throw "【中止】研究で学習したbest.ptが見つかりません。元ファイルは変更していません。" }
