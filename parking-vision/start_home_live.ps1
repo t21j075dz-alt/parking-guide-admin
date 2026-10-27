@@ -57,7 +57,7 @@ Write-Host "【注意】実カメラの画角と枠の設定がずれていな�
 Write-Host ""
 Write-Host "ログイン後に、駐車枠の状態と匿名の車両追跡データをSupabaseへ送信します。"
 Write-Host "動画映像・写真・ナンバープレートは送信しません。"
-Write-Host "【録画】ライブ実行中は自動でPC内に録画します（音声なし・10分ごとに分割）。"
+Write-Host "【録画】生映像とYOLOの検出枠・追跡ID付き動画を別々に保存します（音声なし）。"
 $consent = Read-Host "実カメラで共有を開始する場合のみ「共有」と入力"
 if ($consent -ne "共有") {
   Write-Host "【中止】クラウドには送信していません。"
