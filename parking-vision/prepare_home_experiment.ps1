@@ -118,40 +118,7 @@ if (-not (Test-Path -LiteralPath $configFile)) {
 
 # 外付けWebカメラの映像を確認した後だけ、そのカメラで撮影する。
 # 旧config.jsonにsource=0があっても、外付けと確認できるまでは使わない。
-if ($settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+) {
-  Write-Host ""
-  Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
-  & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
-  if ($LASTEXITCODE -ne 0) { throw "【中止】外付けWebカメラを確認できませんでした。" }
-  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
-}
-# 撮影範囲が未登録なら、実際のカメラを見ながら登録。過去の録画のP001座標は流用しない。
-$zones = @($settings.space_zones.PSObject.Properties)
-if ($zones.Count -eq 0) {
-  Write-Host ""
-  Write-Host "【3】画面上で実際の駐車枠の角を4か所クリックします。"
-  Write-Host "【操作】左クリック×4 → 自動登録 → qで保存して終了"
-  Write-Host "【注意】カメラを動かした場合は、もう一度登録する必要があります。"
-  & $python (Join-Path $PSScriptRoot "calibrate.py") --config $configFile
-  if ($LASTEXITCODE -ne 0) { throw "【エラー】枠の登録ができませんでした" }
-  $settings = Get-Content -LiteralPath $configFile -Raw -Encoding UTF8 | ConvertFrom-Json
-  if (@($settings.space_zones.PSObject.Properties).Count -eq 0) {
-    throw "【中止】駐車枠が登録されていません。枠を4か所指定してください。"
-  }
-}
-Write-Host ""
-Write-Host "【準備完了】外付けカメラと枠の設定ができています。"
-Write-Host "【対応中】車両・人（障害物候補）を判定。コーン・カートの専用認識は追加学習が必要。"
-Write-Host "【安全】空き未確認は unknown。今はインターネットへ判定データを送りません。"
-Write-Host "【録画】判定中は自動録画します。保存先はこのPCの AppData\Local\ParkingResearch\Recordings です。"
-$go = Read-Host "今すぐクラウド送信なしでカメラ判定を表示しますか？ [Y/n]"
-if ($go -eq "" -or $go -match '^[yY]$') {
-  Write-Host "【操作】映像画面で q を押すと終了します。"
-  & $python (Join-Path $PSScriptRoot "monitor.py") --config $configFile --preview --dry-run
-  if ($LASTEXITCODE -ne 0) { throw "カメラ判定でエラーが発生しました。上の表示を確認してください。" }
-}
-Write-Host "【次の操作】共有する際は ホーム駐車場_ライブ共有.cmd を起動してください。"
-) {
+if ($settings.camera_verified_external -ne $true -or [string]$settings.source -notmatch '^\d+ {) {
   Write-Host ""
   Write-Host "【2】外付けUSB Webカメラを選びます。映像が正しいか確認してください。"
   & $python (Join-Path $PSScriptRoot "select_external_camera.py") --config $configFile
