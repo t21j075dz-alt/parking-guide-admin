@@ -9,8 +9,16 @@ test('管理JSとJSONは同じ施設マスターで、福岡県100店舗のID・
   const js=JSON.parse(JSON.stringify(c.window.ADMIN_FACILITY_CATALOG));
   const json=JSON.parse(fs.readFileSync(path.join(__dirname,'../facility-catalog.json'),'utf8'));
   assert.deepEqual(js,json);
-  assert.equal(js.facilities.length,211);
-  assert.equal(new Set(js.facilities.map(f=>f.id)).size,211);
+  assert.equal(js.facilities.length,212);
+  assert.equal(new Set(js.facilities.map(f=>f.id)).size,212);
+  const nikko=js.facilities.find(f=>f.id==='nikko-test-001');
+  assert.equal(nikko.researchSpaceCount,8);
+  assert.equal(nikko.recordedCameraId,'nikko-recording-01');
+  assert.equal(nikko.requiresLocalCalibration,true);
+  assert.equal(nikko.isRecordedExperiment,true);
+  assert.equal('latitude' in nikko,false);
+  assert.equal('longitude' in nikko,false);
+  assert.equal(js.metadata.testFacilityCount,2);
   const f=js.facilities.filter(f=>f.prefecture==='福岡県');
   assert.equal(f.length,100);
   for(const r of Object.keys(js.metadata.fukuokaRegionCounts))assert.equal(f.filter(f=>f.region===r).length,25);
