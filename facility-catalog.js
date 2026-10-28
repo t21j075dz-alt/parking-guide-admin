@@ -13,13 +13,14 @@
 
 window.ADMIN_FACILITY_CATALOG = {
   metadata: {
-  "total": 211,
+  "total": 212,
   "researchTargetCount": 210,
   "activeResearchSampleCount": 139,
   "archivedCandidateCount": 71,
-  "testFacilityCount": 1,
-  "prefectures": 12,
-  "note": "研究候補210施設（福岡県100、他11県各10）と自宅テスト用1施設を表示。sampleRoleは分類のみ。岡山理科大学正門の実験施設は画面側で別途追加する。福岡県100施設は固定座標を登録済み。",
+  "testFacilityCount": 2,
+  "recordedExperimentCount": 1,
+  "prefectures": 13,
+  "note": "研究候補210施設（福岡県100、他11県各10）と自宅テスト用1施設・道の駅日光録画実験1施設を表示。sampleRoleは分類のみ。岡山理科大学正門の実験施設は画面側で別途追加する。福岡県100施設は固定座標を登録済み。",
   "locationAuditDate": "2026-09-28",
   "locationVerifiedCount": 210,
   "fixedCoordinateCount": 177,
@@ -441,6 +442,27 @@ window.ADMIN_FACILITY_CATALOG = {
     "requiresLocalCalibration": true
   },
 
+  {
+  "id": "nikko-test-001",
+  "name": "道の駅日光 日光街道ニコニコ本陣",
+  "displayName": "道の駅日光（録画実験）",
+  "prefecture": "栃木県",
+  "municipality": "日光市（実験地点は現在地）",
+  "address": "現在地（録画実験用・実際の施設所在地ではありません）",
+  "category": "roadside-station",
+  "locationVerified": false,
+  "coordinateSource": "利用端末の現在地を実験地点として個別に登録。実施設の位置ではない",
+  "operatingStatus": "active",
+  "layoutId": "nikko-test-001",
+  "targetBuildingId": null,
+  "isDemo": false,
+  "isPrivateTest": true,
+  "requiresLocalCalibration": true,
+  "isRecordedExperiment": true,
+  "recordedCameraId": "nikko-recording-01",
+  "researchSpaceCount": 8,
+  "statusNote": "22.5秒の過去録画を使う研究施設。現在の空き情報ではありません"
+},
   {
     "id": "target_021",
     "name": "マルナカ 中井町店",
