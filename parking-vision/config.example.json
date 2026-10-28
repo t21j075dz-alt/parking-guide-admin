@@ -31,5 +31,11 @@
   "camera_backend": "auto",
   "camera_verified_external": false,
   "recording_fps": 10,
-  "recording_segment_seconds": 600
+  "recording_segment_seconds": 600,
+  "camera_kind": "usb",
+  "camera_capture_width": 0,
+  "camera_capture_height": 0,
+  "camera_capture_fps": 0,
+  "camera_preview_max_width": 1280,
+  "camera_preview_max_height": 800
 }
