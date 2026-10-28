@@ -36,6 +36,7 @@ const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
   await page.screenshot({path:process.env.PARKING_SCREENSHOT || '/tmp/parking-experience-mobile.png',fullPage:true});
   const admin=await browser.newPage({viewport:{width:1440,height:1000}});admin.on('pageerror',e=>errors.push(e.message));await admin.route('https://**/*',r=>r.abort());
   await admin.goto(origin+'/parking-guide-admin/');
+  await admin.click('#admin-tools-toggle');
   await admin.getByRole('button',{name:'営業時間・休業・共用区画',exact:true}).click();
   await admin.locator('#facility-hours-label').fill('24時間');await admin.locator('#facility-closed').check();await admin.locator('#save-facility-operation').click();
   assert.equal(await admin.evaluate(()=>getCurrentLayout().operations.closed),true);
