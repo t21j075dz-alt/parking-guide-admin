@@ -30,7 +30,7 @@ const assert=require('node:assert/strict'),http=require('node:http'),fs=require(
   assert.equal(await page.evaluate(()=>getOperatingStatus().closed),true);
   assert.equal(await page.evaluate(()=>prepareSpaces(state.selectedFacility).spaces.length),0);
   await page.screenshot({path:'/tmp/parking-compound-mobile.png',fullPage:true});
-  const admin=await browser.newPage({viewport:{width:1440,height:1000}});admin.setDefaultTimeout(10000);admin.on('pageerror',e=>errors.push(e.message));await admin.route('https://**/*',r=>r.abort());await admin.goto(origin+'/parking-guide-admin/');
+  const admin=await browser.newPage({viewport:{width:1440,height:1000}});admin.setDefaultTimeout(10000);admin.on('pageerror',e=>errors.push(e.message));await admin.route('https://**/*',r=>r.abort());await admin.goto(origin+'/parking-guide-admin/');await admin.click('#admin-tools-toggle');
   await admin.locator('#prefecture-select').selectOption('岡山県');await admin.locator('#facility-select').selectOption('target_022');
   await admin.getByRole('button',{name:'施設内の店舗を管理',exact:true}).click();
   const first=admin.locator('#tenant-rows fieldset').first();await first.getByLabel('店舗名',{exact:true}).fill('店舗名の変更テスト');
