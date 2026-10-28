@@ -10,6 +10,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  try{
  const page=await b.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**/*',r=>r.abort());
  await page.goto(origin+'/parking-guide-admin/');
+ // 追加ツールは初期状態で閉じる設計。従来の追加ボタンの操作を検証するため開く。
+ await page.click('#admin-tools-toggle');
  await page.click('#add-parking-space-button');assert.equal(await page.locator('.map-object[data-object-type="parkingSpace"]').count(),1);
  await page.click('#undo-button');assert.equal(await page.locator('.map-object[data-object-type="parkingSpace"]').count(),0);
  await page.click('#redo-button');assert.equal(await page.locator('.map-object[data-object-type="parkingSpace"]').count(),1);
