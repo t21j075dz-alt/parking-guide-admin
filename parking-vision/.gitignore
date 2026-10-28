@@ -18,3 +18,7 @@ reports/
 # 外付けカメラのローカル録画と設定のバックアップ
 recordings/
 config_backup_*.json
+
+# Camo接続情報・自宅駐車場の区画・撮影設定は個人環境のみに保存
+config_camo.json
+config_camo_backup_*.json
