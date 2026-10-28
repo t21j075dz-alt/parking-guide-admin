@@ -59,6 +59,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_002",
+    "operations": {"hoursLabel":"平日8:00–23:30／土日祝7:00–23:30","weeklyHours":{"0":[["07:00","23:30"]],"1":[["08:00","23:30"]],"2":[["08:00","23:30"]],"3":[["08:00","23:30"]],"4":[["08:00","23:30"]],"5":[["08:00","23:30"]],"6":[["07:00","23:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://store-info.skylark.co.jp/gusto/map/012867/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"祝日は土日と同じ営業時間。祝日自動判定には未対応"},
     "name": "ガスト 鳥取南店",
     "prefecture": "鳥取県",
     "municipality": "鳥取市",
@@ -78,6 +79,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_003",
+    "operations": {"hoursLabel":"物販9:00–18:00（レストラン等は別）","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.michi-no-eki.jp/stations/views/19931","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"物販の時間。飲食・コンビニなどは別営業時間"},
     "name": "道の駅 西いなば気楽里",
     "prefecture": "鳥取県",
     "municipality": "鳥取市",
@@ -98,6 +100,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_004",
+    "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/321/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター9–21時、家電・ドラッグ9–22時"},
     "name": "トライアル 米子大谷店",
     "prefecture": "鳥取県",
     "municipality": "米子市",
@@ -155,6 +158,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_007",
+    "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.dkt-s.com/brand.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ラ・ムー 鳥取店",
     "prefecture": "鳥取県",
     "municipality": "鳥取市",
@@ -174,6 +178,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_008",
+    "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.dkt-s.com/brand.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ラ・ムー 倉吉店",
     "prefecture": "鳥取県",
     "municipality": "倉吉市",
@@ -193,6 +198,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_009",
+    "operations": {"hoursLabel":"本館8:00–19:30（Nガーデン館8:00–19:00）","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4370/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"本館の営業時間を営業判定に使用。Nガーデン館は19:00まで"},
     "name": "ホームプラザナフコ 東鳥取店",
     "prefecture": "鳥取県",
     "municipality": "鳥取市",
@@ -253,6 +259,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_012",
+    "operations": {"hoursLabel":"平日8:00–23:00／土日祝7:00–23:00","weeklyHours":{"0":[["07:00","23:00"]],"1":[["08:00","23:00"]],"2":[["08:00","23:00"]],"3":[["08:00","23:00"]],"4":[["08:00","23:00"]],"5":[["08:00","23:00"]],"6":[["07:00","23:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://store-info.skylark.co.jp/gusto/map/012744/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"祝日は土日と同じ営業時間。祝日自動判定には未対応"},
     "name": "ガスト 島根大田店",
     "prefecture": "島根県",
     "municipality": "大田市",
@@ -368,6 +375,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_018",
+    "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.dkt-s.com/brand.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ラ・ムー 安来店",
     "prefecture": "島根県",
     "municipality": "安来市",
@@ -388,6 +396,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_019",
+    "operations": {"hoursLabel":"ホームセンター8:00–19:30（家具10:00–19:30）","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1610/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具売場は10:00から。資材館は別店舗として掲載"},
     "name": "ホームプラザナフコ 松江店",
     "prefecture": "島根県",
     "municipality": "松江市",
@@ -444,6 +453,7 @@ window.ADMIN_FACILITY_CATALOG = {
 
   {
   "id": "nikko-test-001",
+  "operations": {"hoursLabel":"現地参考：ニコニコマルシェ9:00–18:00（第3火曜休）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nikko-honjin.jp/access/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"録画実験用の仮想所在地。実店舗の営業時間で研究用映像を営業・休業判定しない。第3駐車場は18:00–9:00閉鎖"},
   "name": "道の駅日光 日光街道ニコニコ本陣",
   "displayName": "道の駅日光（録画実験）",
   "prefecture": "栃木県",
@@ -465,6 +475,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
     "id": "target_021",
+    "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.the-fuji.com/store/okayama/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルナカ 中井町店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -486,6 +497,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
   "id": "target_022",
+  "operations": {"hoursLabel":"7:00–24:00（施設内テナントは別）","weeklyHours":{"0":[["07:00","00:00"]],"1":[["07:00","00:00"]],"2":[["07:00","00:00"]],"3":[["07:00","00:00"]],"4":[["07:00","00:00"]],"5":[["07:00","00:00"]],"6":[["07:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://job-gear.net/daikokuten2/AC0322291737/MDkyujin_d.htm","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"運営会社の採用情報で確認。ユニクロ・GUなど施設内の他店舗へは適用しない"},
   "name": "ラ・ムー 岡山中央店",
   "displayName": "ラ・ムータウン岡山中央",
   "prefecture": "岡山県",
@@ -571,6 +583,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
     "id": "target_023",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/763/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00"},
     "name": "トライアル 岡山豊浜店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -592,6 +605,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_024",
+    "operations": {"hoursLabel":"8:00–23:00","weeklyHours":{"0":[["08:00","23:00"]],"1":[["08:00","23:00"]],"2":[["08:00","23:00"]],"3":[["08:00","23:00"]],"4":[["08:00","23:00"]],"5":[["08:00","23:00"]],"6":[["08:00","23:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.the-fuji.com/store/okayama/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルナカ 芳田店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -614,6 +628,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_025",
+    "operations": {"hoursLabel":"10:00–22:00","weeklyHours":{"0":[["10:00","22:00"]],"1":[["10:00","22:00"]],"2":[["10:00","22:00"]],"3":[["10:00","22:00"]],"4":[["10:00","22:00"]],"5":[["10:00","22:00"]],"6":[["10:00","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.the-fuji.com/mv/store/shop/okayama/m_soja.php","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルナカ 総社店",
     "prefecture": "岡山県",
     "municipality": "総社市",
@@ -636,6 +651,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_026",
+    "operations": {"hoursLabel":"7:00–24:00","weeklyHours":{"0":[["07:00","00:00"]],"1":[["07:00","00:00"]],"2":[["07:00","00:00"]],"3":[["07:00","00:00"]],"4":[["07:00","00:00"]],"5":[["07:00","00:00"]],"6":[["07:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.the-fuji.com/store/okayama/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルナカ 大元店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -658,6 +674,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_027",
+    "operations": {"hoursLabel":"10:00–22:00","weeklyHours":{"0":[["10:00","22:00"]],"1":[["10:00","22:00"]],"2":[["10:00","22:00"]],"3":[["10:00","22:00"]],"4":[["10:00","22:00"]],"5":[["10:00","22:00"]],"6":[["10:00","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.the-fuji.com/store/okayama/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルナカ 雄町店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -699,6 +716,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_029",
+    "operations": {"hoursLabel":"8:00–23:30","weeklyHours":{"0":[["08:00","23:30"]],"1":[["08:00","23:30"]],"2":[["08:00","23:30"]],"3":[["08:00","23:30"]],"4":[["08:00","23:30"]],"5":[["08:00","23:30"]],"6":[["08:00","23:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://store-info.skylark.co.jp/gusto/map/011956/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ガスト 岡山下中野店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -718,6 +736,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_030",
+    "operations": {"hoursLabel":"売店9:30–18:00／食堂11:00–14:00（土日祝15:00まで）・第1月曜休","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.okayama-kanko.jp/spot/detail_10567.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"毎月第1月曜（祝日なら翌日）と12/31–1/2休。月次定休は現行判定機能で未対応のため、営業時間は参考表示に限定"},
     "name": "道の駅 久米の里",
     "prefecture": "岡山県",
     "municipality": "津山市",
@@ -1125,6 +1144,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 福岡県 -----
   {
   "id": "target_051",
+  "operations": {"hoursLabel":"9:30–22:00","weeklyHours":{"0":[["09:30","22:00"]],"1":[["09:30","22:00"]],"2":[["09:30","22:00"]],"3":[["09:30","22:00"]],"4":[["09:30","22:00"]],"5":[["09:30","22:00"]],"6":[["09:30","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.marukyo-web.co.jp/shop/756/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "マルキョウ 花見店",
   "prefecture": "福岡県",
   "municipality": "古賀市",
@@ -1145,6 +1165,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
   "id": "target_052",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/675/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "トライアル 古賀花見店",
   "prefecture": "福岡県",
   "municipality": "古賀市",
@@ -1166,6 +1187,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
   "id": "target_053",
+  "operations": {"hoursLabel":"7:00–22:00（元日休業）","weeklyHours":{"0":[["07:00","22:00"]],"1":[["07:00","22:00"]],"2":[["07:00","22:00"]],"3":[["07:00","22:00"]],"4":[["07:00","22:00"]],"5":[["07:00","22:00"]],"6":[["07:00","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.handsman.co.jp/shop/onojo/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"1月1日休業","annualClosedDates":["01-01"]},
   "name": "ハンズマン 大野城店",
   "prefecture": "福岡県",
   "municipality": "大野城市",
@@ -1186,6 +1208,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
   "id": "target_054",
+  "operations": {"hoursLabel":"7:30–22:00（元日休業）","weeklyHours":{"0":[["07:30","22:00"]],"1":[["07:30","22:00"]],"2":[["07:30","22:00"]],"3":[["07:30","22:00"]],"4":[["07:30","22:00"]],"5":[["07:30","22:00"]],"6":[["07:30","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.handsman.co.jp/shop/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"1月1日休業","annualClosedDates":["01-01"]},
   "name": "ハンズマン くさみ店",
   "prefecture": "福岡県",
   "municipality": "北九州市",
@@ -1252,6 +1275,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
     {
   "id": "target_057",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.joyfull.co.jp/shop/305","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ジョイフル 福岡福津店",
   "prefecture": "福岡県",
   "municipality": "福津市",
@@ -1276,6 +1300,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
   "id": "target_058",
+  "operations": {"hoursLabel":"本館9:00–20:00（資材館は日曜以外7:00–20:00）","weeklyHours":{"0":[["09:00","20:00"]],"1":[["09:00","20:00"]],"2":[["09:00","20:00"]],"3":[["09:00","20:00"]],"4":[["09:00","20:00"]],"5":[["09:00","20:00"]],"6":[["09:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.komeri.com/shop/storeSearch/StoreDetail.aspx?ID=1023","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"本館を判定。資材館は日曜以外7:00から"},
   "name": "コメリパワー 飯塚店",
   "prefecture": "福岡県",
   "municipality": "飯塚市",
@@ -1321,6 +1346,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
   "id": "target_060",
+  "operations": {"hoursLabel":"9:30–22:00","weeklyHours":{"0":[["09:30","22:00"]],"1":[["09:30","22:00"]],"2":[["09:30","22:00"]],"3":[["09:30","22:00"]],"4":[["09:30","22:00"]],"5":[["09:30","22:00"]],"6":[["09:30","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.marukyo-web.co.jp/shop/765/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "マルキョウ 宗像店",
   "prefecture": "福岡県",
   "municipality": "宗像市",
@@ -1341,6 +1367,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_121",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/717/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "TRIAL smart 糸島荻浦店",
   "municipality": "糸島市",
   "address": "福岡県糸島市荻浦四丁目9番3号",
@@ -1363,6 +1390,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_122",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/369/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "スーパーセンタートライアル 那珂川店",
   "municipality": "那珂川市",
   "address": "福岡県那珂川市松原5-23",
@@ -1385,6 +1413,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_123",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/532/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "TRIAL smart 筑紫野店",
   "municipality": "筑紫野市",
   "address": "福岡県筑紫野市塔原東5丁目11-5",
@@ -1407,6 +1436,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_124",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/754/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00"},
   "name": "TRIAL smart 福津店",
   "municipality": "福津市",
   "address": "福岡県福津市手光南１丁目9番12号",
@@ -1429,6 +1459,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_125",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/178/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "スーパーセンタートライアル 宗像店",
   "municipality": "宗像市",
   "address": "福岡県宗像市稲元2丁目3-1",
@@ -1451,6 +1482,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_126",
+  "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/473/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター・家電9–22時、ドラッグ9–21時"},
   "name": "スーパーセンタートライアル 須恵店",
   "municipality": "糟屋郡須恵町",
   "address": "福岡県糟屋郡須恵町旅石井田227-3",
@@ -1473,6 +1505,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_127",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/6/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "スーパーセンタートライアル 宇美店",
   "municipality": "糟屋郡宇美町",
   "address": "福岡県糟屋郡宇美町ゆりが丘1丁目5-1",
@@ -1495,6 +1528,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_128",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/57/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "TRIAL smart 粕屋店",
   "municipality": "糟屋郡粕屋町",
   "address": "福岡県糟屋郡粕屋町大字仲原2706",
@@ -1539,6 +1573,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_130",
+  "operations": {"hoursLabel":"8:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0460/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 前原店",
   "municipality": "糸島市",
   "address": "福岡県糸島市神在東1-1-1",
@@ -4134,6 +4169,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_103",
+    "operations": {"hoursLabel":"7:30–22:00（元日休業）","weeklyHours":{"0":[["07:30","22:00"]],"1":[["07:30","22:00"]],"2":[["07:30","22:00"]],"3":[["07:30","22:00"]],"4":[["07:30","22:00"]],"5":[["07:30","22:00"]],"6":[["07:30","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.handsman.co.jp/shop/yanagimaru/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"1月1日休業","annualClosedDates":["01-01"]},
     "name": "ハンズマン 柳丸店",
     "prefecture": "宮崎県",
     "municipality": "宮崎市",
@@ -4288,6 +4324,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 鹿児島県 -----
   {
     "id": "target_111",
+    "operations": {"hoursLabel":"7:00–22:00（元日休業）","weeklyHours":{"0":[["07:00","22:00"]],"1":[["07:00","22:00"]],"2":[["07:00","22:00"]],"3":[["07:00","22:00"]],"4":[["07:00","22:00"]],"5":[["07:00","22:00"]],"6":[["07:00","22:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.handsman.co.jp/shop/usuki/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"1月1日休業","annualClosedDates":["01-01"]},
     "name": "ハンズマン 宇宿店",
     "prefecture": "鹿児島県",
     "municipality": "鹿児島市",
