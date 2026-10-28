@@ -103,6 +103,13 @@ def create_profile(index, width, height, backend):
     data["camera_preview_max_width"] = 1280
     data["camera_preview_max_height"] = 800
     data["camera_manual_exposure"] = None
+    # 元のUSBカメラ用の座標・メタ情報は、初回Camo登録へ絶対に持ち込まない。
+    data.pop("calibration_capture", None)
+    data["space_zones"] = {}
+    data["entry_zone"] = []
+    data["exit_zone"] = []
+    data["initially_confirmed_empty_uids"] = []
+    data["allow_unverified_initial_empty"] = False
     if PROFILE.exists():
         old = json.loads(PROFILE.read_text(encoding="utf-8-sig"))
         backup = PROFILE.with_name("config_camo_backup_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".json")
