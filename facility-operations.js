@@ -11,6 +11,21 @@
     try {new Intl.DateTimeFormat("en-US",{timeZone:zone});} catch {zone="Asia/Tokyo";}
     const parts=new Intl.DateTimeFormat("en-US",{timeZone:zone,weekday:"short",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(now);
     const part=type=>parts.find(p=>p.type===type)?.value;
+    // 元日など、毎年同じ日付に休業する店舗の例外。曜日の営業時間より優先する。
+    const dateKey=`${part("month")}-${part("day")}`;
+    if(Array.isArray(operations.annualClosedDates) && operations.annualClosedDates.includes(dateKey)) {
+      return {closed:true,isOpen:false,preOpening:false,closingSoon:false,hours:label,closedReason:"annual"};
+    }
+    // 棚卸・改装など日時を指定した臨時休業。ISO 8601（+09:00付き）で登録する。
+    const temporaryClosure=Array.isArray(operations.specialClosures)
+      ? operations.specialClosures.find(item => {
+          const start=Date.parse(item?.start || ""),end=Date.parse(item?.end || "");
+          return Number.isFinite(start)&&Number.isFinite(end)&&start<=now.getTime()&&now.getTime()<end;
+        }) : null;
+    if(temporaryClosure) {
+      return {closed:true,isOpen:false,preOpening:false,closingSoon:false,hours:label,
+        closedReason:temporaryClosure.reason || "temporary"};
+    }
     const day=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(part("weekday"));
     const minute=Number(part("hour"))*60+Number(part("minute"))+Number(part("second"))/60;
     const parse=t=>{if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t))return NaN;const [h,m]=t.split(":").map(Number);return h*60+m;};
