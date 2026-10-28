@@ -21,6 +21,7 @@ from urllib import error, parse, request
 from uuid import uuid4
 
 from camera_recording import RecordingCamera, open_camera
+from camera_profiles import capture_preferences, assert_calibrated_view, fit_preview_dimensions
 from yolo_visual_recording import YoloVisualRecorder
 from stable_ids import StableIdMatcher
 
@@ -79,12 +80,13 @@ def load_config(path: str) -> dict:
     # USBカメラ番号0は有効。Pythonでは bool(0) == False なので別判定する。
     if content.get("source") is None or content.get("source") == "":
         raise ValueError("カメラの source を入力してください")
-    # 自宅実験は外付けUSBカメラだけを許可。旧configのsource=0を内蔵と取り違えない。
+    # 自宅実験は、目視確認した外付けUSBまたはCamo仮想カメラのみを許可。
+    # Camoの設定はUSBカメラとは別JSONにして、区画座標を混ぜない。
     if content.get("facility_id") == "home-test-001":
         if (not isinstance(content["source"], int) or content["source"] < 0
                 or content.get("camera_verified_external") is not True):
             raise ValueError(
-                "外付けUSB Webカメラが未確認です。ホーム駐車場_かんたん準備.cmd を実行してください"
+                "カメラの選択・目視確認が必要です。Camoならsetup_camo.pyを実行してください"
             )
     zones = content.get("space_zones") or {}
     if not zones:
@@ -523,8 +525,10 @@ def main():
         raise SystemExit("必要なライブラリがありません。python -m pip install -r requirements.txt") from ex
 
     source = config["source"]
+    req_w, req_h, req_fps = capture_preferences(config)
     camera = open_camera(cv2, source, config.get("camera_backend", "auto"),
-                         config.get("camera_manual_exposure"))
+                         config.get("camera_manual_exposure"),
+                         req_w, req_h, req_fps)
     if not camera.isOpened():
         raise SystemExit("カメラを開けません。config.json の source を確認してください")
     # 録画ファイルを誤って「今現在の駐車場」として公開しないための防止策。
@@ -568,6 +572,13 @@ def main():
     visual_recorder = None
     try:
         folder = recording.start()
+        # 設定したカメラと区画座標の画角が一致するかを、映像取得後に必ず確認。
+        # これが失敗した場合はライブ送信せず安全に録画を閉じる。
+        first_frame, sequence = recording.next_frame(sequence)
+        first_h, first_w = first_frame.shape[:2]
+        assert_calibrated_view(config, first_w, first_h)
+        print(f"【撮影サイズ】{first_w} x {first_h}（元画像を切り抜かずに解析・録画）")
+        print("【画角】iPhone/Camoのレンズ・ズーム・トリミング設定は端末側をご確認ください。")
         # 生映像とYOLO判定済み映像は同じ実験フォルダに別々に保存する。
         visual_recorder = YoloVisualRecorder(
             folder, cv2, session_start=recording._started,
@@ -630,7 +641,17 @@ def main():
                 previous_statuses, last_push = statuses.copy(), now
             # 非プレビューでも上で保存済み。画面には同じ判定結果を表示する。
             if args.preview:
-                cv2.imshow("Parking camera (q to quit)", annotated)
+                max_w = int(config.get("camera_preview_max_width", 1280))
+                max_h = int(config.get("camera_preview_max_height", 800))
+                shown_w, shown_h = fit_preview_dimensions(
+                    annotated.shape[1], annotated.shape[0], max_w, max_h
+                )
+                # 画角維持・切り抜きなし。プレビューだけ縦横比を保ち縮小。
+                view = (cv2.resize(annotated, (shown_w, shown_h),
+                                   interpolation=cv2.INTER_AREA)
+                        if (shown_w, shown_h) != (annotated.shape[1], annotated.shape[0])
+                        else annotated)
+                cv2.imshow("Parking camera (q to quit)", view)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
     finally:
