@@ -100,7 +100,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_004",
-    "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/321/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター9–21時、家電・ドラッグ9–22時"},
+    "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/321/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター9–21時、家電・ドラッグ9–22時","specialClosures":[{"start":"2026-10-28T22:00:00+09:00","end":"2026-10-29T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
     "name": "トライアル 米子大谷店",
     "prefecture": "鳥取県",
     "municipality": "米子市",
@@ -589,7 +589,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
   {
     "id": "target_023",
-    "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/763/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00"},
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/763/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00","specialClosures":[{"start":"2026-11-10T22:00:00+09:00","end":"2026-11-11T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
     "name": "トライアル 岡山豊浜店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -1420,7 +1420,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_123",
-  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/532/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/532/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","specialClosures":[{"start":"2026-11-02T22:00:00+09:00","end":"2026-11-03T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "TRIAL smart 筑紫野店",
   "municipality": "筑紫野市",
   "address": "福岡県筑紫野市塔原東5丁目11-5",
@@ -1443,7 +1443,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_124",
-  "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/754/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00"},
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9:00–21:00）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/754/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ売場9:00–21:00","specialClosures":[{"start":"2026-11-09T22:00:00+09:00","end":"2026-11-10T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "TRIAL smart 福津店",
   "municipality": "福津市",
   "address": "福岡県福津市手光南１丁目9番12号",
@@ -1466,7 +1466,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_125",
-  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/178/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/178/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","specialClosures":[{"start":"2026-10-29T22:00:00+09:00","end":"2026-10-30T09:30:00+09:00","reason":"棚卸のため臨時休業"}],"notes":"ドラッグ9:00–20:00（公式店舗ページ記載）"},
   "name": "スーパーセンタートライアル 宗像店",
   "municipality": "宗像市",
   "address": "福岡県宗像市稲元2丁目3-1",
@@ -1489,7 +1489,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_126",
-  "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/473/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター・家電9–22時、ドラッグ9–21時"},
+  "operations": {"hoursLabel":"24時間営業（専門売場は別）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/473/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"サービスカウンター・家電9–22時、ドラッグ9–21時","specialClosures":[{"start":"2026-10-28T22:00:00+09:00","end":"2026-10-29T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 須恵店",
   "municipality": "糟屋郡須恵町",
   "address": "福岡県糟屋郡須恵町旅石井田227-3",
