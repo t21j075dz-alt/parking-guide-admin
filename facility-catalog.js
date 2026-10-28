@@ -422,6 +422,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_020",
+    "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1600/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 北出雲店",
     "prefecture": "島根県",
     "municipality": "出雲市",
@@ -842,6 +843,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_035",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1530/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ツーワンスタイルは09:00–20:00"},
     "name": "ホームプラザナフコ 東広島店",
     "prefecture": "広島県",
     "municipality": "東広島市",
@@ -861,6 +863,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_036",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2260/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"資材館は通常08:00–19:00、11～2月は08:00–18:00。家具売場は10:00–20:00"},
     "name": "ホームプラザナフコ 三次店",
     "prefecture": "広島県",
     "municipality": "三次市",
@@ -880,6 +883,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_037",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4110/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 尾道店",
     "prefecture": "広島県",
     "municipality": "尾道市",
@@ -918,6 +922,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_039",
+    "operations": {"hoursLabel":"08:00–18:30","weeklyHours":{"0":[["08:00","18:30"]],"1":[["08:00","18:30"]],"2":[["08:00","18:30"]],"3":[["08:00","18:30"]],"4":[["08:00","18:30"]],"5":[["08:00","18:30"]],"6":[["08:00","18:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2890/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 庄原店",
     "prefecture": "広島県",
     "municipality": "庄原市",
@@ -937,6 +942,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_040",
+    "operations": {"hoursLabel":"08:30–18:30","weeklyHours":{"0":[["08:30","18:30"]],"1":[["08:30","18:30"]],"2":[["08:30","18:30"]],"3":[["08:30","18:30"]],"4":[["08:30","18:30"]],"5":[["08:30","18:30"]],"6":[["08:30","18:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3890/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 吉田店",
     "prefecture": "広島県",
     "municipality": "安芸高田市",
@@ -1074,6 +1080,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_047",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0480/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 山口店",
     "prefecture": "山口県",
     "municipality": "山口市",
@@ -1093,6 +1100,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_048",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3960/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 周南店",
     "prefecture": "山口県",
     "municipality": "周南市",
@@ -1112,6 +1120,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_049",
+    "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0260/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 防府店",
     "prefecture": "山口県",
     "municipality": "防府市",
@@ -1131,6 +1140,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_050",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1240/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具売場は09:00–20:00"},
     "name": "ホームプラザナフコ 南岩国店",
     "prefecture": "山口県",
     "municipality": "岩国市",
@@ -1603,6 +1613,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_131",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1520/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 二丈店",
   "municipality": "糸島市",
   "address": "福岡県糸島市二丈上深江977-1",
@@ -1625,6 +1636,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_132",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3930/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 元岡店",
   "municipality": "福岡市",
   "address": "福岡県福岡市西区元浜1-36-1",
@@ -1669,6 +1681,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_134",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3140/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ツーワンスタイルは09:00–20:00"},
   "name": "ホームプラザナフコ 春日フォレストシティ店",
   "municipality": "春日市",
   "address": "福岡県春日市星見ヶ丘4-16",
@@ -1691,6 +1704,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_135",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1770/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 筑紫店",
   "municipality": "筑紫野市",
   "address": "福岡県筑紫野市筑紫683-2",
@@ -1713,6 +1727,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_136",
+  "operations": {"hoursLabel":"09:30–19:00","weeklyHours":{"0":[["09:30","19:00"]],"1":[["09:30","19:00"]],"2":[["09:30","19:00"]],"3":[["09:30","19:00"]],"4":[["09:30","19:00"]],"5":[["09:30","19:00"]],"6":[["09:30","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1650/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ トリアス久山店",
   "municipality": "糟屋郡久山町",
   "address": "福岡県糟屋郡久山町山田1122-1",
@@ -1735,6 +1750,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_137",
+  "operations": {"hoursLabel":"08:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1100/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 篠栗店",
   "municipality": "糟屋郡篠栗町",
   "address": "福岡県糟屋郡篠栗町乙犬1014-1",
@@ -1757,6 +1773,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_138",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2500/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 南那珂川店",
   "municipality": "那珂川市",
   "address": "福岡県那珂川市恵子1-45",
@@ -2101,6 +2118,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_153",
+  "operations": {"hoursLabel":"07:30–19:00","weeklyHours":{"0":[["07:30","19:00"]],"1":[["07:30","19:00"]],"2":[["07:30","19:00"]],"3":[["07:30","19:00"]],"4":[["07:30","19:00"]],"5":[["07:30","19:00"]],"6":[["07:30","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2600/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 豊津店",
   "municipality": "京都郡みやこ町",
   "address": "福岡県京都郡みやこ町田中388",
@@ -2145,6 +2163,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_155",
+  "operations": {"hoursLabel":"08:30–18:30","weeklyHours":{"0":[["08:30","18:30"]],"1":[["08:30","18:30"]],"2":[["08:30","18:30"]],"3":[["08:30","18:30"]],"4":[["08:30","18:30"]],"5":[["08:30","18:30"]],"6":[["08:30","18:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3900/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 岡垣店",
   "municipality": "遠賀郡岡垣町",
   "address": "福岡県遠賀郡岡垣町高倉669-1",
@@ -2167,6 +2186,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_156",
+  "operations": {"hoursLabel":"08:00–18:30","weeklyHours":{"0":[["08:00","18:30"]],"1":[["08:00","18:30"]],"2":[["08:00","18:30"]],"3":[["08:00","18:30"]],"4":[["08:00","18:30"]],"5":[["08:00","18:30"]],"6":[["08:00","18:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4350/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 中間店",
   "municipality": "中間市",
   "address": "福岡県中間市大字垣生1500-2",
@@ -2189,6 +2209,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_157",
+  "operations": {"hoursLabel":"月～土7:00–20:00／日8:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["07:00","20:00"]],"2":[["07:00","20:00"]],"3":[["07:00","20:00"]],"4":[["07:00","20:00"]],"5":[["07:00","20:00"]],"6":[["07:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2200/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"日曜日08:00–20:00。祝日は月～土と同じ07:00–20:00（祝日自動判定は未対応）"},
   "name": "ホームプラザナフコ 学研都市ひびきの店",
   "municipality": "北九州市",
   "address": "福岡県北九州市若松区ひびきの南1-1-12",
@@ -2211,6 +2232,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_158",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1900/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 西若松店",
   "municipality": "北九州市",
   "address": "福岡県北九州市若松区花野路1-10-1",
@@ -2233,6 +2255,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_159",
+  "operations": {"hoursLabel":"08:30–18:30","weeklyHours":{"0":[["08:30","18:30"]],"1":[["08:30","18:30"]],"2":[["08:30","18:30"]],"3":[["08:30","18:30"]],"4":[["08:30","18:30"]],"5":[["08:30","18:30"]],"6":[["08:30","18:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1150/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 馬場山店",
   "municipality": "北九州市",
   "address": "福岡県北九州市八幡西区馬場山西-5",
@@ -2255,6 +2278,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_160",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0820/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 徳力店",
   "municipality": "北九州市",
   "address": "福岡県北九州市小倉南区守恒1-1-1",
@@ -2299,6 +2323,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_162",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2560/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ツーワンスタイルは09:00–20:00"},
   "name": "ホームプラザナフコ 小倉南店",
   "municipality": "北九州市",
   "address": "福岡県北九州市小倉南区上葛原1-16-1",
@@ -2661,6 +2686,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_178",
+  "operations": {"hoursLabel":"08:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2870/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 稲築店",
   "municipality": "嘉麻市",
   "address": "福岡県嘉麻市平1561-1",
@@ -2683,6 +2709,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_179",
+  "operations": {"hoursLabel":"08:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1460/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 宮田店",
   "municipality": "宮若市",
   "address": "福岡県宮若市本城438-1",
@@ -2727,6 +2754,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_181",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1510/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 川崎店",
   "municipality": "田川郡川崎町",
   "address": "福岡県田川郡川崎町池尻1313",
@@ -2749,6 +2777,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_182",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4500/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 直方店",
   "municipality": "直方市",
   "address": "福岡県直方市下境876-1",
@@ -2771,6 +2800,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_183",
+  "operations": {"hoursLabel":"07:30–19:00","weeklyHours":{"0":[["07:30","19:00"]],"1":[["07:30","19:00"]],"2":[["07:30","19:00"]],"3":[["07:30","19:00"]],"4":[["07:30","19:00"]],"5":[["07:30","19:00"]],"6":[["07:30","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3460/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 鞍手店",
   "municipality": "鞍手郡鞍手町",
   "address": "福岡県鞍手郡鞍手町中山2103-5",
@@ -2793,6 +2823,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_184",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0690/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"資材館は06:30–20:00。ツーワンスタイルは10:00–20:00"},
   "name": "ホームプラザナフコ 飯塚南店",
   "municipality": "飯塚市",
   "address": "福岡県飯塚市椿89-9",
@@ -2815,6 +2846,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_185",
+  "operations": {"hoursLabel":"08:30–19:00","weeklyHours":{"0":[["08:30","19:00"]],"1":[["08:30","19:00"]],"2":[["08:30","19:00"]],"3":[["08:30","19:00"]],"4":[["08:30","19:00"]],"5":[["08:30","19:00"]],"6":[["08:30","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1330/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 頴田店",
   "municipality": "飯塚市",
   "address": "福岡県飯塚市佐与2362",
@@ -3042,6 +3074,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_195",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/hc/shop_list/2850/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 瀬高店",
   "municipality": "みやま市",
   "address": "福岡県みやま市瀬高町下庄720-4",
@@ -3064,6 +3097,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_196",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1790/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 大刀洗店",
   "municipality": "三井郡大刀洗町",
   "address": "福岡県三井郡大刀洗町鵜木729-1",
@@ -3086,6 +3120,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_197",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0420/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"資材・DIY売場は06:30–20:00"},
   "name": "ホームプラザナフコ 旗崎店",
   "municipality": "久留米市",
   "address": "福岡県久留米市御井旗崎5-8-24",
@@ -3108,6 +3143,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_198",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2050/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 南久留米店",
   "municipality": "久留米市",
   "address": "福岡県久留米市荒木町白口90",
@@ -3130,6 +3166,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_199",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3700/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 城島店",
   "municipality": "久留米市",
   "address": "福岡県久留米市城島町江上本1474-1",
@@ -3152,6 +3189,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_200",
+  "operations": {"hoursLabel":"08:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1180/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具は10:00–19:00"},
   "name": "ホームプラザナフコ 八女店",
   "municipality": "八女市",
   "address": "福岡県八女市本村79-1",
@@ -3174,6 +3212,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_201",
+  "operations": {"hoursLabel":"08:30–19:00","weeklyHours":{"0":[["08:30","19:00"]],"1":[["08:30","19:00"]],"2":[["08:30","19:00"]],"3":[["08:30","19:00"]],"4":[["08:30","19:00"]],"5":[["08:30","19:00"]],"6":[["08:30","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3470/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 黒木店",
   "municipality": "八女市",
   "address": "福岡県八女市黒木町今212",
@@ -3196,6 +3235,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_202",
+  "operations": {"hoursLabel":"07:30–20:00","weeklyHours":{"0":[["07:30","20:00"]],"1":[["07:30","20:00"]],"2":[["07:30","20:00"]],"3":[["07:30","20:00"]],"4":[["07:30","20:00"]],"5":[["07:30","20:00"]],"6":[["07:30","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4360/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 八女インター店",
   "municipality": "八女市",
   "address": "福岡県八女市蒲原550番地",
@@ -3218,6 +3258,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_203",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0070/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具は10:00–20:00"},
   "name": "ホームプラザナフコ 大牟田店",
   "municipality": "大牟田市",
   "address": "福岡県大牟田市手鎌1903",
@@ -3240,6 +3281,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_204",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1370/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 甘木インター店",
   "municipality": "朝倉市",
   "address": "福岡県朝倉市甘木427-1",
@@ -3262,6 +3304,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_205",
+  "operations": {"hoursLabel":"09:00–18:00","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2860/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 杷木店",
   "municipality": "朝倉市",
   "address": "福岡県朝倉市杷木久喜宮1999-41",
@@ -3284,6 +3327,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_206",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3440/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 筑前店",
   "municipality": "朝倉郡筑前町",
   "address": "福岡県朝倉郡筑前町東小田1515-1",
@@ -3306,6 +3350,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_207",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0330/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具売場は10:00–20:00"},
   "name": "ホームプラザナフコ 柳川店",
   "municipality": "柳川市",
   "address": "福岡県柳川市三橋町枝光403",
@@ -3328,6 +3373,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_208",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1290/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 筑後店",
   "municipality": "筑後市",
   "address": "福岡県筑後市蔵数207",
@@ -3550,6 +3596,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_069",
+    "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1380/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 武雄店",
     "prefecture": "佐賀県",
     "municipality": "武雄市",
@@ -3569,6 +3616,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_070",
+    "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0500/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"家具館10:00–19:30"},
     "name": "ホームプラザナフコ 唐津店",
     "prefecture": "佐賀県",
     "municipality": "唐津市",
@@ -4491,6 +4539,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_117",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/1630/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 谷山店",
     "prefecture": "鹿児島県",
     "municipality": "鹿児島市",
@@ -4550,6 +4599,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_120",
+    "operations": {"hoursLabel":"10:00–20:00","weeklyHours":{"0":[["10:00","20:00"]],"1":[["10:00","20:00"]],"2":[["10:00","20:00"]],"3":[["10:00","20:00"]],"4":[["10:00","20:00"]],"5":[["10:00","20:00"]],"6":[["10:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3560/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 鹿児島東開店",
     "prefecture": "鹿児島県",
     "municipality": "鹿児島市",
