@@ -21,20 +21,58 @@ Write-Host "=============================================="
 Write-Host "動画や写真をクラウドへ勝手に送信しません。"
 Write-Host ""
 
-# 以前使っていたYOLOのPythonを指定すれば環境を作り直さずに済む。
-$pythonCommand = if ($Python) {
-  if (-not (Test-Path -LiteralPath $Python)) { throw "指定されたPythonが見つかりません: $Python" }
-  (Resolve-Path -LiteralPath $Python).Path
-} elseif (Test-Path ".\.venv\Scripts\python.exe") {
-  (Resolve-Path ".\.venv\Scripts\python.exe").Path
+# YOLOとOpenCVが両方入ったPythonだけを使う。
+# Windowsの通常Python（たとえば3.15）に必要なライブラリがない場合は、
+# 以前の研究用仮想環境を探す。利用者の環境へ勝手にインストールしない。
+function Test-ParkingPython([string]$Candidate) {
+  if (-not $Candidate) { return $false }
+  if ($Candidate -ne "python" -and -not (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
+    return $false
+  }
+  try {
+    & $Candidate -c "import cv2, ultralytics" *> $null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
+  }
+}
+
+if ($Python) {
+  if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
+    throw "指定されたPythonが見つかりません: $Python"
+  }
+  if (-not (Test-ParkingPython $Python)) {
+    throw "指定されたPythonにはOpenCVまたはYOLOがありません: $Python。以前のYOLO用仮想環境を指定してください。"
+  }
+  $pythonCommand = (Resolve-Path -LiteralPath $Python).Path
 } else {
-  "python"
+  # HPノートPC・GPUノートPC・旧デスクトップの研究環境を順に確認。
+  $candidates = @(
+    (Join-Path $PSScriptRoot ".venv\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "parking-vision\.venv-cpu\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "parking-yolo-home\.venv-gpu\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "Desktop\parking-yolo-starter\.venv\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "OneDrive\Desktop\parking-yolo-starter\.venv\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "Downloads\parking-yolo-starter\.venv\Scripts\python.exe")
+  )
+  $pythonCommand = $null
+  foreach ($candidate in $candidates) {
+    if (Test-ParkingPython $candidate) {
+      $pythonCommand = (Resolve-Path -LiteralPath $candidate).Path
+      break
+    }
+  }
+  if (-not $pythonCommand -and (Get-Command python -ErrorAction SilentlyContinue)) {
+    if (Test-ParkingPython "python") { $pythonCommand = "python" }
+  }
+  if (-not $pythonCommand) {
+    throw "YOLOとOpenCVが使えるPythonが見つかりません。既存のpython.exeを -Python オプションで指定してください。"
+  }
 }
 
 & $pythonCommand -c "import sys; print('使用するPython:', sys.executable)"
 if ($LASTEXITCODE -ne 0) {
-  Write-Host "Pythonを起動できません。WindowsでPythonをインストールするか -Python オプションで指定してください。"
-  exit 1
+  throw "研究用のPythonを起動できません。-Python で実際のpython.exeを指定してください。"
 }
 
 # Camoは独立した区画設定を使い、USBカメラのconfig.jsonを変更しない。
