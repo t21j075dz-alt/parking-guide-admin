@@ -86,7 +86,7 @@ def load_config(path: str) -> dict:
         if (not isinstance(content["source"], int) or content["source"] < 0
                 or content.get("camera_verified_external") is not True):
             raise ValueError(
-                "カメラの選択・目視確認が必要です。Camoならsetup_camo.pyを実行してください"
+                "外付けUSB WebカメラまたはCamoの選択・目視確認が必要です。Camoならsetup_camo.pyを実行してください"
             )
     zones = content.get("space_zones") or {}
     if not zones:
