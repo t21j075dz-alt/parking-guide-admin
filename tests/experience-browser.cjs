@@ -25,7 +25,7 @@ const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
    window.PARKING_LAYOUTS={...window.PARKING_LAYOUTS,[f.layoutId||f.id]:{facilityId:f.id,facilityIdentityKey:getFacilityIdentityKeyForUser(f),canvas:{width:100,height:100},operations:{hoursLabel:'09:00–21:00',closed:true},objects:[]}};
    state.selectedFacility=f;renderFacilities();
   });
-  assert.equal(await page.locator('.availability-closed').count(),1);
+  assert.equal(await page.locator('.availability-rest').count(),1);
   assert.ok((await page.locator('.facility-hours').first().textContent()).includes('09:00'));
   await page.locator('[data-facility-id]').first().click();
   await page.waitForFunction(()=>!document.querySelector('#facility-camera img').hidden).catch(async e=>{console.log(await page.evaluate(()=>({screen:state.currentScreen,status:document.querySelector('#facility-camera [role=status]').textContent,errors:document.querySelector('#facility-camera').outerHTML})));console.log(errors);throw e;});
