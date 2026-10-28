@@ -27,14 +27,14 @@
   const q=id=>panel.querySelector("#"+id);let last="";
   function load(){const layout=getCurrentLayout();
     const destination=getAdminDestinations().find(d=>d.id===q("operation-scope").value);
-    const operation=window.ParkingOperations.operating(destination?.operations || layout?.operations);
+    const operation=window.ParkingOperations.operating(destination?.operations || layout?.operations || getCurrentFacilityRecord()?.operations);
     q("facility-open-status").textContent=document.documentElement.lang==="en"
       ? (operation.unknown?"Hours not configured":operation.closed?"Currently closed":operation.preOpening?"Before opening · guidance available":"Currently open")
       : (operation.unknown?"営業時間は未設定です":operation.closed?"現在は営業時間外・休業中です":operation.preOpening?"開店前ですが案内可能です":"現在は営業中です");const item=getSelectedObject();const key=state.facilityId+":"+(item?.uid||"")+":"+q("operation-scope").value+":"+getAdminDestinations().map(d=>d.id).join(",");if(key===last)return;last=key;
     const previous=q("operation-scope").value;q("operation-scope").replaceChildren(new Option("施設全体",""));
     for(const d of getAdminDestinations())q("operation-scope").add(new Option(d.name,d.id));
     q("operation-scope").value=previous;
-    const op=destination?.operations || (!previous?layout?.operations:null) || {};q("facility-hours-label").value=op.hoursLabel||"";q("facility-closed").checked=op.closed===true;
+    const op=destination?.operations || (!previous?(layout?.operations || getCurrentFacilityRecord()?.operations):null) || {};q("facility-hours-label").value=op.hoursLabel||"";q("facility-closed").checked=op.closed===true;
     q("hours-enabled").checked=!!op.weeklyHours;
     weekdays.forEach((_,day)=>{const ranges=op.weeklyHours?.[day];q("day-"+day).checked=!!ranges?.length;q("open-"+day).value=ranges?.[0]?.[0]||"09:00";q("close-"+day).value=ranges?.[0]?.[1]||"21:00";});q("space-shared-group").value=item?.sharedGroup||"";
     q("save-shared-group").disabled=item?.objectType!=="parkingSpace";
@@ -49,8 +49,9 @@
     if(scope&&!Array.isArray(layout.destinations))layout.destinations=structuredClone(getAdminDestinations());
     const target=scope?layout.destinations.find(d=>d.id===scope):layout;
     if(!target)throw Error("設定対象の店舗を選択してください");
-    target.operations={hoursLabel:q("facility-hours-label").value.trim(),closed:q("facility-closed").checked,weeklyHours:hours,timeZone:"Asia/Tokyo"};
-    saveLocal();q("facility-editor-status").textContent="営業時間を保存しました";
+    // 管理者が変更した内容は公式確認済み情報と混同せず、手動設定として扱う。
+    target.operations={hoursLabel:q("facility-hours-label").value.trim(),closed:q("facility-closed").checked,weeklyHours:hours,timeZone:"Asia/Tokyo",hoursVerification:"manual",notes:"管理画面から手動設定"};
+    saveLocal();q("facility-editor-status").textContent="営業時間を保存しました（公式確認済みの日時・出典は手動設定に切り替わりました）";
   }catch(e){q("facility-editor-status").textContent="保存できません："+e.message;}};
   q("save-shared-group").onclick=()=>{const item=getSelectedObject();if(item?.objectType!=="parkingSpace")return;item.sharedGroup=q("space-shared-group").value.trim();saveLocal();q("facility-editor-status").textContent="共用グループを設定しました";};
 })();
