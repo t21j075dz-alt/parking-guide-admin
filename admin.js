@@ -1278,9 +1278,12 @@ function useCurrentLocationForBackground() {
     elements.backgroundStatus.textContent = "このブラウザーでは現在地を取得できません。";
     return;
   }
+  const requestedFacilityId = state.facilityId;
   elements.backgroundStatus.textContent = "現在地を取得しています…";
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      // GPS取得待ちに別施設へ切り替わった場合、他施設を誤って上書きしない。
+      if (state.facilityId !== requestedFacilityId) return;
       elements.backgroundType.value = "gsi-seamlessphoto";
       elements.backgroundLatitude.value = position.coords.latitude.toFixed(6);
       elements.backgroundLongitude.value = position.coords.longitude.toFixed(6);
@@ -3480,6 +3483,18 @@ function syncLayoutByFacilityId(facilityId) {
   return pending;
 }
 
+/**
+ * 私的実験地点のGPSは、管理レイアウトの形状と別管理にする。
+ * 公開読取が可能なクラウドへ送る際、航空写真の座標を含めない。
+ * 管理者端末の編集用航空写真はローカルに保持する。
+ */
+function layoutForRemoteUpload(layout) {
+  const facility = state.facilities.find(item => item.id === layout?.facilityId);
+  return facility?.requiresLocalCalibration
+    ? { ...layout, background: null }
+    : layout;
+}
+
 /** 指定施設のレイアウトをクラウドへ保存する。 */
 async function uploadLayoutByFacilityId(facilityId) {
   const config = getRemoteConfig();
@@ -3500,7 +3515,7 @@ async function uploadLayoutByFacilityId(facilityId) {
       },
       body: JSON.stringify({
         facility_id: layout.facilityId,
-        layout_data: layout,
+        layout_data: layoutForRemoteUpload(layout),
         updated_at: new Date().toISOString(),
       }),
       signal: AbortSignal.timeout(10000),
@@ -3831,6 +3846,12 @@ async function locateFacilityForBackground(facility, layout, options = {}) {
     return;
   }
 
+  if (facility.requiresLocalCalibration) {
+    // 実際の道の駅の所在地を検索しない。GPSを使う場合は管理者が明示的に実行する。
+    elements.backgroundStatus.textContent =
+      `「${facility.name}」は録画・実験用です。「現在地を中心にする」を押して実験場所を指定してください。`;
+    return;
+  }
   if (facility.locationVerified !== true) {
     elements.backgroundStatus.textContent =
       `「${facility.name}」は所在地未確認のため、自動で航空写真を設定しません。`;
@@ -3938,6 +3959,10 @@ async function resetBackgroundToFacilityLocation() {
   if (!layout || !facility) {
     return;
   }
+  if (facility.requiresLocalCalibration) {
+    useCurrentLocationForBackground();
+    return;
+  }
   await locateFacilityForBackground(facility, layout, { force: true });
 }
 
@@ -3949,7 +3974,10 @@ function updateFacilityLocationSummary(facility) {
   }
 
   const parts = [];
-  if (facility.address) {
+  if (facility.requiresLocalCalibration) {
+    parts.push("研究用所在地：現在地（実際の施設住所ではありません）");
+    parts.push("現在地を取得して航空写真を合わせてください");
+  } else if (facility.address) {
     parts.push(`確認済み住所：${facility.address}`);
   }
   if (facility.locationVerificationDate) {
