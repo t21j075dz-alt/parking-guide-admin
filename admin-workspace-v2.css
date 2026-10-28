@@ -367,3 +367,14 @@ body.admin-layout-ready .footer{height:auto;min-height:22px;padding:3px 12px;fon
 @media(prefers-reduced-motion:reduce){
   body.admin-layout-ready button{transition:none;}
 }
+
+/* タッチ端末の操作対象は原則44px以上にして誤タップを防ぐ。 */
+@media(max-width:900px){
+  body.admin-layout-ready .topbar-actions button,
+  body.admin-layout-ready .admin-panel-actions button,
+  body.admin-layout-ready .editor-toolbar button,
+  body.admin-layout-ready .admin-quick-add select,
+  body.admin-layout-ready .admin-header-more > summary{
+    min-height:44px;
+  }
+}
