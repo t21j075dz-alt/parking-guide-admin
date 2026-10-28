@@ -1,0 +1,369 @@
+/*
+ * 管理画面 / 広い作業領域のためのレスポンシブレイアウト。
+ * 既存の描画座標・保存データ・地図CSSは変更しない。
+ */
+body.admin-layout-ready{
+  min-width:320px;
+  height:100dvh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  --admin-tools-width:0px;
+  --admin-settings-width:0px;
+}
+body.admin-layout-ready[data-admin-tools-open="true"]{--admin-tools-width:clamp(250px,22vw,306px);}
+body.admin-layout-ready[data-admin-settings-open="true"]{--admin-settings-width:clamp(285px,25vw,360px);}
+
+/* 上部は保存・やり直し・施設選択と状態だけを残す。 */
+body.admin-layout-ready .topbar{
+  position:relative;
+  padding:7px 14px;
+  min-height:64px;
+  height:auto;
+  flex:0 0 auto;
+  gap:9px 14px;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+  align-items:center;
+  z-index:25;
+  border-bottom:1px solid var(--border);
+}
+body.admin-layout-ready .topbar h1{font-size:18px;line-height:1.2;}
+body.admin-layout-ready .app-kicker{font-size:10px;}
+body.admin-layout-ready .topbar-actions{
+  margin-left:auto;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:6px;
+}
+body.admin-layout-ready .topbar-actions #save-button{
+  min-width:96px;
+  font-weight:700;
+}
+.admin-header-status{
+  display:flex;
+  flex-basis:100%;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  font-size:11px;
+}
+body.admin-layout-ready #local-save-status{
+  min-height:0;
+  padding:0;
+  background:none;
+  font-size:11px;
+  flex:0 1 auto;
+  max-width:50%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#admin-cloud-summary{
+  min-width:0;
+  max-width:55%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--muted);
+}
+#admin-cloud-summary::before{content:"● ";font-size:.7em;vertical-align:middle;}
+.admin-header-more{position:relative;flex:none;}
+.admin-header-more > summary{
+  display:flex;
+  align-items:center;
+  padding:9px 12px;
+  min-height:42px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--panel-2);
+  font-size:13px;
+  white-space:nowrap;
+  list-style:none;
+  cursor:pointer;
+}
+.admin-header-more > summary::-webkit-details-marker{display:none;}
+.admin-header-more > summary::after{content:"⌄";padding-left:8px;}
+.admin-header-more[open]>summary::after{content:"⌃";}
+.admin-header-more-content{
+  position:absolute;
+  top:calc(100% + 7px);
+  right:0;
+  width:min(350px,calc(100vw - 25px));
+  z-index:50;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel);
+  box-shadow:0 12px 35px rgb(0 0 0 / 18%);
+}
+.admin-header-more-content button,
+.admin-header-more-content .file-button{font-size:12px;min-width:0;text-align:center;justify-content:center;}
+
+/* 編集施設は追加ツールから独立し、常時アクセスできる。 */
+.admin-facility-strip{
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  padding:7px 14px 10px;
+  flex:0 0 auto;
+  position:relative;
+  z-index:15;
+}
+.admin-facility-picker{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(180px,1fr) minmax(130px,160px) minmax(220px,1fr) minmax(150px,1fr);
+  grid-template-rows:auto auto;
+  gap:3px 12px;
+  align-items:center;
+  margin:0;
+}
+.admin-facility-picker>h2,.admin-facility-picker>#facility-id{display:none;}
+.admin-facility-picker>.field-label{font-size:11px;margin:0;color:var(--muted);}
+.admin-facility-picker>label[for="facility-search"]{grid-column:1;grid-row:1;}
+.admin-facility-picker>#facility-search{grid-column:1;grid-row:2;}
+.admin-facility-picker>label[for="prefecture-select"]{grid-column:2;grid-row:1;}
+.admin-facility-picker>#prefecture-select{grid-column:2;grid-row:2;}
+.admin-facility-picker>label[for="facility-select"]{grid-column:3;grid-row:1;}
+.admin-facility-picker>#facility-select{grid-column:3;grid-row:2;}
+.admin-facility-picker>#facility-address{
+  grid-column:4;grid-row:2;
+  align-self:center;
+  margin:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
+}
+.admin-facility-picker>select,
+.admin-facility-picker>input{min-height:38px;margin:0;}
+.admin-facility-picker>#facility-results:not(:empty){
+  position:absolute;
+  z-index:55;
+  top:100%;
+  left:0;
+  width:min(460px,90vw);
+  max-height:45vh;
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--panel);
+  box-shadow:0 10px 24px rgb(0 0 0 / 18%);
+  padding:6px;
+}
+.admin-facility-picker>#facility-results:empty{display:none;}
+
+/* どちらのパネルも独立して開閉し、閉じた幅はすべてキャンバスに戻す。 */
+body.admin-layout-ready .admin-layout{
+  display:grid;
+  grid-template-columns:var(--admin-tools-width) minmax(0,1fr) var(--admin-settings-width);
+  flex:1 1 auto;
+  height:auto;
+  min-height:0;
+  min-width:0;
+  overflow:hidden;
+  position:relative;
+}
+body.admin-layout-ready .left-panel{grid-column:1;grid-row:1;}
+body.admin-layout-ready .workspace{grid-column:2;grid-row:1;min-width:0;min-height:0;}
+body.admin-layout-ready .right-panel{grid-column:3;grid-row:1;}
+body.admin-layout-ready[data-admin-tools-open="false"] .left-panel,
+body.admin-layout-ready[data-admin-settings-open="false"] .right-panel{display:none;}
+body.admin-layout-ready .left-panel,
+body.admin-layout-ready .right-panel{
+  padding:12px;
+  min-width:0;
+  overflow:auto;
+  scrollbar-gutter:stable;
+}
+.admin-tool-controls{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin:0 0 12px;
+}
+.admin-tool-controls strong{font-size:13px;}
+.admin-tool-controls button{font-size:11px;min-height:34px;}
+body.admin-layout-ready .left-panel .palette-section{margin-top:3px;padding:10px 0;}
+body.admin-layout-ready .left-panel .palette-section summary{font-size:13px;padding:8px 0;}
+body.admin-layout-ready .left-panel .tool-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+body.admin-layout-ready .left-panel .tool-list button{font-size:11px;min-height:40px;}
+body.admin-layout-ready .left-panel .camera-card{margin:8px 0;padding:9px;}
+body.admin-layout-ready .left-panel .camera-card img{max-height:280px;}
+body.admin-layout-ready .left-panel .camera-card summary{min-height:36px;}
+body.admin-layout-ready .right-panel h2{font-size:14px;}
+body.admin-layout-ready .right-panel #object-form label{margin-bottom:8px;}
+.admin-inspector-extra{
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:7px 10px;
+  margin-top:10px;
+  min-width:0;
+}
+.admin-inspector-extra > summary{padding:7px 0;font-size:12px;}
+.admin-inspector-extra[open]>summary{margin-bottom:10px;}
+.admin-inspector-extra .parking-marking-settings,
+.admin-inspector-extra .adjacent-generator{margin:0;min-width:0;}
+
+body.admin-layout-ready .workspace-head{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  padding:7px 10px;
+  gap:6px 10px;
+  min-height:52px;
+}
+body.admin-layout-ready .workspace-head>div:first-of-type:not(.admin-panel-actions){
+  min-width:0;
+}
+body.admin-layout-ready .workspace-head h2{font-size:14px;margin:0;}
+body.admin-layout-ready .workspace-head p{font-size:11px;}
+.admin-panel-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.admin-panel-actions button{min-height:36px;font-size:12px;padding:5px 9px;white-space:nowrap;}
+.admin-panel-actions button[aria-pressed="true"]{
+  background:var(--accent-soft);color:var(--accent);border-color:var(--accent);
+}
+#admin-focus-toggle{font-weight:650;}
+#admin-selection-summary{
+  min-width:0;max-width:190px;
+  margin-left:auto;
+  color:var(--muted);
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.admin-canvas-dimensions{position:relative;font-size:12px;margin-left:4px;}
+.admin-canvas-dimensions>summary{font-size:12px;padding:6px;}
+.admin-canvas-dimensions>.canvas-settings{
+  position:absolute;z-index:6;
+  top:100%;right:0;
+  min-width:270px;
+  display:grid;
+  grid-template-columns:1fr;
+  padding:12px;
+  border-radius:9px;
+  border:1px solid var(--border);
+  box-shadow:0 8px 18px rgb(0 0 0 / 13%);
+  background:var(--panel);
+}
+.admin-canvas-dimensions .canvas-settings label{grid-template-columns:50px 1fr;font-size:12px;}
+body.admin-layout-ready .workspace-head .admin-canvas-dimensions:not([open])>.canvas-settings{display:none;}
+
+body.admin-layout-ready .background-panel{
+  margin:5px 9px 0;
+  padding:6px 10px;
+  max-height:min(35vh,310px);
+  overflow:auto;
+}
+body.admin-layout-ready .editor-toolbar{
+  margin:5px 9px;
+  padding:6px 9px;
+  gap:6px;
+  min-height:47px;
+  max-height:min(37vh,290px);
+  overflow:auto;
+  display:flex;flex-wrap:wrap;
+}
+body.admin-layout-ready .editor-toolbar .edit-mode-switcher{gap:3px;padding-right:6px;}
+body.admin-layout-ready .editor-toolbar .edit-mode-button{font-size:12px;padding:6px 8px;min-height:37px;}
+.admin-quick-add{display:flex;align-items:center;gap:6px;min-width:0;}
+.admin-quick-add label{white-space:nowrap;font-size:12px;font-weight:700;}
+.admin-quick-add select{width:clamp(120px,13vw,205px);min-height:38px;font-size:12px;padding:4px;}
+.admin-quick-add button{min-height:38px;background:var(--accent);color:var(--panel);border-color:var(--accent);font-weight:700;white-space:nowrap;}
+body.admin-layout-ready .editor-zoom{margin-left:auto;gap:3px;}
+body.admin-layout-ready .editor-zoom button{min-height:36px;font-size:11px;}
+body.admin-layout-ready .editor-zoom input{width:66px;flex:0 0 66px;}
+body.admin-layout-ready .editor-zoom output{min-width:36px;font-size:11px;}
+.admin-extra-editing{position:relative;}
+.admin-extra-editing>summary{
+  white-space:nowrap;list-style:none;
+  min-height:36px;padding:7px 10px;
+  border:1px solid var(--border);border-radius:7px;
+  background:var(--panel-2);font-size:12px;
+}
+.admin-extra-editing>summary::-webkit-details-marker{display:none;}
+.admin-extra-editing[open]{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);}
+.admin-extra-editing[open]>summary{margin-bottom:8px;}
+.admin-extra-editing>button{margin:2px;min-height:36px;}
+body.admin-layout-ready .admin-extra-editing .editor-advanced{
+  width:100%;margin-top:6px;border-top:1px solid var(--border);
+}
+body.admin-layout-ready #edit-mode-help{font-size:11px;width:auto;flex-basis:100%;}
+body.admin-layout-ready .canvas-scroll{flex:1;min-height:0;}
+body.admin-layout-ready .footer{height:auto;min-height:22px;padding:3px 12px;font-size:10px;}
+.admin-sidebar-backdrop{display:none;}
+
+/* ノートPCで幅が厳しい場合、右設定はユーザーの操作で開ける。 */
+@media(max-width:1200px){
+  body.admin-layout-ready[data-admin-tools-open="true"]{--admin-tools-width:245px;}
+  body.admin-layout-ready[data-admin-settings-open="true"]{--admin-settings-width:285px;}
+  #admin-selection-summary{max-width:130px;}
+  body.admin-layout-ready .editor-zoom input{display:none;}
+}
+@media(max-width:900px){
+  body.admin-layout-ready .topbar{padding:7px 9px;gap:6px;min-height:55px;}
+  body.admin-layout-ready .topbar h1{font-size:15px;}
+  body.admin-layout-ready .topbar-actions{gap:4px;}
+  body.admin-layout-ready .topbar-actions button{font-size:11px;padding:5px 7px;min-height:38px;}
+  .admin-header-more>summary{min-height:38px;padding:6px 9px;}
+  body.admin-layout-ready .admin-facility-strip{padding:6px 9px;}
+  .admin-facility-picker{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3px 7px;}
+  .admin-facility-picker>label[for="facility-search"]{grid-column:1 / -1;grid-row:1;}
+  .admin-facility-picker>#facility-search{grid-column:1 / -1;grid-row:2;}
+  .admin-facility-picker>label[for="prefecture-select"]{grid-column:1;grid-row:3;}
+  .admin-facility-picker>#prefecture-select{grid-column:1;grid-row:4;}
+  .admin-facility-picker>label[for="facility-select"]{grid-column:2;grid-row:3;}
+  .admin-facility-picker>#facility-select{grid-column:2;grid-row:4;}
+  .admin-facility-picker>#facility-address{grid-column:1 / -1;grid-row:5;}
+  body.admin-layout-ready .admin-layout{
+    grid-template-columns:minmax(0,1fr);
+    overflow:hidden;
+  }
+  body.admin-layout-ready .workspace{grid-column:1;grid-row:1;}
+  body.admin-layout-ready .left-panel,body.admin-layout-ready .right-panel{
+    position:absolute;
+    top:0;bottom:0;
+    z-index:35;
+    width:min(88vw,360px);
+    max-width:100%;
+    box-shadow:0 8px 24px rgb(0 0 0 / 25%);
+    overflow-y:auto;
+    min-height:0;
+  }
+  body.admin-layout-ready .left-panel{left:0;}
+  body.admin-layout-ready .right-panel{right:0;}
+  body.admin-layout-ready[data-admin-overlay="true"] .admin-sidebar-backdrop{
+    display:block;
+    position:absolute;inset:0;z-index:30;
+    width:100%;height:100%;
+    background:rgb(0 0 0 / 34%);
+    border:0;border-radius:0;padding:0;min-height:0;
+  }
+  body.admin-layout-ready .workspace-head{padding:5px 7px;}
+  body.admin-layout-ready .workspace-head>div:first-of-type:not(.admin-panel-actions){display:none;}
+  .admin-panel-actions button{min-height:36px;padding:5px 7px;font-size:11px;}
+  #admin-selection-summary{display:none;}
+  body.admin-layout-ready .editor-toolbar{margin:4px 6px;padding:5px;max-height:35vh;}
+  .admin-quick-add select{width:min(42vw,175px);}
+  body.admin-layout-ready .editor-zoom{margin-left:0;}
+  body.admin-layout-ready .editor-zoom #editor-zoom-fit-button{display:none;}
+  body.admin-layout-ready #edit-mode-help{display:none;}
+  body.admin-layout-ready .background-panel{margin:4px 6px 0;}
+  body.admin-layout-ready .canvas-scroll{padding:12px;}
+}
+@media(max-width:480px){
+  .admin-header-status{font-size:10px;}
+  body.admin-layout-ready .topbar-actions #undo-button,
+  body.admin-layout-ready .topbar-actions #redo-button{font-size:0;padding:4px 8px;}
+  body.admin-layout-ready .topbar-actions #undo-button::first-letter,
+  body.admin-layout-ready .topbar-actions #redo-button::first-letter{font-size:17px;}
+  .admin-header-more>summary{font-size:11px;}
+  .admin-quick-add label{display:none;}
+  body.admin-layout-ready .editor-toolbar .edit-mode-button{font-size:11px;}
+  body.admin-layout-ready .footer{display:none;}
+}
+@media(prefers-reduced-motion:reduce){
+  body.admin-layout-ready button{transition:none;}
+}
