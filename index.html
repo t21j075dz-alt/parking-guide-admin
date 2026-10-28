@@ -80,12 +80,17 @@
 </details>
 <!-- 録画実験は現在の空き状況と区別する。CSVから過去の状態のみを読み取る。 -->
 <details class="palette-section" id="recording-demo-panel">
-<summary>自宅駐車場：録画実験の結果を利用者アプリで再生</summary>
+<summary>録画実験：自宅駐車場・道の駅日光の結果を再生</summary>
 <p class="muted"><strong>過去の録画デモです。現在の空き状況には反映しません。</strong> YOLOの解析後にできた「駐車枠の状態.csv」を読み込みます。映像や車両IDをアップロードすることはありません。</p>
+<label for="recording-demo-facility">録画の対象施設</label>
+<select id="recording-demo-facility">
+<option value="home-test-001">自宅テスト用（home-test-001）</option>
+<option value="nikko-test-001">道の駅日光（nikko-test-001・8区画）</option>
+</select>
 <label for="recording-demo-file">解析済みCSVを選択</label>
 <input type="file" id="recording-demo-file" accept=".csv,text/csv"/>
 <button type="button" id="recording-demo-create">デモ表示用リンクを作成</button>
-<p id="recording-demo-message" role="status" aria-live="polite" class="muted">自宅実験用（home-test-001）のみ対応します。</p>
+<p id="recording-demo-message" role="status" aria-live="polite" class="muted">自宅駐車場と道の駅日光の録画解析に対応します。</p>
 <p class="muted">作成したリンクに<strong>過去の区画ごとの状態</strong>が含まれます。リンクを渡した相手は内容を見られるので、共有先に注意してください。</p>
 <a id="recording-demo-link" href="#" target="_blank" rel="noopener noreferrer" hidden>利用者アプリで録画デモを表示する ↗</a>
 </details>

@@ -7,6 +7,10 @@
 (function () {
   const STATUS_CODES = Object.freeze({ unknown: 0, available: 1, occupied: 2, blocked: 3 });
   const MAX_ROWS = 100000;
+  const RECORDING_FACILITIES = Object.freeze({
+    "home-test-001": "自宅駐車場",
+    "nikko-test-001": "道の駅日光",
+  });
 
   function parseCsvLine(line) {
     const values = [];
@@ -28,8 +32,8 @@
   }
 
   function buildRecordingDemo(text, facilityId = "home-test-001") {
-    if (facilityId !== "home-test-001") {
-      throw new Error("録画デモは自宅実験用駐車場（home-test-001）専用です。");
+    if (!Object.prototype.hasOwnProperty.call(RECORDING_FACILITIES, facilityId)) {
+      throw new Error("録画デモは自宅駐車場または道の駅日光の実験用施設のみ対応します。");
     }
     const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim());
     if (lines.length < 2 || lines.length > MAX_ROWS) {
@@ -88,6 +92,7 @@
 
   function setup() {
     const fileField = document.querySelector("#recording-demo-file");
+    const facilityField = document.querySelector("#recording-demo-facility");
     const create = document.querySelector("#recording-demo-create");
     const link = document.querySelector("#recording-demo-link");
     const status = document.querySelector("#recording-demo-message");
@@ -106,7 +111,7 @@
       create.disabled = true;
       status.textContent = "録画の状態変化を読み取っています…";
       try {
-        const data = buildRecordingDemo(await file.text());
+        const data = buildRecordingDemo(await file.text(), facilityField?.value ?? "home-test-001");
         const url = "https://t21j075dz-alt.github.io/parking-guide-user/recorded-demo.html#recorded=" +
           encodeURIComponent(JSON.stringify(data));
         if (url.length > 120000) {
@@ -114,7 +119,7 @@
         }
         link.href = url;
         link.hidden = false;
-        status.textContent = "自宅駐車場（過去の録画）：" + data.spaces.length +
+        status.textContent = RECORDING_FACILITIES[data.facility_id] + "（過去の録画）：" + data.spaces.length +
           "区画・" + data.events.length + "件の状態変化を読み取りました。" +
           " 利用者アプリへ現在の空きとしては反映されません。";
       } catch (error) {
