@@ -21,6 +21,20 @@ test("自宅駐車場の録画CSVは過去の状態変化だけを圧縮する",
   assert.equal(Object.hasOwn(payload, "video"), false);
   assert.equal(Object.hasOwn(payload, "vehicle_id"), false);
 });
+test("道の駅日光のCSVも過去録画として再生できる", () => {
+  const csv=[
+    "動画の時刻(秒),駐車枠ID,判定コード",
+    "0,space_001,unknown",
+    "0,space_002,occupied",
+    "1.5,space_001,available",
+  ].join("\n");
+  const result=buildRecordingDemo(csv,"nikko-test-001");
+  assert.equal(result.facility_id,"nikko-test-001");
+  assert.deepEqual(result.spaces,["space_001","space_002"]);
+  assert.equal(result.duration,1.5);
+  assert.deepEqual(result.events,[[0,0,0],[0,1,2],[1.5,0,1]]);
+  assert.equal(Object.hasOwn(result,"video"),false);
+});
 test("誤ったCSVや施設IDはアプリ連携しない", () => {
   assert.throws(() => buildRecordingDemo("a,b,c\n1,2,3"), /駐車枠の状態/);
   assert.throws(() => buildRecordingDemo("a,b,c\n1,2,3","target_021"), /自宅/);
