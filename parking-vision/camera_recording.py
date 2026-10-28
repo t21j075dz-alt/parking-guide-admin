@@ -19,7 +19,8 @@ import time
 from uuid import uuid4
 
 
-def open_camera(cv2, source, backend="auto", manual_exposure=None):
+def open_camera(cv2, source, backend="auto", manual_exposure=None,
+                capture_width=0, capture_height=0, capture_fps=0):
     """映像取得・録画・判定で同じカメラと露出設定を使う。"""
     from camera_exposure import is_valid_manual_exposure, set_manual_exposure
 
@@ -35,6 +36,23 @@ def open_camera(cv2, source, backend="auto", manual_exposure=None):
             camera = cv2.VideoCapture(source)
     else:
         camera = cv2.VideoCapture(source)
+
+    # 解像度が未指定ならカメラ標準のフレーム全体を使う。
+    # 指定時も切り抜きは行わず、ドライバーに解像度変更を要求するのみ。
+    if camera.isOpened() and isinstance(source, int):
+        width, height, fps = (int(capture_width or 0), int(capture_height or 0),
+                              int(capture_fps or 0))
+        if width > 0 and height > 0:
+            camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        if fps > 0:
+            camera.set(cv2.CAP_PROP_FPS, fps)
+        print("【カメラ接続】要求解像度: " +
+              (f"{width}x{height}" if width and height else "標準（切り抜きなし）"), flush=True)
+        print("【カメラ接続】実際の出力: " +
+              f"{camera.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x"
+              f"{camera.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f}", flush=True)
+        print("【注意】Camo側のデジタルズーム/クロップはiPhoneまたはCamo Studio側で解除してください。", flush=True)
 
     # カメラを開き直すと露出がリセットされる機種のため、毎回反映する。
     if camera.isOpened() and is_valid_manual_exposure(manual_exposure):
@@ -226,6 +244,14 @@ class RecordingCamera:
                 ok, frame = self.camera.read()
                 if not ok or frame is None:
                     raise RuntimeError("外付けカメラの映像が途切れました。録画・ライブ判定を停止します")
+                # カメラが動作中に解像度/画角を切り替えた場合は停止。
+                # 古い区画座標と違う映像を「空き」として送らない。
+                dimensions = frame.shape[:2]
+                if not hasattr(self, "_frame_dimensions"):
+                    self._frame_dimensions = dimensions
+                elif dimensions != self._frame_dimensions:
+                    raise RuntimeError("撮影中に映像サイズが変わりました。"
+                                       "区画設定の確認後に再起動してください")
                 now = time.monotonic()
                 self._record(frame, now)
                 with self._condition:

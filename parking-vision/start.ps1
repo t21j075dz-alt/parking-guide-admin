@@ -2,7 +2,7 @@
 # 使い方：PowerShellで .\start.ps1（動画テスト）
 # 動画・写真・録画は研究PCにだけ保存し、勝手に公開しない。
 param(
-  [ValidateSet("video", "calibrate", "camera", "cloud", "label", "train", "compare")]
+  [ValidateSet("video", "calibrate", "camera", "cloud", "label", "train", "compare", "camo-setup", "camo-zones", "camo-test", "camo-live")]
   [string]$Mode = "video",
   [string]$Video = "",
   [string]$Config = "config.json",
@@ -37,6 +37,22 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
+# Camoは独立した区画設定を使い、USBカメラのconfig.jsonを変更しない。
+if ($Mode -eq "camo-setup") {
+  & $pythonCommand "setup_camo.py"
+  exit $LASTEXITCODE
+}
+if ($Mode -in @("camo-zones", "camo-test", "camo-live")) {
+  $Config = "config_camo.json"
+  if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) {
+    throw "まず -Mode camo-setup でiPhoneの映像を選択してください。"
+  }
+  if ($Mode -eq "camo-zones") {
+    & $pythonCommand "calibrate.py" "--config" (Join-Path $PSScriptRoot $Config)
+    exit $LASTEXITCODE
+  }
+  $Mode = if ($Mode -eq "camo-test") { "camera" } else { "cloud" }
+}
 $config = if ([IO.Path]::IsPathRooted($Config)) { $Config } else { Join-Path $PSScriptRoot $Config }
 if ($Mode -in @("video", "calibrate", "camera", "cloud", "compare")) {
   if (-not (Test-Path -LiteralPath $config)) {

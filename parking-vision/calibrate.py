@@ -18,6 +18,7 @@ import cv2
 
 from camera_exposure import is_valid_manual_exposure, step_manual_exposure
 from camera_recording import open_camera
+from camera_profiles import capture_preferences
 
 
 WINDOW = "Parking space setup - LIVE camera / SPACE = freeze"
@@ -73,9 +74,11 @@ def main():
     if not names:
         raise SystemExit("【中止】登録する駐車枠IDがありません")
 
+    requested_width, requested_height, requested_fps = capture_preferences(config)
     camera = open_camera(
         cv2, source, config.get("camera_backend", "auto"),
-        config.get("camera_manual_exposure")
+        config.get("camera_manual_exposure"),
+        requested_width, requested_height, requested_fps,
     )
     if not camera.isOpened():
         camera.release()
@@ -87,6 +90,7 @@ def main():
     phase = "spaces"
     clicked = []
     frame = None
+    raw_dimensions = None  # 保存するのは縮小前の実際の映像サイズ
     frozen = not live
     changed = False
     manual = config.get("camera_manual_exposure")
@@ -131,11 +135,13 @@ def main():
             while time.monotonic() < end_warmup:
                 ok, newest = camera.read()
                 if ok and newest is not None:
+                    raw_dimensions = (newest.shape[1], newest.shape[0])
                     frame = scale_frame(newest)
         if frame is None:
             ok, newest = camera.read()
             if not ok or newest is None:
                 raise RuntimeError("カメラの映像を取得できません")
+            raw_dimensions = (newest.shape[1], newest.shape[0])
             frame = scale_frame(newest)
 
         cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
@@ -145,6 +151,7 @@ def main():
                 ok, newest = camera.read()
                 if not ok or newest is None:
                     raise RuntimeError("【エラー】Webカメラの映像が途切れました。枠の変更は保存していません。")
+                raw_dimensions = (newest.shape[1], newest.shape[0])
                 frame = scale_frame(newest)
 
             h, w = frame.shape[:2]
@@ -289,6 +296,15 @@ def main():
             for key in ("entry_zone", "exit_zone"):
                 if key in areas:
                     config[key] = areas[key]
+            # Camo/USB別の正規化座標に、登録時の実画像サイズと入力を記録。
+            # 解像度が変わっても縦横比が同じなら利用可能。
+            if live and raw_dimensions:
+                config["calibration_capture"] = {
+                    "width": raw_dimensions[0],
+                    "height": raw_dimensions[1],
+                    "source": str(source),
+                    "kind": str(config.get("camera_kind", "usb")).lower(),
+                }
             # config.jsonはPythonが読めるUTF-8 BOMなしで保存。
             path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n",
                             encoding="utf-8")
