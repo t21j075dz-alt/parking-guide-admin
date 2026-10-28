@@ -1521,6 +1521,15 @@ function snapParkingSpacePosition(item, x, y) {
   let best = null;
 
   function consider(candidate, priority) {
+    const angle = itemRotation * Math.PI / 180;
+    const dx = iw/2 - (Math.cos(angle)*iw/2 - Math.sin(angle)*ih/2);
+    const dy = ih/2 - (Math.sin(angle)*iw/2 + Math.cos(angle)*ih/2);
+    const other = candidate.anchor;
+    if (other) {
+      const odx=other.width/2-(Math.cos(angle)*other.width/2-Math.sin(angle)*other.height/2);
+      const ody=other.height/2-(Math.sin(angle)*other.width/2+Math.cos(angle)*other.height/2);
+      candidate={...candidate,x:candidate.x+odx-dx,y:candidate.y+ody-dy};
+    }
     const distance = Math.hypot(candidate.x - x, candidate.y - y);
     if (distance > threshold) return;
 
@@ -1569,6 +1578,7 @@ function snapParkingSpacePosition(item, x, y) {
       consider({
         x: other.x + ow * ux + offset * vx,
         y: other.y + ow * uy + offset * vy,
+        anchor: other,
         guideX: other.x,
         guideY: other.y,
         alignment: priority === 0 ? "head" : priority === 1 ? "front" : "center",
@@ -1578,6 +1588,7 @@ function snapParkingSpacePosition(item, x, y) {
       consider({
         x: other.x - iw * ux + offset * vx,
         y: other.y - iw * uy + offset * vy,
+        anchor: other,
         guideX: other.x,
         guideY: other.y,
         alignment: priority === 0 ? "head" : priority === 1 ? "front" : "center",
@@ -1599,6 +1610,7 @@ function snapParkingSpacePosition(item, x, y) {
       consider({
         x: other.x + offset * ux + oh * vx,
         y: other.y + offset * uy + oh * vy,
+        anchor: other,
         guideX: other.x,
         guideY: other.y,
         alignment: priority === 0 ? "left" : priority === 1 ? "right" : "center",
@@ -1608,6 +1620,7 @@ function snapParkingSpacePosition(item, x, y) {
       consider({
         x: other.x + offset * ux - ih * vx,
         y: other.y + offset * uy - ih * vy,
+        anchor: other,
         guideX: other.x,
         guideY: other.y,
         alignment: priority === 0 ? "left" : priority === 1 ? "right" : "center",
@@ -1618,7 +1631,8 @@ function snapParkingSpacePosition(item, x, y) {
     consider({
       x: other.x,
       y: other.y,
-      guideX: other.x,
+      anchor: other,
+        guideX: other.x,
       guideY: other.y,
       alignment: "same-origin",
     }, 5);
@@ -1700,6 +1714,7 @@ function snapSitePosition(item, x, y) {
 /** 移動中の枠を近くの枠の端・中心へ吸着させる。 */
 function snapObjectPosition(item, x, y) {
 
+  if (!elements.snapEnabled?.checked) return {x,y,guideX:null,guideY:null};
   const parkingSnap = snapParkingSpacePosition(item, x, y);
   if (parkingSnap) {
     return {
@@ -2989,9 +3004,15 @@ function endDrag(event) {
    ========================================================= */
 
 /** 選択中の複合施設に登録された目的店舗を buildingId 候補として表示する。 */
+/** 店舗の追加・営業時間・入口IDを保存レイアウトと両画面で共有する。 */
+function getAdminDestinations() {
+  const saved=getCurrentLayout()?.destinations;
+  return Array.isArray(saved)?saved:(getCurrentFacilityRecord()?.destinations || []);
+}
+
 function updateBuildingIdOptions() {
   const facility = getCurrentFacilityRecord();
-  const destinations = Array.isArray(facility?.destinations) ? facility.destinations : [];
+  const destinations = getAdminDestinations();
 
   elements.buildingIdOptions?.replaceChildren();
   destinations.forEach((destination) => {
@@ -3212,7 +3233,7 @@ function updateSelectedFromForm() {
   }
   if (item.objectType === "building") {
     const destinationId = elements.buildingDestination.value;
-    const destination = getCurrentFacilityRecord()?.destinations?.find(
+    const destination = getAdminDestinations().find(
       (candidate) => candidate.buildingId === destinationId,
     );
     if (destination) {
@@ -4123,7 +4144,7 @@ document.querySelectorAll("[data-add-object]").forEach((button) => {
 });
 
 document.querySelector("#add-destination-building-button")?.addEventListener("click", () => {
-  const destination = getCurrentFacilityRecord()?.destinations?.find(
+  const destination = getAdminDestinations().find(
     (candidate) => candidate.buildingId === elements.destinationBuildingSelect?.value,
   );
   addObject("building", { destination });

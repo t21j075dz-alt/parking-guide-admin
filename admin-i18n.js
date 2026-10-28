@@ -1,7 +1,34 @@
 "use strict";
 // Translate application labels only; input values and saved names stay untouched.
 window.AdminI18n = (() => {
-  const pairs = `駐車場マップ管理｜卒業研究|Parking map editor | Research
+  const pairs = `営業時間・休業・共用区画|Hours, closures and shared spaces
+営業時間の表示|Hours shown to visitors
+休業中（区画を案内しない）|Closed (do not guide to spaces)
+曜日ごとの営業時間で「休」を自動表示|Show Closed automatically using weekly hours
+営業時間を保存|Save hours
+選択した区画の共用グループ|Shared group for selected space
+選択区画に設定|Apply to selected space
+営業時間を保存しました|Hours saved
+共用グループを設定しました|Shared group saved
+カメラを確認|View camera
+駐車場のカメラ写真|Parking camera photo
+取得した解像度の静止画を5秒ごとに更新します。|Stills at the captured resolution update every 5 seconds.
+カメラ|Camera
+写真を更新|Refresh photo
+写真を大きく表示|Enlarge photo
+現在の写真を確認できません|Current photo unavailable
+日曜日|Sunday
+月曜日|Monday
+火曜日|Tuesday
+水曜日|Wednesday
+木曜日|Thursday
+金曜日|Friday
+土曜日|Saturday
+開始|Opens
+終了|Closes
+終了が開始より早い場合は翌日まで営業。同じ時刻なら24時間営業です。|Closing before opening means overnight hours. Matching times means 24 hours.
+大型枠と、その中の普通車枠に同じ名前を設定します。いずれかが使用中・未確認の場合は、グループ全体へ案内しません。|Use the same group for a large space and its overlapping standard spaces. If any is occupied or unknown, none is recommended.
+駐車場マップ管理｜卒業研究|Parking map editor | Research
 卒業研究・管理用|Research · Administration
 駐車場マップ管理|Parking map editor
 ↶ 取り消す|↶ Undo

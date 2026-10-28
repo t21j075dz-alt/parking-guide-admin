@@ -23,6 +23,7 @@ from uuid import uuid4
 from camera_recording import RecordingCamera, open_camera
 from camera_profiles import capture_preferences, assert_calibrated_view, fit_preview_dimensions
 from yolo_visual_recording import YoloVisualRecorder
+from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -558,6 +559,7 @@ def main():
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
+    snapshots = SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
@@ -589,6 +591,10 @@ def main():
         print("【録画について】生映像とYOLO判定付き動画をPC内に別々に保存します")
         while True:
             frame, sequence = recording.next_frame(sequence)
+            try:
+                snapshots.publish(frame)
+            except (error.URLError, OSError, ValueError, KeyError) as exc:
+                print(f"カメラ写真の共有に失敗: {type(exc).__name__}")
             vehicles, blockers = infer_frame(
                 vehicle_model, obstacle_model, frame,
                 float(config.get("tracking_confidence", 0.15)),
