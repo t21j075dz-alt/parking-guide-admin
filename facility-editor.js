@@ -6,7 +6,7 @@
     <label>営業時間を設定する対象<select id="operation-scope"><option value="">施設全体</option></select></label>
     <label>営業時間の表示<input id="facility-hours-label" maxlength="100" placeholder="例：9:00–21:00"></label>
     <label><input id="facility-closed" type="checkbox">休業中（区画を案内しない）</label>
-    <label><input id="hours-enabled" type="checkbox">曜日ごとの営業時間で「休」を自動表示</label>
+    <label><input id="hours-enabled" type="checkbox">曜日ごとの営業時間で「休」「閉」を自動表示</label>
     <div id="weekly-hours"></div>
     <p>終了が開始より早い場合は翌日まで営業。同じ時刻なら24時間営業です。</p>
     <button id="save-facility-operation" type="button">営業時間を保存</button>
@@ -29,8 +29,8 @@
     const destination=getAdminDestinations().find(d=>d.id===q("operation-scope").value);
     const operation=window.ParkingOperations.operating(destination?.operations || layout?.operations || getCurrentFacilityRecord()?.operations);
     q("facility-open-status").textContent=document.documentElement.lang==="en"
-      ? (operation.unknown?"Hours not configured":operation.closed?"Currently closed":operation.preOpening?"Before opening · guidance available":"Currently open")
-      : (operation.unknown?"営業時間は未設定です":operation.closed?"現在は営業時間外・休業中です":operation.preOpening?"開店前ですが案内可能です":"現在は営業中です");const item=getSelectedObject();const key=state.facilityId+":"+(item?.uid||"")+":"+q("operation-scope").value+":"+getAdminDestinations().map(d=>d.id).join(",");if(key===last)return;last=key;
+      ? (operation.unknown?"Hours not configured":operation.closureKind==="rest"?"Day off":operation.preOpening?"Closed · before opening (guidance available)":operation.closed?"Closed · outside opening hours":"Currently open")
+      : (operation.unknown?"営業時間は未設定です":operation.closureKind==="rest"?"休：定休日・臨時休業":operation.preOpening?"閉：開店前（案内可能）":operation.closed?"閉：営業時間外":"現在は営業中です");const item=getSelectedObject();const key=state.facilityId+":"+(item?.uid||"")+":"+q("operation-scope").value+":"+getAdminDestinations().map(d=>d.id).join(",");if(key===last)return;last=key;
     const previous=q("operation-scope").value;q("operation-scope").replaceChildren(new Option("施設全体",""));
     for(const d of getAdminDestinations())q("operation-scope").add(new Option(d.name,d.id));
     q("operation-scope").value=previous;
