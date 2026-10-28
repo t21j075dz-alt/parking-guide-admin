@@ -1,0 +1,23 @@
+name: Camo camera source checks
+on:
+  pull_request:
+    paths:
+      - "parking-vision/**"
+      - ".github/workflows/camo_camera_checks.yml"
+permissions:
+  contents: read
+jobs:
+  camera-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parking-vision
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check Python syntax
+        run: python -m py_compile camera_profiles.py setup_camo.py camera_recording.py calibrate.py monitor.py
+      - name: Run camera geometry unit tests
+        run: python -m unittest discover -s tests -p "test_camera_profiles.py" -v
