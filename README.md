@@ -434,3 +434,7 @@ node --test tests/regression.test.cjs
 [設定・公開範囲・検証手順](CAMERA-AND-OPERATIONS.md)を参照してください。回転した駐車枠の中心を考慮した吸着へ修正し、吸着OFFとAlt操作を尊重します。
 
 開店前1時間からの案内、閉店前通知、店舗別営業時間・店舗管理は [HOURS-AND-TENANTS.md](HOURS-AND-TENANTS.md) を参照してください。
+
+## Windowsで写真だけを配信する
+
+YOLOモデル・駐車枠登録なしでUSBカメラの接続を確認できます。[Windowsカメラ写真の起動手順](WINDOWS-CAMERA-PHOTOS.md)を参照してください。管理用アクセストークンをPCへ保存する必要はありません。
