@@ -40,6 +40,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 鳥取県 -----
     {
     "id": "target_001",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.shufoo.net/pntweb/shopDetail/865711/14453253094503/","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"2026年10月15日〜29日の掲載店舗ページで同じ住所・時間を確認"},
     "name": "ドラッグストアコスモス 南昭和店",
     "prefecture": "鳥取県",
     "municipality": "倉吉市",
@@ -220,6 +221,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_010",
+    "operations": {"hoursLabel":"09:00–20:00","weeklyHours":{"0":[["09:00","20:00"]],"1":[["09:00","20:00"]],"2":[["09:00","20:00"]],"3":[["09:00","20:00"]],"4":[["09:00","20:00"]],"5":[["09:00","20:00"]],"6":[["09:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://map.cainz.com/detail/154/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"本館09:00–20:00、資材館は月〜土07:00–20:00、日曜09:00–20:00。1月1日休業","annualClosedDates":["01-01"]},
     "name": "カインズFC 鳥取店",
     "prefecture": "鳥取県",
     "municipality": "鳥取市",
@@ -242,6 +244,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 島根県 -----
     {
     "id": "target_011",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://xn--pssw6iv2y.com/shop/cosmosoda","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"大田市の店舗紹介ページと電話番号一致、公式店舗ページは別途要確認"},
     "name": "ドラッグストアコスモス 大田店",
     "prefecture": "島根県",
     "municipality": "大田市",
@@ -281,6 +284,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_013",
+    "operations": {"hoursLabel":"売店9:00–17:30（冬季短縮あり・不定休／参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.kankou-shimane.com/destination/21682","hoursVerifiedAt":"2026-10-28","hoursVerification":"government","notes":"冬季は短縮あり・不定休。駐車場/トイレは24時間利用可（売店の営業時間をゲート制限に用いない）"},
     "name": "道の駅 湯の川",
     "prefecture": "島根県",
     "municipality": "出雲市",
@@ -704,6 +708,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_028",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.shufoo.net/pntweb/shopDetail/853123/55463252971452/","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"2026年10月15日〜29日の店舗広告と住所一致"},
     "name": "ドラッグストアコスモス 津高店",
     "prefecture": "岡山県",
     "municipality": "岡山市",
@@ -765,6 +770,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 広島県 -----
     {
     "id": "target_031",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.shiseido.co.jp/sw/navi/shopdetail.html?shopCd=615GU7","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"資生堂店舗取扱情報。元日休業と明記","annualClosedDates":["01-01"]},
     "name": "ドラッグストアコスモス 福山新涯店",
     "prefecture": "広島県",
     "municipality": "福山市",
@@ -804,6 +810,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_033",
+    "operations": {"hoursLabel":"物販9:00–17:00（第3水曜等休／参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.iine-takehara.com/michinoekitakehara-buying","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"1F物産コーナー。第3水曜と年末年始12/31〜1/3休業。祝日の場合は翌日。"},
     "name": "道の駅 たけはら",
     "prefecture": "広島県",
     "municipality": "竹原市",
@@ -905,6 +912,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_038",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3000/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ホームプラザナフコ 黒瀬店",
     "prefecture": "広島県",
     "municipality": "東広島市",
@@ -965,6 +973,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 山口県 -----
     {
     "id": "target_041",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://map.yahoo.co.jp/v3/place/s0QhrEECH1E","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"Yahoo!地図の営業時間表示で確認、公式一次ページ要再確認"},
     "name": "ドラッグストアコスモス 新山口駅店",
     "prefecture": "山口県",
     "municipality": "山口市",
@@ -1004,6 +1013,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_043",
+    "operations": {"hoursLabel":"売店9:00–18:00（第2・第4水曜等休／参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://michinoeki-aio.com/guide/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"第2・第4水曜休み（祝日は営業）、12/31〜1/3休み、臨時休業は営業日カレンダー参照。駐車場の利用可否とは別"},
     "name": "道の駅 あいお",
     "prefecture": "山口県",
     "municipality": "山口市",
@@ -1273,6 +1283,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
     {
   "id": "target_056",
+  "operations": {"hoursLabel":"09:00–00:00","weeklyHours":{"0":[["09:00","00:00"]],"1":[["09:00","00:00"]],"2":[["09:00","00:00"]],"3":[["09:00","00:00"]],"4":[["09:00","00:00"]],"5":[["09:00","00:00"]],"6":[["09:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.doramori.co.jp/store/6618.html/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ドラッグストアモリ 宗像店",
   "prefecture": "福岡県",
   "municipality": "宗像市",
@@ -1344,6 +1355,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
     {
   "id": "target_059",
+  "operations": {"hoursLabel":"09:00–18:00","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://michinoeki-kawara.jp/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"物産直売所9:00–18:00、飲食9:00–17:00、トイレは24時間利用可。1月1～3日休業","annualClosedDates":["01-01","01-02","01-03"]},
   "name": "道の駅 香春",
   "prefecture": "福岡県",
   "municipality": "田川郡香春町",
@@ -1666,6 +1678,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_133",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0380/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 今宿店",
   "municipality": "福岡市",
   "address": "福岡県福岡市西区今宿東2-10-23",
@@ -2148,6 +2161,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_154",
+  "operations": {"hoursLabel":"08:30–18:00","weeklyHours":{"0":[["08:30","18:00"]],"1":[["08:30","18:00"]],"2":[["08:30","18:00"]],"3":[["08:30","18:00"]],"4":[["08:30","18:00"]],"5":[["08:30","18:00"]],"6":[["08:30","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/3200/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 椎田店",
   "municipality": "築上郡築上町",
   "address": "福岡県築上郡築上町宇留津76-1",
@@ -2308,6 +2322,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_161",
+  "operations": {"hoursLabel":"08:00–19:00","weeklyHours":{"0":[["08:00","19:00"]],"1":[["08:00","19:00"]],"2":[["08:00","19:00"]],"3":[["08:00","19:00"]],"4":[["08:00","19:00"]],"5":[["08:00","19:00"]],"6":[["08:00","19:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0900/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 中井店",
   "municipality": "北九州市",
   "address": "福岡県北九州市小倉北区中井1-41-1",
@@ -2744,6 +2759,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_180",
+  "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/0320/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ 田川店",
   "municipality": "田川市",
   "address": "福岡県田川市川宮1720-1",
@@ -3065,6 +3081,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_194",
+  "operations": {"hoursLabel":"08:00–19:30","weeklyHours":{"0":[["08:00","19:30"]],"1":[["08:00","19:30"]],"2":[["08:00","19:30"]],"3":[["08:00","19:30"]],"4":[["08:00","19:30"]],"5":[["08:00","19:30"]],"6":[["08:00","19:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/4080/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "ホームプラザナフコ うきは店",
   "municipality": "うきは市",
   "address": "福岡県うきは市吉井町桜井244",
@@ -3456,6 +3473,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 佐賀県 -----
     {
     "id": "target_061",
+    "operations": {"hoursLabel":"09:00–00:00","weeklyHours":{"0":[["09:00","00:00"]],"1":[["09:00","00:00"]],"2":[["09:00","00:00"]],"3":[["09:00","00:00"]],"4":[["09:00","00:00"]],"5":[["09:00","00:00"]],"6":[["09:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.doramori.co.jp/store/12491.html/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ドラッグストアモリ 神埼本堀店",
     "prefecture": "佐賀県",
     "municipality": "神埼市",
@@ -3496,6 +3514,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_063",
+    "operations": {"hoursLabel":"09:00–18:00","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.asobo-saga.jp/spots/detail/f3b63766-7ca9-43ea-a29f-76f5cb4a189d","hoursVerifiedAt":"2026-10-28","hoursVerification":"government","notes":"物産9:00–18:00。1月1～3日休業。トイレ・駐車場は24時間利用可","annualClosedDates":["01-01","01-02","01-03"]},
     "name": "道の駅 大和 そよかぜ館",
     "prefecture": "佐賀県",
     "municipality": "佐賀市",
@@ -3658,6 +3677,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 長崎県 -----
     {
     "id": "target_071",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.shufoo.net/pntweb/shopDetail/910812/","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"2026年10月15日〜29日の店舗広告"},
     "name": "ドラッグストアコスモス 大潟店",
     "prefecture": "長崎県",
     "municipality": "佐世保市",
@@ -3697,6 +3717,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_073",
+    "operations": {"hoursLabel":"物販8:00–17:30（12/31午前のみ・1/1〜3休／参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.qsr.mlit.go.jp/n-michi/michi_no_eki/kobetu/sonogi/sonogi.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"government","notes":"物産8:00–17:30、食堂11:00–14:00、屋台9:00–16:00。12/31物産は午前中のみ、元日～3日休業"},
     "name": "道の駅 彼杵の荘",
     "prefecture": "長崎県",
     "municipality": "東彼杵郡東彼杵町",
@@ -3818,6 +3839,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_079",
+    "operations": {"hoursLabel":"09:30–21:30","weeklyHours":{"0":[["09:30","21:30"]],"1":[["09:30","21:30"]],"2":[["09:30","21:30"]],"3":[["09:30","21:30"]],"4":[["09:30","21:30"]],"5":[["09:30","21:30"]],"6":[["09:30","21:30"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.marukyo-web.co.jp/shop/785/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルキョウ 大宮店",
     "prefecture": "長崎県",
     "municipality": "佐世保市",
@@ -3837,6 +3859,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_080",
+    "operations": {"hoursLabel":"08:00–20:00","weeklyHours":{"0":[["08:00","20:00"]],"1":[["08:00","20:00"]],"2":[["08:00","20:00"]],"3":[["08:00","20:00"]],"4":[["08:00","20:00"]],"5":[["08:00","20:00"]],"6":[["08:00","20:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.nafco.life/shop_list/2950/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"TWO-ONE売場は10:00–20:00、本館の営業時間を判定"},
     "name": "ホームプラザナフコ 時津店",
     "prefecture": "長崎県",
     "municipality": "西彼杵郡時津町",
@@ -3857,6 +3880,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 熊本県 -----
     {
     "id": "target_081",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.hapimon.jp/kiji0032408/index.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"government","notes":"熊本県子育て支援サイト、2025年3月31日確認、1月1日休業","annualClosedDates":["01-01"]},
     "name": "ドラッグストアコスモス 大津バイパス店",
     "prefecture": "熊本県",
     "municipality": "菊池郡大津町",
@@ -3896,6 +3920,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_083",
+    "operations": {"hoursLabel":"09:00–18:00","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.qsr.mlit.go.jp/n-michi/michi_no_eki/kobetu/ozu/ozu.html","hoursVerifiedAt":"2026-10-28","hoursVerification":"government","notes":"物産・工芸館9:00–18:00、飲食10:00–18:00。1月1日休","annualClosedDates":["01-01"]},
     "name": "道の駅 大津",
     "prefecture": "熊本県",
     "municipality": "菊池郡大津町",
@@ -3997,6 +4022,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_088",
+    "operations": {"hoursLabel":"09:30–21:00","weeklyHours":{"0":[["09:30","21:00"]],"1":[["09:30","21:00"]],"2":[["09:30","21:00"]],"3":[["09:30","21:00"]],"4":[["09:30","21:00"]],"5":[["09:30","21:00"]],"6":[["09:30","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.marukyo-web.co.jp/shop/672/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "マルキョウ 植木店",
     "prefecture": "熊本県",
     "municipality": "熊本市",
@@ -4097,6 +4123,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_093",
+    "operations": {"hoursLabel":"直売3〜11月9:00–18:00／12〜2月9:00–17:00（参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://kusumichi.jp/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"3月〜11月は9:00–18:00、12月〜2月は9:00–17:00。レストラン11:00–15:30。年末年始は要確認"},
     "name": "道の駅 童話の里くす",
     "prefecture": "大分県",
     "municipality": "玖珠郡玖珠町",
@@ -4259,6 +4286,7 @@ window.ADMIN_FACILITY_CATALOG = {
   // ----- 宮崎県 -----
     {
     "id": "target_101",
+    "operations": {"hoursLabel":"09:00–00:00","weeklyHours":{"0":[["09:00","00:00"]],"1":[["09:00","00:00"]],"2":[["09:00","00:00"]],"3":[["09:00","00:00"]],"4":[["09:00","00:00"]],"5":[["09:00","00:00"]],"6":[["09:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.doramori.co.jp/store/1718.html/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
     "name": "ドラッグストアモリ 恒久店",
     "prefecture": "宮崎県",
     "municipality": "宮崎市",
@@ -4320,6 +4348,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_104",
+    "operations": {"hoursLabel":"09:00–18:00","weeklyHours":{"0":[["09:00","18:00"]],"1":[["09:00","18:00"]],"2":[["09:00","18:00"]],"3":[["09:00","18:00"]],"4":[["09:00","18:00"]],"5":[["09:00","18:00"]],"6":[["09:00","18:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://vitaminkan.miyazaki.jp/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"宮崎市公式では1月1・2日休業。気象事情による営業時間変更あり","annualClosedDates":["01-01","01-02"]},
     "name": "道の駅 高岡ビタミン館",
     "prefecture": "宮崎県",
     "municipality": "宮崎市",
@@ -4481,6 +4510,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_112",
+    "operations": {"hoursLabel":"10:00–21:00","weeklyHours":{"0":[["10:00","21:00"]],"1":[["10:00","21:00"]],"2":[["10:00","21:00"]],"3":[["10:00","21:00"]],"4":[["10:00","21:00"]],"5":[["10:00","21:00"]],"6":[["10:00","21:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.shiseido.co.jp/sw/navi/shopdetail.html?shopCd=616GR9","hoursVerifiedAt":"2026-10-28","hoursVerification":"secondary","notes":"資生堂店舗取扱情報。元日休業と明記","annualClosedDates":["01-01"]},
     "name": "ドラッグストアコスモス 鹿児島宇宿店",
     "prefecture": "鹿児島県",
     "municipality": "鹿児島市",
@@ -4520,6 +4550,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
     {
     "id": "target_114",
+    "operations": {"hoursLabel":"売店9:00–19:00（第3水曜休／参考）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://mitinoeki-tarumizu.com/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"道の駅たるみず湯っ足り館（牛根麓1038-1）。第3水曜全館休館（変動あり）。温泉は毎週水曜休（祝日は営業）。売店9:00–19:00、レストラン11:00–15:00。駐車場の開放時間とは別"},
     "name": "道の駅 たるみず",
     "prefecture": "鹿児島県",
     "municipality": "垂水市",
