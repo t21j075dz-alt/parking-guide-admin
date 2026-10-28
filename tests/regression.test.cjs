@@ -25,6 +25,22 @@ function app() {
   return { run, context, nodes };
 }
 
+test('実験地点のGPSはクラウド保存から除外し、管理端末上は維持する', () => {
+  const {run}=app();
+  run(`state.facilities=[
+    {id:'nikko-test-001',requiresLocalCalibration:true},
+    {id:'home-test-001',requiresLocalCalibration:true},
+    {id:'target_021',requiresLocalCalibration:false}
+  ];`);
+  for(const id of ['nikko-test-001','home-test-001']){
+    const layout={facilityId:id,background:{centerLat:34.7,centerLng:133.9},objects:[]};
+    assert.equal(run('layoutForRemoteUpload('+JSON.stringify(layout)+').background'),null);
+    assert.equal(layout.background.centerLat,34.7);
+  }
+  const ordinary={facilityId:'target_021',background:{centerLat:34.7,centerLng:133.9},objects:[]};
+  assert.equal(run('layoutForRemoteUpload('+JSON.stringify(ordinary)+').background.centerLat'),34.7);
+});
+
 test('再描画しても手動設定した25×50の駐車枠を縮めない', () => {
   const { run } = app();
   run(`state.layouts.a = { facilityId: 'a', objectDefaultsVersion: 11, canvasSizeVersion: 2,
