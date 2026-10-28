@@ -46,11 +46,26 @@
   if(importLabel)moreInner.append(importLabel);
   more.append(moreSummary,moreInner);
   actions.append(more);
+  // ドロップダウンは外側を押したり Esc を押したら閉じる。
+  document.addEventListener("pointerdown",event=>{
+    if(more.open&&!more.contains(event.target))more.open=false;
+  });
+  document.addEventListener("keydown",event=>{
+    if(event.key==="Escape"&&more.open){
+      more.open=false;
+      moreSummary.focus();
+    }
+  });
 
   const statusRow=document.createElement("div");
   statusRow.className="admin-header-status";
   const localStatus=document.getElementById("local-save-status");
-  if(localStatus)statusRow.append(localStatus);
+  if(localStatus){
+    statusRow.append(localStatus);
+    const syncSaveTooltip=()=>{localStatus.title=localStatus.textContent.trim();};
+    new MutationObserver(syncSaveTooltip).observe(localStatus,{childList:true,characterData:true,subtree:true});
+    syncSaveTooltip();
+  }
   const cloudSummary=document.createElement("span");
   cloudSummary.id="admin-cloud-summary";
   cloudSummary.textContent="クラウド状態を確認中";
@@ -164,7 +179,10 @@
   foldAll.type="button";
   foldAll.textContent="すべて閉じる";
   foldAll.addEventListener("click",()=>{
-    tools.querySelectorAll("details.palette-section, details.camera-card").forEach(d=>{d.open=false;});
+    const sections=[...tools.querySelectorAll("details.palette-section, details.camera-card")];
+    const expand=sections.every(d=>!d.open);
+    sections.forEach(d=>{d.open=expand;});
+    syncLanguageLabels();
   });
   toolControls.append(toolTitle,foldAll);
   tools.prepend(toolControls);
@@ -214,7 +232,7 @@
       settings:"選択中の設定",closeSettings:"設定を閉じる",
       focus:"集中モード",unfocus:"通常表示に戻す",
       dimension:"図面の寸法",addLabel:"駐車枠",add:"＋ 追加",
-      advanced:"回転・詳細",foldAll:"すべて閉じる",toolTitle:"追加するものを選択",
+      advanced:"回転・詳細",foldAll:"すべて閉じる",expandAll:"すべて開く",toolTitle:"追加するものを選択",
       marking:"区画線の形・色・太さ",adjacent:"同じ種類の枠を連続配置"
     };
     const en={
@@ -222,7 +240,7 @@
       settings:"Selection settings",closeSettings:"Hide settings",
       focus:"Focus mode",unfocus:"Exit focus mode",
       dimension:"Canvas size",addLabel:"Parking",add:"+ Add",
-      advanced:"Rotate & more",foldAll:"Collapse all",toolTitle:"Add objects",
+      advanced:"Rotate & more",foldAll:"Collapse all",expandAll:"Expand all",toolTitle:"Add objects",
       marking:"Parking lines and color",adjacent:"Add adjacent spaces"
     };
     const t=english?en:ja;
@@ -240,7 +258,8 @@
     }
     advancedSummary.textContent=t.advanced;
     toolTitle.textContent=t.toolTitle;
-    foldAll.textContent=t.foldAll;
+    const sections=[...tools.querySelectorAll("details.palette-section, details.camera-card")];
+    foldAll.textContent=sections.length&&sections.every(d=>!d.open)?t.expandAll:t.foldAll;
     const headings=inspector.querySelectorAll(".admin-inspector-extra > summary");
     if(headings[0])headings[0].textContent=t.marking;
     if(headings[1])headings[1].textContent=t.adjacent;
@@ -253,6 +272,7 @@
     try{localStorage.setItem(storageKey,JSON.stringify(desktop));}catch{}
   }
   function toggle(side){
+    more.open=false;
     if(focus)focus=false;
     if(isMobile())mobilePanel=mobilePanel===side?null:side;
     else{desktop[side]=!desktop[side];persist();}
@@ -260,7 +280,7 @@
   }
   toolsToggle.addEventListener("click",()=>toggle("tools"));
   inspectorToggle.addEventListener("click",()=>toggle("settings"));
-  focusToggle.addEventListener("click",()=>{focus=!focus;mobilePanel=null;apply();});
+  focusToggle.addEventListener("click",()=>{more.open=false;focus=!focus;mobilePanel=null;apply();});
   backdrop.addEventListener("click",()=>{mobilePanel=null;apply();});
   const resize=()=>{mobilePanel=null;apply();};
   media.addEventListener?.("change",resize);
