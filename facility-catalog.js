@@ -120,6 +120,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_005",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/176/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–20:00。サービスカウンター9:00–22:00","specialClosures":[{"start":"2026-11-06T22:00:00+09:00","end":"2026-11-07T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
     "name": "トライアル 琴浦店",
     "prefecture": "鳥取県",
     "municipality": "東伯郡琴浦町",
@@ -139,6 +140,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_006",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/349/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
     "name": "トライアル 境港店",
     "prefecture": "鳥取県",
     "municipality": "境港市",
@@ -299,6 +301,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_014",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ10–19）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/440/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ10:00–19:00"},
     "name": "トライアル 雲南店",
     "prefecture": "島根県",
     "municipality": "雲南市",
@@ -318,6 +321,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_015",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/40/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 浜田店",
     "prefecture": "島根県",
     "municipality": "浜田市",
@@ -337,6 +341,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_016",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–19）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/401/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–19:00"},
     "name": "トライアル 益田店",
     "prefecture": "島根県",
     "municipality": "益田市",
@@ -356,6 +361,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_017",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–19）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/751/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–19:00","specialClosures":[{"start":"2026-11-13T22:00:00+09:00","end":"2026-11-14T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
     "name": "トライアル 大田店",
     "prefecture": "島根県",
     "municipality": "大田市",
@@ -1009,6 +1015,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_044",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/85/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 新下関店",
     "prefecture": "山口県",
     "municipality": "下関市",
@@ -1772,6 +1779,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_139",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/809/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official"},
   "name": "スーパーセンタートライアル 若松店",
   "municipality": "北九州市",
   "address": "福岡県北九州市若松区向洋町11番5",
@@ -1794,6 +1802,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_140",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ10–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/39/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ10:00–20:00。出店スペースの時間とは異なる"},
   "name": "スーパーセンタートライアル 二島店",
   "municipality": "北九州市",
   "address": "福岡県北九州市若松区南二島1丁目4-1",
@@ -1816,6 +1825,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_141",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/309/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 門司片上海岸店",
   "municipality": "北九州市",
   "address": "福岡県北九州市門司区片上海岸6-21",
@@ -1838,6 +1848,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_142",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ8–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/5/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ8:00–22:00"},
   "name": "スーパーセンタートライアル 北九州空港バイパス店",
   "municipality": "北九州市",
   "address": "福岡県北九州市小倉南区葛原東4丁目6-10",
@@ -1860,6 +1871,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_143",
+  "operations": {"hoursLabel":"24時間営業","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/44/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","specialClosures":[{"start":"2026-10-29T22:00:00+09:00","end":"2026-10-30T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 西港店",
   "municipality": "北九州市",
   "address": "福岡県北九州市小倉北区西港町16-16",
@@ -1882,6 +1894,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_144",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/8/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 上津役店",
   "municipality": "北九州市",
   "address": "福岡県北九州市八幡西区中の原2丁目19-1",
@@ -1904,6 +1917,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_145",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/315/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 苅田店",
   "municipality": "京都郡苅田町",
   "address": "福岡県京都郡苅田町幸町5-1",
@@ -1926,6 +1940,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_146",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/472/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 東水巻店",
   "municipality": "遠賀郡水巻町",
   "address": "福岡県遠賀郡水巻町吉田南5丁目5-1",
@@ -1948,6 +1963,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_147",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/158/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 遠賀店",
   "municipality": "遠賀郡遠賀町",
   "address": "福岡県遠賀郡遠賀町大字尾崎字上ノ越1607-1",
@@ -1970,6 +1986,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_148",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/157/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 水巻店",
   "municipality": "遠賀郡水巻町",
   "address": "福岡県遠賀郡頃末北4丁目4-8",
@@ -1992,6 +2009,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_149",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/398/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 行橋上津熊店",
   "municipality": "行橋市",
   "address": "福岡県行橋市上津熊111-1",
@@ -2014,6 +2032,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_150",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/210/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 行橋店",
   "municipality": "行橋市",
   "address": "福岡県行橋市北泉4丁目36-13",
@@ -2036,6 +2055,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_151",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/9/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 豊前店",
   "municipality": "豊前市",
   "address": "福岡県豊前市大字四郎丸1102-6",
@@ -2058,6 +2078,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_152",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/729/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 上毛店",
   "municipality": "築上郡上毛町",
   "address": "福岡県築上郡上毛町宇野831番地1",
@@ -2300,6 +2321,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_163",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/736/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 飯塚庄内店",
   "municipality": "飯塚市",
   "address": "福岡県飯塚市有安719番地2",
@@ -2344,6 +2366,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_165",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/50/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–20:00"},
   "name": "スーパーセンタートライアル 上三緒店",
   "municipality": "飯塚市",
   "address": "福岡県飯塚市上三緒1-7",
@@ -2366,6 +2389,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_166",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ8–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/49/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ8:00–22:00"},
   "name": "スーパーセンタートライアル 飯塚店",
   "municipality": "飯塚市",
   "address": "福岡県飯塚市徳前40-1",
@@ -2410,6 +2434,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_168",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/531/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 宮田店",
   "municipality": "宮若市",
   "address": "福岡県宮若市宮田109-1",
@@ -2454,6 +2479,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_170",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/393/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 福智店",
   "municipality": "田川郡福智町",
   "address": "福岡県田川郡福智町弁城4238-1",
@@ -2520,6 +2546,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_173",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/468/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–20:00"},
   "name": "スーパーセンタートライアル 桂川店",
   "municipality": "嘉穂郡桂川町",
   "address": "福岡県嘉穂郡桂川町大字土居815-1",
@@ -2542,6 +2569,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_174",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/362/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
   "name": "スーパーセンタートライアル 鞍手店",
   "municipality": "鞍手郡鞍手町",
   "address": "福岡県鞍手郡鞍手町小牧2232-5",
@@ -2564,6 +2592,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_175",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/310/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00","specialClosures":[{"start":"2026-11-02T22:00:00+09:00","end":"2026-11-03T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 小竹店",
   "municipality": "鞍手郡小竹町",
   "address": "福岡県鞍手郡小竹町勝野1532-13",
@@ -2586,6 +2615,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_176",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/11/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 直方店",
   "municipality": "直方市",
   "address": "福岡県直方市大字感田1967",
@@ -2608,6 +2638,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_177",
+  "operations": {"hoursLabel":"6:00–24:00（ドラッグ10–20）","weeklyHours":{"0":[["06:00","00:00"]],"1":[["06:00","00:00"]],"2":[["06:00","00:00"]],"3":[["06:00","00:00"]],"4":[["06:00","00:00"]],"5":[["06:00","00:00"]],"6":[["06:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/269/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ10:00–20:00","specialClosures":[{"start":"2026-11-06T22:00:00+09:00","end":"2026-11-07T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 田川後藤寺店",
   "municipality": "田川市",
   "address": "福岡県田川市位登1751-2",
@@ -2806,6 +2837,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_186",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/100/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 甘木店",
   "municipality": "朝倉市",
   "address": "福岡県朝倉市屋永字西原4272-1",
@@ -2828,6 +2860,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_187",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/130/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 八女店",
   "municipality": "八女市",
   "address": "福岡県八女市蒲原字五反田848",
@@ -2850,6 +2883,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_188",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/403/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 柳川西蒲池店",
   "municipality": "柳川市",
   "address": "福岡県柳川市西蒲池166-1",
@@ -2872,6 +2906,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_189",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ8–20）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/116/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ8:00–20:00","specialClosures":[{"start":"2026-11-04T22:00:00+09:00","end":"2026-11-05T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 久留米店",
   "municipality": "久留米市",
   "address": "福岡県久留米市御井旗崎4丁目1-1",
@@ -2894,6 +2929,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_190",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/300/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00","specialClosures":[{"start":"2026-10-28T22:00:00+09:00","end":"2026-10-29T09:30:00+09:00","reason":"棚卸のため臨時休業"}]},
   "name": "スーパーセンタートライアル 久留米上津店",
   "municipality": "久留米市",
   "address": "福岡県久留米市上津町1654-1",
@@ -2938,6 +2974,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_192",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/363/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 大刀洗店",
   "municipality": "三井郡大刀洗町",
   "address": "福岡県三井郡大刀洗町鵜木1440-33",
@@ -2960,6 +2997,7 @@ window.ADMIN_FACILITY_CATALOG = {
 },
 {
   "id": "target_193",
+  "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/37/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
   "name": "スーパーセンタートライアル 筑後店",
   "municipality": "筑後市",
   "address": "福岡県筑後市上北島字井原口1259",
@@ -3609,6 +3647,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_074",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/184/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 佐世保大和店",
     "prefecture": "長崎県",
     "municipality": "佐世保市",
@@ -3628,6 +3667,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_075",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/347/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 島原店",
     "prefecture": "長崎県",
     "municipality": "島原市",
@@ -3647,6 +3687,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_076",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/96/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 大村店",
     "prefecture": "長崎県",
     "municipality": "大村市",
@@ -3667,6 +3708,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_077",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/331/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 諫早店",
     "prefecture": "長崎県",
     "municipality": "諫早市",
@@ -3686,6 +3728,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_078",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/388/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 時津店",
     "prefecture": "長崎県",
     "municipality": "西彼杵郡時津町",
@@ -3802,6 +3845,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_084",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/739/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "メガセンタートライアル 荒尾店",
     "prefecture": "熊本県",
     "municipality": "荒尾市",
@@ -3822,6 +3866,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_085",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/170/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00。2026年10月3日から24時間営業再開と公式告知"},
     "name": "トライアル 宇土店",
     "prefecture": "熊本県",
     "municipality": "宇土市",
@@ -3841,6 +3886,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_086",
+    "operations": {"hoursLabel":"公式店舗ページ24時間表示（地震後の変更履歴あり・要再確認）","weeklyHours":null,"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/120/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"2026年8月の公式地震情報は7:00–24:00。店舗ページは24時間表示のため営業状態は未確定として扱う"},
     "name": "トライアル 八代店",
     "prefecture": "熊本県",
     "municipality": "八代市",
@@ -3995,6 +4041,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_094",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/445/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
     "name": "トライアル 敷戸店",
     "prefecture": "大分県",
     "municipality": "大分市",
@@ -4014,6 +4061,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_095",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–21）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/12/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–21:00"},
     "name": "トライアル 日田店",
     "prefecture": "大分県",
     "municipality": "日田市",
@@ -4033,6 +4081,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_096",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/128/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 別府店",
     "prefecture": "大分県",
     "municipality": "別府市",
@@ -4052,6 +4101,7 @@ window.ADMIN_FACILITY_CATALOG = {
   },
   {
     "id": "target_097",
+    "operations": {"hoursLabel":"24時間営業（ドラッグ9–22）","weeklyHours":{"0":[["00:00","00:00"]],"1":[["00:00","00:00"]],"2":[["00:00","00:00"]],"3":[["00:00","00:00"]],"4":[["00:00","00:00"]],"5":[["00:00","00:00"]],"6":[["00:00","00:00"]]},"timeZone":"Asia/Tokyo","sourceUrl":"https://www.trial-net.co.jp/shops/135/","hoursVerifiedAt":"2026-10-28","hoursVerification":"official","notes":"ドラッグ9:00–22:00"},
     "name": "トライアル 中津店",
     "prefecture": "大分県",
     "municipality": "中津市",
