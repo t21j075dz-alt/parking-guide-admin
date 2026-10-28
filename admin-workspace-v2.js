@@ -202,12 +202,53 @@
     toolsToggle.setAttribute("aria-pressed",String(showTools));
     inspectorToggle.setAttribute("aria-pressed",String(showSettings));
     focusToggle.setAttribute("aria-pressed",String(focus));
-    toolsToggle.textContent=showTools?"追加ツールを閉じる":"追加ツール";
-    inspectorToggle.textContent=showSettings?"設定を閉じる":"選択中の設定";
-    focusToggle.textContent=focus?"通常表示に戻す":"集中モード";
+    syncLanguageLabels();
     tools.inert=!showTools;
     inspector.inert=!showSettings;
   }
+  // 既存の「EN」切り替えと同じ言語設定に追従させる。
+  function syncLanguageLabels(){
+    const english=document.documentElement.lang.toLowerCase().startsWith("en");
+    const ja={
+      more:"その他の操作", tools:"追加ツール",closeTools:"追加ツールを閉じる",
+      settings:"選択中の設定",closeSettings:"設定を閉じる",
+      focus:"集中モード",unfocus:"通常表示に戻す",
+      dimension:"図面の寸法",addLabel:"駐車枠",add:"＋ 追加",
+      advanced:"回転・詳細",foldAll:"すべて閉じる",toolTitle:"追加するものを選択",
+      marking:"区画線の形・色・太さ",adjacent:"同じ種類の枠を連続配置"
+    };
+    const en={
+      more:"More actions",tools:"Add objects",closeTools:"Hide tools",
+      settings:"Selection settings",closeSettings:"Hide settings",
+      focus:"Focus mode",unfocus:"Exit focus mode",
+      dimension:"Canvas size",addLabel:"Parking",add:"+ Add",
+      advanced:"Rotate & more",foldAll:"Collapse all",toolTitle:"Add objects",
+      marking:"Parking lines and color",adjacent:"Add adjacent spaces"
+    };
+    const t=english?en:ja;
+    moreSummary.textContent=t.more;
+    toolsToggle.textContent=visible("tools")?t.closeTools:t.tools;
+    inspectorToggle.textContent=visible("settings")?t.closeSettings:t.settings;
+    focusToggle.textContent=focus?t.unfocus:t.focus;
+    const dim=document.querySelector(".admin-canvas-dimensions > summary");
+    if(dim)dim.textContent=t.dimension;
+    const quick=document.querySelector(".admin-quick-add");
+    if(quick){
+      const label=quick.querySelector("label"),button=quick.querySelector("button");
+      if(label)label.textContent=t.addLabel;
+      if(button)button.textContent=t.add;
+    }
+    advancedSummary.textContent=t.advanced;
+    toolTitle.textContent=t.toolTitle;
+    foldAll.textContent=t.foldAll;
+    const headings=inspector.querySelectorAll(".admin-inspector-extra > summary");
+    if(headings[0])headings[0].textContent=t.marking;
+    if(headings[1])headings[1].textContent=t.adjacent;
+  }
+  new MutationObserver(()=>{
+    syncLanguageLabels();
+    scheduleContext();
+  }).observe(document.documentElement,{attributes:true,attributeFilter:["lang"]});
   function persist(){
     try{localStorage.setItem(storageKey,JSON.stringify(desktop));}catch{}
   }
@@ -242,7 +283,8 @@
     let item=null;
     try{if(typeof getSelectedObject==="function")item=getSelectedObject();}catch{}
     const label=item?(item.name||item.uid||"選択中の図形"):"未選択";
-    selected.textContent=item?"選択中："+label:"区画・建物をクリックして選択";
+    const en=document.documentElement.lang.toLowerCase().startsWith("en");
+    selected.textContent=item?(en?"Selected: ":"選択中：")+label:(en?"Select an object on the map":"区画・建物をクリックして選択");
     selected.title=selected.textContent;
   }
   let scheduled=false;
