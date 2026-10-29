@@ -72,6 +72,8 @@ class Remembered:
     seen: float
     appearance: list | None = None
     bbox: list | None = None
+    # 最後の2回の観測に基づく画面上の移動速度（正規化座標/秒）
+    velocity: tuple = (0.0, 0.0)
 
 
 class StableIdMatcher:
@@ -86,31 +88,62 @@ class StableIdMatcher:
         self.ambiguous = 0
         self.new_tracks = 0
 
-    def _score(self, det, old, now, vector):
+    def _score(self, det, old, now, vector, isolated=False):
+        """Associations survive rotating car boxes, but never teleport cars.
+
+        Same raw ID is useful evidence only while geometry is plausible.
+        For a *single* active car after a tracker ID reset, permit a larger
+        rotation/translation if its color is a strong independent match.
+        Crowded scenes never use this relaxed one-car rule.
+        """
         if vehicle_group(det["name"]) != old.group:
             return None
-        gap = now - old.seen
+        gap = float(now) - old.seen
         if gap < 0 or gap > self.max_missing:
             return None
         distance = hypot(det["point"][0]-old.point[0], det["point"][1]-old.point[1])
         iou = box_iou(det.get("bbox"), old.bbox)
-        # 固定カメラなら同じ車はほぼ同じ位置・検出矩形に現れる。
-        # 0.035は画面対角の約3.5%、最大0.14までは時間と共に許す。
-        limit = min(0.14, 0.035 + 0.012 * gap)
+        limit = min(.16, .042 + .018 * gap)
         is_same_raw = det.get("track_id") == old.raw_id
-        if distance > (max(0.12, limit) if is_same_raw else limit):
-            return None
         color = similarity(vector, old.appearance)
-        if color is not None and color < 0.50:
+        if color is not None and color < .47:
             return None
-        # 実画像では矩形IoUが最も有力。矩形が利用できない時だけ位置で評価。
-        if not is_same_raw and iou is not None and iou < 0.08 and distance > 0.015:
+
+        # Robust long-distance bridge only with a single vehicle and a
+        # strong appearance match; all ordinary multi-car matches stay local.
+        strong_reid = (
+            isolated and old.group == "four_wheel"
+            and not is_same_raw and color is not None and color >= .78
+            and gap >= 1.0 and distance <= min(.43, .09 + .11 * gap)
+        )
+        predicted = (old.point[0] + old.velocity[0]*gap,
+                     old.point[1] + old.velocity[1]*gap)
+        prediction_distance = hypot(
+            det["point"][0]-predicted[0], det["point"][1]-predicted[1]
+        )
+        # Only trust velocity prediction if it meaningfully improves on the
+        # last position; a stationary car may suddenly begin reversing.
+        moving_prediction = (
+            hypot(*old.velocity) >= .005
+            and prediction_distance < distance * .72
+            and prediction_distance <= .14 + .035 * gap
+        )
+        if distance > (max(.12, limit) if is_same_raw else limit):
+            if not strong_reid and not moving_prediction:
+                return None
+
+        if (not is_same_raw and iou is not None and iou < .08
+                and distance > .015 and not strong_reid
+                and not moving_prediction):
             return None
-        dist_score = max(0., 1. - distance/max(limit, 0.015))
+        dist_score = max(0., 1. - distance/max(limit, .015))
         color_score = color if color is not None else .45
         iou_score = iou if iou is not None else dist_score
         raw_bonus = 1.3 if is_same_raw else 0.
-        return 2.5*iou_score + 1.5*dist_score + .5*color_score + raw_bonus - .1*gap
+        predicted_bonus = .8 if moving_prediction else 0.
+        color_bonus = .9 if strong_reid else 0.
+        return (2.5*iou_score + 1.5*dist_score + .5*color_score
+                + raw_bonus + predicted_bonus + color_bonus - .1*gap)
 
     def update(self, detections, now, frame=None):
         if not isinstance(now, (float, int)):
@@ -125,6 +158,9 @@ class StableIdMatcher:
 
         candidates = []
         observations = []
+        # Relaxed long-distance ReID is permissible only for an actual
+        # single-car scene; prevent mixing adjacent occupied stalls.
+        isolated = (len(detections) == 1 and len(self.last) == 1)
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
@@ -136,7 +172,7 @@ class StableIdMatcher:
                    if frame is not None else record.get("appearance"))
             observations.append((index, record, vec))
             for sid, old in self.last.items():
-                score = self._score(record, old, now, vec)
+                score = self._score(record, old, now, vec, isolated=isolated)
                 if score is not None:
                     candidates.append((score, index, sid))
 
@@ -181,11 +217,25 @@ class StableIdMatcher:
             elif raw != self.last[stable].raw_id:
                 self.reassociated += 1
             prev = self.last.get(stable)
+            velocity = (0., 0.)
+            if prev is not None:
+                dt = float(now)-prev.seen
+                if .15 <= dt <= 4.:
+                    current = tuple(record["point"])
+                    velocity = ((current[0]-prev.point[0])/dt,
+                                (current[1]-prev.point[1])/dt)
+                    # Smooth fast turn/jitter, especially large changes in
+                    # the YOLO bounding box as the car rotates.
+                    velocity = (.65*velocity[0]+.35*prev.velocity[0],
+                                .65*velocity[1]+.35*prev.velocity[1])
+                else:
+                    velocity = prev.velocity
             self.last[stable] = Remembered(
                 stable, raw, vehicle_group(record["name"]),
                 tuple(record["point"]), float(now),
                 vec if vec is not None else (prev.appearance if prev else None),
                 record.get("bbox") or (prev.bbox if prev else None),
+                velocity,
             )
             record["raw_track_id"] = raw
             record["track_id"] = stable
