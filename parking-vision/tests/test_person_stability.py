@@ -39,11 +39,14 @@ class HumanIdTests(unittest.TestCase):
         ids = PersonIdStabilizer()
         # Raw 26 was associated with displayed 8 at t=297.2,
         # but displayed 9 on return around t=311.3.
-        for t in (291.1, 291.7, 292.3, 297.2):
+        for t in (291.1, 291.7, 292.3):
             det = human(26, .331, .382)
             ids.update([det], t)
         original = det["track_id"]
         self.assertEqual(original, 1)
+        # A later isolated observation is not enough to confirm human
+        # presence anew, but it must not allocate a new ID.
+        ids.update([human(26,.331,.382)],297.2)
         det = human(26, .330, .383)
         ids.update([det], 311.3)
         # After a long gap, remain unconfirmed for 1s, but keep same ID.
