@@ -19,7 +19,7 @@ class CameraZoneTests(unittest.TestCase):
                "bottom_points": [(.24, .8)], "wheel_points": []}
         annotate_vehicle_zones([det], self.zones, inside, (200, 400, 3))
         self.assertEqual(det["zone_candidate"], "space_001")
-        self.assertEqual(det["zone_basis"], "lower-body-estimate")
+        self.assertEqual(det["zone_basis"], "bottom-footprint")
         self.assertEqual(classify_spaces([det], [], self.zones, parked_track_ids=set())["space_001"], "unknown")
         self.assertEqual(classify_spaces([det], [], self.zones, parked_track_ids={11})["space_001"], "occupied")
 
