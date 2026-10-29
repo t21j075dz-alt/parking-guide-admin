@@ -106,22 +106,27 @@ class StableIdMatcher:
         limit = min(.16, .042 + .018 * gap)
         is_same_raw = det.get("track_id") == old.raw_id
         color = similarity(vector, old.appearance)
-        if color is not None and color < .47:
+        # In this recording, the same YOLO raw ID (=1) survived a turn
+        # after a 6s detection gap, while our local stable ID became 3.
+        # This is a *local* mistake, not a new model ID: prefer same raw
+        # identity only in a true single-car scene, with plausible motion.
+        same_raw_turn = (
+            isolated and old.group == "four_wheel" and is_same_raw
+            and 2.0 <= gap <= 9.0 and distance <= .45
+        )
+        # The car can expose a very different frontal/side area; do not
+        # reject a credible same-raw turn based on fragile HSV histograms.
+        if color is not None and color < .47 and not same_raw_turn:
             return None
-
-        # Robust long-distance bridge only with a single vehicle and a
-        # strong appearance match; all ordinary multi-car matches stay local.
+        # A new raw ID can also follow an abrupt turn. Only reconnect a
+        # *single* car after 1–3.5s, with modest visual similarity.
+        # Never relax proximity in a multi-car scene.
         strong_reid = (
             isolated and old.group == "four_wheel"
             and not is_same_raw and color is not None
-            and ((color >= .60 and 1.0 <= gap <= 3.5)
+            and ((color >= .43 and 1.0 <= gap <= 3.5)
                  or (color >= .78 and 3.5 < gap <= 6.5))
             and distance <= min(.43, .09 + .145 * gap)
-        )
-        continuous_raw_after_turn = (
-            isolated and old.group == "four_wheel" and is_same_raw
-            and color is not None and color >= .68
-            and 3.0 <= gap <= 9.0 and distance <= .44
         )
         predicted = (old.point[0] + old.velocity[0]*gap,
                      old.point[1] + old.velocity[1]*gap)
@@ -136,7 +141,7 @@ class StableIdMatcher:
             and prediction_distance <= .14 + .035 * gap
         )
         if distance > (max(.12, limit) if is_same_raw else limit):
-            if not strong_reid and not continuous_raw_after_turn and not moving_prediction:
+            if not strong_reid and not same_raw_turn and not moving_prediction:
                 return None
 
         if (not is_same_raw and iou is not None and iou < .08
@@ -148,7 +153,7 @@ class StableIdMatcher:
         iou_score = iou if iou is not None else dist_score
         raw_bonus = 1.3 if is_same_raw else 0.
         predicted_bonus = .8 if moving_prediction else 0.
-        color_bonus = .9 if (strong_reid or continuous_raw_after_turn) else 0.
+        color_bonus = .9 if (strong_reid or same_raw_turn) else 0.
         return (2.5*iou_score + 1.5*dist_score + .5*color_score
                 + raw_bonus + predicted_bonus + color_bonus - .1*gap)
 
@@ -167,7 +172,11 @@ class StableIdMatcher:
         observations = []
         # Relaxed long-distance ReID is permissible only for an actual
         # single-car scene; prevent mixing adjacent occupied stalls.
-        isolated = (len(detections) == 1 and len(self.last) == 1)
+        active_candidates = [
+            old for old in self.last.values()
+            if now - old.seen <= 3.0
+        ]
+        isolated = (len(detections) == 1 and len(active_candidates) <= 1)
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
