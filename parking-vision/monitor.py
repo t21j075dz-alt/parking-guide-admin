@@ -306,6 +306,10 @@ class SpaceObserver:
             min_seconds = (5.0 if desired == "available"
                            else self.blocked_confirm_seconds if desired == "blocked"
                            else 0.3)
+            if desired == "blocked" and self.states[uid] == "available":
+                # During the confirmation window a person might really be
+                # present; don't continue showing a stale AVAILABLE status.
+                self.states[uid] = "unknown"
             if self.frames[uid] >= 2 and now - self.since[uid] >= min_seconds:
                 self.states[uid] = desired
         return self.states.copy()
