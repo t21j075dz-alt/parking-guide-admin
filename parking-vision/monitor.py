@@ -821,12 +821,16 @@ def main():
         except (TypeError, ValueError, OverflowError) as exc:
             initial_empty_deadline = 0
             print(f"【初期空車確認が無効】確認日時を解釈できません: {type(exc).__name__}")
-    confirmed_empty = parse_verified_empty(args.verified_empty, zones) if video_mode else (
-        config.get("initially_confirmed_empty_uids", [])
-    )
-    if video_mode and confirmed_empty:
-        print("【要確認】録画冒頭で空きと確認した区画：" + ", ".join(confirmed_empty))
-        print("【安全】YOLOが空きと判定し始めるのは継続観測後です。")
+    if video_mode and args.verified_empty:
+        # Legacy option no longer needed: this is an isolated replay whose
+        # default is all AVAILABLE. Detecting a car changes that to UNKNOWN
+        # during the first five seconds of verification.
+        parse_verified_empty(args.verified_empty, zones)
+        print("【録画実演】初期6区画はすべて「空き」。"
+              "車体底面を検知した区画は確定まで「確認中」とします。"
+              "-VerifiedEmpty の指定は不要です。")
+    confirmed_empty = ([] if video_mode else
+                       config.get("initially_confirmed_empty_uids", []))
     from recorded_parking_states import RecordedParkingStateMachine
     demo_machine = RecordedParkingStateMachine(zones) if video_mode else None
     previous_demo_phases = None
@@ -873,13 +877,8 @@ def main():
             if not verify_overlay_with_operator(first_frame, zones, cv2):
                 print("【実演中止】録画と6区画が一致しないため共有しません。")
                 return
-            if confirmed_empty:
-                approve_empty = input(
-                    "録画の冒頭で指定区画に車も障害物も無いことを確認したら「空き確認」と入力: "
-                ).strip()
-                if approve_empty != "空き確認":
-                    print("【実演中止】空き確認ができていません。")
-                    return
+            print("【録画実演の初期状態】全区画「空き」から開始します。"
+                  "車両が検出された区画は、5秒間の確定まで「確認中」に切り替わります。")
             if writer:
                 set_demo_visibility(writer, False)
                 print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
