@@ -39,6 +39,17 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matching.update([a], 0)[0]["track_id"], 1)
         self.assertEqual(matching.update([b], 5.8)[0]["track_id"], 2)
 
+    def test_foreground_turn_id_three_to_four_is_same_car(self):
+        # The supplied recording shows a lower, larger vehicle rectangle
+        # after a sharp turn. Matching only bbox IoU loses the ID.
+        matcher = StableIdMatcher(max_missing=12)
+        before = detection(3, .48, .76, appearance=[.91,.09,0])
+        before["bbox"] = [481,385,741,545]
+        after = detection(4, .74, .99, appearance=[.90,.10,0])
+        after["bbox"] = [704,507,1162,718]
+        self.assertEqual(matcher.update([before], 594)[0]["track_id"],1)
+        self.assertEqual(matcher.update([after], 596)[0]["track_id"],1)
+
     def test_short_yolo_id_dropout_keeps_stable_car_identity(self):
         matcher = StableIdMatcher(max_missing=8)
         first = detection(3, .43, .73, appearance=[.9,.1,0])
