@@ -77,6 +77,12 @@ class VideoReplay:
         print("【原本】動画ファイルは上書きせず、解析結果だけ別フォルダに残します。")
         return self.folder
 
+    def reset_clock_after_confirmation(self):
+        """Start playback only after the operator checks the zone overlay."""
+        if self._first is None or self.frame_index != 0:
+            raise RuntimeError("再生を開始する前にだけ時刻をリセットできます")
+        self._started = self.clock()
+
     def next_frame(self, previous_number=0, timeout=None):
         if self._started is None:
             raise RuntimeError("先にstart()を呼び出してください")
