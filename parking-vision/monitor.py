@@ -881,6 +881,9 @@ def main():
                 night_vision_mode=str(config.get("night_vision_mode", "auto")),
             )
             now = time.monotonic()
+            # Video replay uses footage timestamps for identity and motion.
+            # CPU stalls do not become fake 5-second vehicle observations.
+            track_now = recording.frame_index / recording.fps if video_mode else now
             # Map each raw vehicle to the parking area *before* stable ID
             # association. Nighttime reflections and distant parked cars
             # otherwise pollute ID memory and swap with actual incoming cars.
@@ -898,15 +901,15 @@ def main():
                     vehicle["ignored_raw_track_id"] = vehicle.get("track_id")
                     vehicle["track_id"] = None  # Not a managed vehicle session.
                     ignored.append(vehicle)
-            monitored_vehicles = stable_ids.update(monitored_raw, now, frame=frame)
+            monitored_vehicles = stable_ids.update(monitored_raw, track_now, frame=frame)
             dark = is_low_light(frame)
-            night_evidence.update(monitored_vehicles, now, low_light=dark)
+            night_evidence.update(monitored_vehicles, track_now, low_light=dark)
             # Keep doubtful car boxes visible for diagnosis, but never start
             # a live vehicle session for them merely because YOLO says 'car'.
             verified_vehicles = [d for d in monitored_vehicles if d["night_verified"]]
             vehicles = monitored_vehicles + ignored
             events = tracks.update(verified_vehicles, zones,
-                                   config.get("exit_zone", []), now)
+                                   config.get("exit_zone", []), track_now)
             for event in events:
                 pending_sessions[event["session_id"]] = event
             # 区画占有だけには信頼度が低い検出を使わない
