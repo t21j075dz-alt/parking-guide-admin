@@ -30,6 +30,7 @@
   "reid_window_seconds": 12,
   "initially_confirmed_empty_uids": [],
   "camera_backend": "auto",
+  "night_vision_mode": "auto",
   "camera_verified_external": false,
   "recording_fps": 10,
   "recording_segment_seconds": 600,
