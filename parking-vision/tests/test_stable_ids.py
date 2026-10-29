@@ -39,6 +39,35 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matching.update([old],592)[0]["track_id"],1)
         self.assertEqual(matching.update([new],594)[0]["track_id"],1)
 
+    def test_same_raw_turn_keeps_id_with_second_stale_phantom(self):
+        matcher = StableIdMatcher(max_missing=12)
+        # Second car-like false detection briefly made an extra stable ID.
+        a=detection(1,.73,.99,appearance=[1,0,0])
+        a["bbox"]=[722,520,1251,720]
+        phantom=detection(99,.10,.10,appearance=[0,1,0])
+        phantom["bbox"]=[100,100,180,200]
+        matcher.update([a,phantom], 160)
+        matcher.update([a], 164)
+        resumed=detection(1,.43,.80,appearance=[0,1,0])
+        resumed["bbox"]=[429,407,677,591]
+        fixed=matcher.update([resumed], 170)[0]
+        self.assertEqual(fixed["track_id"], 1)
+        self.assertEqual(matcher.new_tracks, 2)
+
+    def test_new_raw_turn_ignores_old_phantom_only_when_truly_stale(self):
+        matcher=StableIdMatcher(max_missing=12)
+        active=detection(1,.47,.75,appearance=[1,0])
+        active["bbox"]=[481,385,741,545]
+        ghost=detection(5,.15,.2,appearance=[0,1])
+        ghost["bbox"]=[150,150,300,250]
+        matcher.update([ghost],586)
+        matcher.update([active],592)
+        turn=detection(42,.73,.99,appearance=[.62,.78])
+        turn["bbox"]=[703,505,1179,718]
+        fixed=matcher.update([turn],596)[0]
+        self.assertEqual(fixed["track_id"],2)
+        self.assertTrue(fixed["id_reassociated"])
+
     def test_turn_reid_does_not_bridge_different_color(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
