@@ -50,6 +50,17 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matcher.update([before], 594)[0]["track_id"],1)
         self.assertEqual(matcher.update([after], 596)[0]["track_id"],1)
 
+    def test_turning_white_car_with_realistic_appearance_drop(self):
+        # On two sample frames from the user's annotated video, approximate
+        # HSV colour similarity dropped to 0.75 after the car rotated.
+        matcher = StableIdMatcher(max_missing=12)
+        before = detection(3,.48,.76,appearance=[1.0,0.0])
+        before["bbox"]=[481,385,741,545]
+        after = detection(4,.74,.99,appearance=[.75,.66])
+        after["bbox"]=[704,507,1162,718]
+        self.assertEqual(matcher.update([before],594)[0]["track_id"],1)
+        self.assertEqual(matcher.update([after],596)[0]["track_id"],1)
+
     def test_short_yolo_id_dropout_keeps_stable_car_identity(self):
         matcher = StableIdMatcher(max_missing=8)
         first = detection(3, .43, .73, appearance=[.9,.1,0])
