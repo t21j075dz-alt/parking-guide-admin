@@ -19,6 +19,38 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(actual["raw_track_id"], 13)
         self.assertEqual(matching.reassociated, 1)
 
+    def test_one_car_turns_with_large_bbox_shift_and_new_raw_id(self):
+        matching = StableIdMatcher(max_missing=12)
+        original = detection(1, .72, .83, appearance=[.9, .1, .0])
+        original["bbox"] = [890, 400, 1280, 690]
+        next_car = detection(3, .43, .73, appearance=[.91, .09, 0.])
+        next_car["bbox"] = [420, 420, 720, 650]
+        self.assertEqual(matching.update([original], 0)[0]["track_id"], 1)
+        changed = matching.update([next_car], 5.8)[0]
+        self.assertEqual(changed["track_id"], 1)
+        self.assertEqual(changed["raw_track_id"], 3)
+
+    def test_turn_reid_does_not_bridge_different_color(self):
+        matching = StableIdMatcher(max_missing=12)
+        a = detection(1, .72, .83, appearance=[1,0,0])
+        a["bbox"] = [890,400,1280,690]
+        b = detection(3, .43, .73, appearance=[0,1,0])
+        b["bbox"] = [420,420,720,650]
+        self.assertEqual(matching.update([a], 0)[0]["track_id"], 1)
+        self.assertEqual(matching.update([b], 5.8)[0]["track_id"], 2)
+
+    def test_large_turn_reid_requires_a_single_car_scene(self):
+        matching = StableIdMatcher(max_missing=12)
+        a = detection(1, .72, .83, appearance=[1,0,0])
+        a["bbox"] = [890,400,1280,690]
+        c = detection(2, .12, .2, appearance=[0,1,0])
+        c["bbox"] = [100,100,230,200]
+        matching.update([a,c],0)
+        b = detection(3, .43, .73, appearance=[1,0,0])
+        b["bbox"] = [420,420,720,650]
+        new = matching.update([b],5.8)[0]
+        self.assertNotEqual(new["track_id"], 1)
+
     def test_two_cars_visible_together_remain_distinct(self):
         matching = StableIdMatcher()
         initial = matching.update([detection(1, 0.3, 0.8), detection(2, 0.6, 0.8)], 0)
