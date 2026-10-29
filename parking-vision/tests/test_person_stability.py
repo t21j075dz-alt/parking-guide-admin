@@ -2,6 +2,10 @@
 import unittest
 
 from person_stability import PersonIdStabilizer
+from person_diagnostics import PersonDiagnosticRecorder
+from pathlib import Path
+import csv
+import tempfile
 
 
 def human(raw, x, y=.45, conf=.9):
@@ -45,6 +49,27 @@ class HumanIdTests(unittest.TestCase):
             ids.update([item],clock)
             self.assertIsNone(item["track_id"])
         self.assertEqual(ids.tracks,{})
+
+    def test_person_diagnostic_writes_raw_and_stable_ids_without_images(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)
+            recorder=PersonDiagnosticRecorder(path)
+            ids=PersonIdStabilizer()
+            for t, raw in [(0,1),(.5,11),(1.1,19)]:
+                person=human(raw,.40)
+                ids.update([person],t)
+                recorder.write([person],t)
+            recorder.close()
+            with (path/"人物追跡_判定診断.csv").open(
+                encoding="utf-8-sig",newline=""
+            ) as stream:
+                rows=list(csv.DictReader(stream))
+            self.assertEqual(len(rows),3)
+            self.assertEqual([r["YOLO人物生ID"] for r in rows],
+                             ["1","11","19"])
+            self.assertEqual(rows[-1]["画面用安定人物ID"],"1")
+            self.assertEqual(rows[0]["画面用安定人物ID"],"")
+            self.assertEqual(rows[-1]["ID表示確定"],"yes")
 
     def test_nonhuman_ids_are_not_exposed(self):
         ids=PersonIdStabilizer()
