@@ -64,7 +64,7 @@ class StableIdTest(unittest.TestCase):
         matcher.update([active],592)
         turn=detection(42,.73,.99,appearance=[.62,.78])
         turn["bbox"]=[703,505,1179,718]
-        fixed=matcher.update([turn],596)[0]
+        fixed=matcher.update([turn],594)[0]
         self.assertEqual(fixed["track_id"],2)
         self.assertTrue(fixed["id_reassociated"])
 
