@@ -16,6 +16,33 @@ alter table public.parking_live_status
   check (source = 'yolo' or
          (source = 'recorded_video_demo' and facility_id = 'home-video-demo-001'));
 
+-- 従来の空き・満空判定と別に、録画実演の入庫/停車/出庫段階を保持する。
+-- 実カメラ側の行では常にNULLであり、既存の利用者案内は変更されない。
+alter table public.parking_live_status
+  add column if not exists occupancy_phase text;
+update public.parking_live_status
+set occupancy_phase = 'unknown'
+where facility_id = 'home-video-demo-001'
+  and source = 'recorded_video_demo'
+  and occupancy_phase is null;
+alter table public.parking_live_status
+  drop constraint if exists parking_live_demo_phase_check;
+alter table public.parking_live_status
+  add constraint parking_live_demo_phase_check
+  check (
+    (source = 'yolo' and occupancy_phase is null)
+    or (
+      source = 'recorded_video_demo'
+      and facility_id = 'home-video-demo-001'
+      and occupancy_phase in ('available','parking_in','stopped','exiting','unknown')
+      and (
+        (status='available' and occupancy_phase='available')
+        or (status='unknown' and occupancy_phase='unknown')
+        or (status='occupied' and occupancy_phase in ('parking_in','stopped','exiting'))
+      )
+    )
+  );
+
 -- 管理アプリのマップ配置は同じ6区画を使用する。
 -- 本番データを参照して録画専用施設に別行としてコピーする。
 insert into public.parking_layouts (facility_id, layout_data)
