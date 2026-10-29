@@ -68,17 +68,51 @@ def verify_overlay_with_operator(frame, zones, cv2):
         cv2.destroyWindow(window)
 
 
-def demo_status_rows(config, statuses, timestamp):
-    """Restrict writes to a separate, clearly named simulation facility."""
+def draw_demo_phase_labels(view, cv2, zones, phases):
+    """Overlay phase labels separately from the generic OCCUPIED display."""
+    from recorded_parking_states import DISPLAY_PHASES
+
+    view = view.copy()
+    h, w = view.shape[:2]
+    descriptions = {
+        "available": ("FREE", (70, 200, 70)),
+        "parking_in": ("PARKING IN / 5s", (0, 175, 245)),
+        "stopped": ("STOPPED / 5s", (0, 220, 255)),
+        "exiting": ("EXITING", (90, 180, 255)),
+        "unknown": ("CHECKING", (170, 175, 190)),
+    }
+    for uid, polygon in zones.items():
+        phase = (phases or {}).get(uid, "unknown")
+        label, color = descriptions.get(phase, descriptions["unknown"])
+        x, y = polygon[0]
+        point = (max(4, min(w-280, int(w*x))), max(50, min(h-20, int(h*y)+45)))
+        cv2.putText(view, f"{uid}: {label}", point, cv2.FONT_HERSHEY_SIMPLEX,
+                    .55, (0, 0, 0), 4, cv2.LINE_AA)
+        cv2.putText(view, f"{uid}: {label}", point, cv2.FONT_HERSHEY_SIMPLEX,
+                    .55, color, 2, cv2.LINE_AA)
+    return view
+
+
+def demo_status_rows(config, statuses, timestamp, phases=None):
+    """Restrict writes to video demo; keep four-status API plus per-slot phase."""
+    from recorded_parking_states import VALID_PHASES, STATUS_FOR_PHASE
+
     if config.get("facility_id") != VIDEO_FACILITY:
         raise ValueError("実カメラ施設に録画の判定結果は送信できません")
-    return [
-        {"facility_id": VIDEO_FACILITY,
-         "space_uid": uid, "status": status,
-         "confidence": None, "source": SOURCE,
-         "checked_at": timestamp}
-        for uid, status in statuses.items()
-    ]
+    phases = phases or {}
+    result = []
+    for uid, status in statuses.items():
+        phase = phases.get(uid, "unknown")
+        if phase not in VALID_PHASES or status != STATUS_FOR_PHASE[phase]:
+            raise ValueError(f"{uid} の段階と空き状態が一致していません")
+        result.append({
+            "facility_id": VIDEO_FACILITY,
+            "space_uid": uid, "status": status,
+            "occupancy_phase": phase,
+            "confidence": None, "source": SOURCE,
+            "checked_at": timestamp,
+        })
+    return result
 
 
 def set_demo_visibility(writer, published):
