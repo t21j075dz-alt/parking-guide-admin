@@ -99,6 +99,46 @@ class StableIdTest(unittest.TestCase):
         # Ambiguity must be preserved: never quietly merge two cars.
         self.assertNotIn(result["track_id"],(1,2))
 
+    def test_rapid_yolo_raw_id_switch_during_single_turn(self):
+        """The user footage has raw 1->42 while bbox expands abruptly.
+
+        A switch in less than a second is still the same vehicle when the
+        appearance is strongly similar (>=.70) and only one candidate is
+        physically plausible. Do not require a full second before ReID.
+        """
+        matcher = StableIdMatcher(max_missing=12)
+        previous = detection(1,.477,.757,appearance=[1.0,0.0])
+        previous["bbox"] = [481,385,741,545]
+        approaching = detection(42,.735,.999,appearance=[.74,.6726])
+        approaching["bbox"] = [705,507,1176,719]
+        self.assertEqual(matcher.update([previous],594.4)[0]["track_id"],1)
+        reassigned = matcher.update([approaching],594.8)[0]
+        self.assertEqual(reassigned["track_id"],1)
+        self.assertTrue(reassigned["id_reassociated"])
+        self.assertEqual(matcher.new_tracks,1)
+
+    def test_rapid_switch_ignores_unrelated_distant_phantom(self):
+        matcher=StableIdMatcher(max_missing=12)
+        car=detection(1,.477,.757,appearance=[1.0,0])
+        car["bbox"]=[481,385,741,545]
+        distant=detection(99,.10,.15,appearance=[0,1])
+        distant["bbox"]=[90,100,230,170]
+        matcher.update([car,distant],594.4)
+        moved=detection(42,.735,.999,appearance=[.74,.6726])
+        moved["bbox"]=[705,507,1176,719]
+        result=matcher.update([moved],594.8)[0]
+        self.assertEqual(result["track_id"],1)
+        self.assertTrue(result["id_reassociated"])
+
+    def test_rapid_switch_rejects_low_color_similarity(self):
+        matcher=StableIdMatcher(max_missing=12)
+        original=detection(1,.477,.757,appearance=[1,0])
+        original["bbox"]=[481,385,741,545]
+        unrelated=detection(42,.735,.999,appearance=[0,1])
+        unrelated["bbox"]=[705,507,1176,719]
+        self.assertEqual(matcher.update([original],594.4)[0]["track_id"],1)
+        self.assertEqual(matcher.update([unrelated],594.8)[0]["track_id"],2)
+
     def test_turn_reid_does_not_bridge_different_color(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
