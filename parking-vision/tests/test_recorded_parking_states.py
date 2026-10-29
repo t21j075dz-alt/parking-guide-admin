@@ -72,10 +72,11 @@ class DemoParkingStateTests(unittest.TestCase):
         self.assertEqual(phases["space_001"], "stopped")
         # Same tracked car now moves outside the stall.
         self.update(12,[detection(1,(760,400,940,700))])
-        statuses, phases = self.update(13,[detection(1,(780,400,960,700))])
+        self.update(13,[detection(1,(780,400,960,700))])
+        statuses, phases = self.update(14,[detection(1,(800,400,980,700))])
         self.assertEqual(phases["space_001"], "exiting")
         self.assertEqual(statuses["space_001"], "occupied")
-        statuses, phases = self.update(14,[detection(1,(800,400,980,700))])
+        statuses, phases = self.update(15,[detection(1,(820,400,995,700))])
         self.assertEqual(phases["space_001"], "available")
         self.assertEqual(statuses["space_001"], "available")
 
