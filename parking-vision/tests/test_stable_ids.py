@@ -68,6 +68,37 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(fixed["track_id"],2)
         self.assertTrue(fixed["id_reassociated"])
 
+    def test_latest_raw_1_to_42_turn_with_a_recent_distant_phantom(self):
+        matcher=StableIdMatcher(max_missing=12)
+        old=detection(1,.477,.757,appearance=[1,0])
+        old["bbox"]=[481,385,741,545]
+        phantom=detection(99,.10,.25,appearance=[0,1])
+        phantom["bbox"]=[100,140,200,220]
+        matcher.update([old,phantom],592)
+        # The same car continues, but the false-positive track lingers
+        # in memory and previously disabled the strict single-car ReID.
+        matcher.update([old],593)
+        turn=detection(42,.727,.999,appearance=[.716,.698])
+        turn["bbox"]=[698,505,1162,719]
+        result=matcher.update([turn],595)[0]
+        self.assertEqual(result["track_id"],1)
+        self.assertEqual(result["raw_track_id"],42)
+        self.assertTrue(result["id_reassociated"])
+        self.assertEqual(matcher.new_tracks,2)
+
+    def test_latest_raw_turn_two_plausible_vehicles_remains_unmatched(self):
+        matcher=StableIdMatcher(max_missing=12)
+        a=detection(1,.477,.757,appearance=[1,0])
+        a["bbox"]=[481,385,741,545]
+        b=detection(99,.490,.760,appearance=[.97,.24])
+        b["bbox"]=[490,380,740,550]
+        matcher.update([a,b],592)
+        moved=detection(42,.727,.999,appearance=[.716,.698])
+        moved["bbox"]=[698,505,1162,719]
+        result=matcher.update([moved],594)[0]
+        # Ambiguity must be preserved: never quietly merge two cars.
+        self.assertNotIn(result["track_id"],(1,2))
+
     def test_turn_reid_does_not_bridge_different_color(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
