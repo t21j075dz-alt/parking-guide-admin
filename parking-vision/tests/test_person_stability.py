@@ -35,6 +35,45 @@ class HumanIdTests(unittest.TestCase):
         ids.update([new],1.8)
         self.assertEqual(new["track_id"],1)
 
+    def test_same_raw_person_26_resume_after_fourteen_seconds(self):
+        ids = PersonIdStabilizer()
+        # Raw 26 was associated with displayed 8 at t=297.2,
+        # but displayed 9 on return around t=311.3.
+        for t in (291.1, 291.7, 292.3, 297.2):
+            det = human(26, .331, .382)
+            ids.update([det], t)
+        original = det["track_id"]
+        self.assertEqual(original, 1)
+        det = human(26, .330, .383)
+        ids.update([det], 311.3)
+        # After a long gap, remain unconfirmed for 1s, but keep same ID.
+        self.assertIsNone(det["track_id"])
+        for t in (311.9, 312.5):
+            det = human(26, .331, .383)
+            ids.update([det], t)
+        self.assertEqual(det["track_id"], original)
+        self.assertEqual(ids.next_id, 2)
+
+    def test_same_raw_person_37_multiple_long_gaps_keeps_one_id(self):
+        ids = PersonIdStabilizer()
+        for t in (384.1,384.7,385.3):
+            person=human(37, .320, .386)
+            ids.update([person], t)
+        self.assertEqual(person["track_id"], 1)
+        for t in (399.0,399.6,400.2,423.0,423.7,424.2):
+            person=human(37, .320, .386)
+            ids.update([person], t)
+        self.assertEqual(person["track_id"], 1)
+        self.assertEqual(ids.next_id, 2)
+
+    def test_stale_raw_id_cannot_jump_to_another_person(self):
+        ids = PersonIdStabilizer()
+        ids.update([human(37,.32)],0)
+        for t in (13,13.7,14.3):
+            p = human(37, .82)
+            ids.update([p], t)
+        self.assertEqual(p["track_id"], 2)
+
     def test_two_people_simultaneous_never_share_public_id(self):
         ids = PersonIdStabilizer()
         for clock in (0,.6,1.2,1.8):
