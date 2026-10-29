@@ -182,8 +182,19 @@ def transfer_settings(old_settings, desktop_settings, frame_width, frame_height)
         raise ValueError("デスクトップのカメラ映像が取得できていません")
 
     zone_ids, zones = source_zones(old_settings)
-    old_kind = str(old_settings.get("camera_kind", "usb")).lower()
-    desktop_kind = str(desktop_settings.get("camera_kind", "usb")).lower()
+    # Old PowerShell Select-Object exports a null camera_kind even when
+    # calibration_capture.kind correctly identifies the USB camera.
+    # Prefer an explicit kind, then the recorded capture kind.
+    old_kind = str(
+        old_settings.get("camera_kind")
+        or (old_settings.get("calibration_capture") or {}).get("kind")
+        or "usb"
+    ).lower()
+    desktop_kind = str(
+        desktop_settings.get("camera_kind")
+        or (desktop_settings.get("calibration_capture") or {}).get("kind")
+        or "usb"
+    ).lower()
     if old_kind != desktop_kind:
         raise ValueError(
             "CamoとUSBカメラの座標は流用できません。同じカメラ種類で確認してください"
