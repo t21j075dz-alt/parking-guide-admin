@@ -113,9 +113,14 @@ class StableIdMatcher:
         # strong appearance match; all ordinary multi-car matches stay local.
         strong_reid = (
             isolated and old.group == "four_wheel"
-            and not is_same_raw and color is not None and color >= .70
-            and 1.0 <= gap <= 6.5
+            and not is_same_raw and color is not None and color >= .60
+            and 1.0 <= gap <= 3.5
             and distance <= min(.43, .09 + .145 * gap)
+        )
+        continuous_raw_after_turn = (
+            isolated and old.group == "four_wheel" and is_same_raw
+            and color is not None and color >= .68
+            and 3.0 <= gap <= 9.0 and distance <= .44
         )
         predicted = (old.point[0] + old.velocity[0]*gap,
                      old.point[1] + old.velocity[1]*gap)
@@ -130,7 +135,7 @@ class StableIdMatcher:
             and prediction_distance <= .14 + .035 * gap
         )
         if distance > (max(.12, limit) if is_same_raw else limit):
-            if not strong_reid and not moving_prediction:
+            if not strong_reid and not continuous_raw_after_turn and not moving_prediction:
                 return None
 
         if (not is_same_raw and iou is not None and iou < .08
@@ -142,7 +147,7 @@ class StableIdMatcher:
         iou_score = iou if iou is not None else dist_score
         raw_bonus = 1.3 if is_same_raw else 0.
         predicted_bonus = .8 if moving_prediction else 0.
-        color_bonus = .9 if strong_reid else 0.
+        color_bonus = .9 if (strong_reid or continuous_raw_after_turn) else 0.
         return (2.5*iou_score + 1.5*dist_score + .5*color_score
                 + raw_bonus + predicted_bonus + color_bonus - .1*gap)
 
