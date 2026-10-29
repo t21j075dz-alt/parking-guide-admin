@@ -326,13 +326,18 @@ class SpaceObserver:
 
     def __init__(self, space_uids, allow_initial_empty=False,
                  absence_hold_seconds=8.0, initially_confirmed_empty_uids=(),
-                 blocked_confirm_seconds=2.0):
+                 blocked_confirm_seconds=2.0,
+                 initial_empty_deadline_epoch=None):
         self.states = {uid: "unknown" for uid in space_uids}
         self.candidates = {}
         self.since = {}
         self.frames = defaultdict(int)
         self.allow_initial_empty = bool(allow_initial_empty)
         self.initial_approved = set(initially_confirmed_empty_uids)
+        # Explicitly verified empty spaces are valid only within a short
+        # operator-confirmed time window. Legacy configs without a deadline
+        # keep their original behavior for compatibility.
+        self.initial_empty_deadline_epoch = initial_empty_deadline_epoch
         self.absence_hold_seconds = float(absence_hold_seconds)
         self.blocked_confirm_seconds = max(0.3, float(blocked_confirm_seconds))
         self.last_vehicle_seen = {}
@@ -340,6 +345,11 @@ class SpaceObserver:
         self.departure_verified = set()
 
     def update(self, raw: dict[str, str], now: float, departures=()) -> dict[str, str]:
+        if (self.initial_empty_deadline_epoch is not None
+                and time.time() >= float(self.initial_empty_deadline_epoch)):
+            # An old human confirmation cannot be reused as evidence of
+            # empty spaces hours later or after a different car arrives.
+            self.initial_approved.clear()
         for uid in departures:
             if uid in self.states:
                 self.departure_verified.add(uid)
@@ -754,12 +764,26 @@ def main():
         del password
 
     zones = config["space_zones"]
+    initial_empty_deadline = None
+    if config.get("initial_empty_verified_at"):
+        try:
+            stamp = datetime.fromisoformat(str(config["initial_empty_verified_at"]).replace("Z", "+00:00"))
+            if stamp.tzinfo is None:
+                raise ValueError("timezone missing")
+            ttl = max(0, min(900, int(config.get("initial_empty_valid_seconds", 900))))
+            initial_empty_deadline = stamp.timestamp() + ttl
+            if time.time() >= initial_empty_deadline:
+                print("【初期空車確認は期限切れ】空車を勝手に認めません。現地で再確認してください。")
+        except (TypeError, ValueError, OverflowError) as exc:
+            initial_empty_deadline = 0
+            print(f"【初期空車確認が無効】確認日時を解釈できません: {type(exc).__name__}")
     observer = SpaceObserver(
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
         absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
         blocked_confirm_seconds=float(config.get("blocked_confirm_seconds", 2)),
         initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
+        initial_empty_deadline_epoch=initial_empty_deadline,
     )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
