@@ -1,9 +1,13 @@
 """Desktop migration preserves laptop stall polygons but never stale camera/empty state."""
 import unittest
+import json
+import tempfile
+from pathlib import Path
 from copy import deepcopy
 
 from camera_profiles import assert_calibrated_view
-from transfer_home_zones import source_zones, transfer_settings
+from transfer_home_zones import (source_zones, transfer_settings, zone_inventory,
+                                 select_source_path, candidate_config_files)
 
 
 def laptop_settings():
@@ -66,6 +70,55 @@ class HomeZoneTransferTest(unittest.TestCase):
         assert_calibrated_view(result, 1920, 1080)
         self.assertEqual(len(desktop["space_zones"]), 0)
         self.assertEqual(old["source"], 1)
+
+    def test_recover_all_six_polygons_even_if_uid_list_was_shortened(self):
+        old = laptop_settings()
+        old["space_uids"] = ["space_001"]
+        self.assertTrue(zone_inventory(old)["complete"])
+        ids, polygons = source_zones(old)
+        self.assertEqual(ids, [f"space_{n:03d}" for n in range(1, 7)])
+        self.assertEqual(len(polygons), 6)
+        result = transfer_settings(old, desktop_settings(), 1280, 720)
+        self.assertEqual(len(result["space_zones"]), 6)
+
+    def test_incomplete_backup_is_skipped_when_full_backup_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = root / "config.json"
+            current.write_text(json.dumps(desktop_settings()), encoding="utf-8")
+            partial = laptop_settings()
+            partial["space_uids"] = ["space_001"]
+            partial["space_zones"] = {"space_001": partial["space_zones"]["space_001"]}
+            (root / "config_backup_desktop_before_camera.json").write_text(
+                json.dumps(partial), encoding="utf-8")
+            complete = root / "config_backup_calibrate_20261029_170000.json"
+            complete.write_text(json.dumps(laptop_settings()), encoding="utf-8")
+            picked = select_source_path(current, input_fn=lambda _: "")
+            self.assertEqual(picked, complete)
+            self.assertEqual(zone_inventory(partial)["valid_polygons"], 1)
+
+    def test_no_valid_backup_exits_without_editing_current_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = root / "config.json"
+            saved = json.dumps(desktop_settings())
+            current.write_text(saved, encoding="utf-8")
+            old = laptop_settings()
+            old["space_zones"] = {}
+            (root / "config_backup_desktop_before_camera.json").write_text(
+                json.dumps(old), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "変更していません"):
+                select_source_path(current, input_fn=lambda _: "")
+            self.assertEqual(current.read_text(encoding="utf-8"), saved)
+
+    def test_laptop_backup_can_be_selected_by_manual_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = root / "config.json"
+            laptop = root / "old_laptop_config.json"
+            current.write_text(json.dumps(desktop_settings()), encoding="utf-8")
+            laptop.write_text(json.dumps(laptop_settings()), encoding="utf-8")
+            self.assertEqual(select_source_path(current, laptop), laptop)
 
     def test_reject_wrong_aspect_ratio(self):
         with self.assertRaisesRegex(ValueError, "縦横比"):
