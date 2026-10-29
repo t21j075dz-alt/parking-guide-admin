@@ -3480,6 +3480,8 @@ async function remoteLogin() {
     }
     elements.cloudPassword.value = "";
     updateCloudStatus("ログインしました。以後の編集は自動反映されます。");
+    // 管理者ログインが確認できた時点で全施設・既存店舗の音声を生成待ちへ登録。
+    void window.ParkingAdminVoice?.requestBackfill?.();
   } catch {
     if (sessionRevision === state.remoteSessionRevision) {
       updateCloudStatus("ログインできませんでした。ネットワーク接続を確認してください。");
@@ -3546,6 +3548,10 @@ async function uploadLayoutByFacilityId(facilityId) {
 
     if (response.ok) {
       updateCloudStatus(`自動反映済み：${new Date().toLocaleTimeString("ja-JP")}`);
+      // 新規店舗・店舗名称の変更に追従。Supabase保存が成功した場合のみ登録する。
+      const facility = state.facilities.find(f => f.id === facilityId);
+      void window.ParkingAdminVoice?.queueLayout?.(
+        facility, layout, config, state.remoteAccessToken);
       return true;
     }
 
@@ -4349,6 +4355,11 @@ document.addEventListener("keydown", (event) => {
 
 restoreLocal();
 restoreRemoteSession();
+window.ParkingAdminVoice?.setup?.();
+window.ParkingAdminVoice?.configure?.(() => ({
+  facilities: state.facilities, layouts: state.layouts,
+  config: getRemoteConfig(), token: state.remoteAccessToken,
+}));
 initializeTheme();
 initializeFacilities();
 render();
