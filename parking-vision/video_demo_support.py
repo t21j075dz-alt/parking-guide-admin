@@ -69,28 +69,55 @@ def verify_overlay_with_operator(frame, zones, cv2):
 
 
 def draw_demo_phase_labels(view, cv2, zones, phases):
-    """Overlay phase labels separately from the generic OCCUPIED display."""
-    from recorded_parking_states import DISPLAY_PHASES
+    """Show intuitive Japanese labels in recorded-demo frames.
 
+    OpenCV's default font cannot draw Japanese. Windows fonts + Pillow
+    are preferred; a readable English fallback remains for other OSes.
+    """
+    from pathlib import Path
+    import numpy as np
+
+    from recorded_parking_states import DISPLAY_PHASES
     view = view.copy()
-    h, w = view.shape[:2]
-    descriptions = {
-        "available": ("FREE", (70, 200, 70)),
-        "parking_in": ("PARKING IN / 5s", (0, 175, 245)),
-        "stopped": ("STOPPED / 5s", (0, 220, 255)),
-        "exiting": ("EXITING", (90, 180, 255)),
-        "unknown": ("CHECKING", (170, 175, 190)),
-    }
+    height, width = view.shape[:2]
+    placements = []
     for uid, polygon in zones.items():
         phase = (phases or {}).get(uid, "unknown")
-        label, color = descriptions.get(phase, descriptions["unknown"])
         x, y = polygon[0]
-        point = (max(4, min(w-280, int(w*x))), max(50, min(h-20, int(h*y)+45)))
-        cv2.putText(view, f"{uid}: {label}", point, cv2.FONT_HERSHEY_SIMPLEX,
-                    .55, (0, 0, 0), 4, cv2.LINE_AA)
-        cv2.putText(view, f"{uid}: {label}", point, cv2.FONT_HERSHEY_SIMPLEX,
-                    .55, color, 2, cv2.LINE_AA)
-    return view
+        px = max(8, min(width - 265, int(width * x)))
+        py = max(46, min(height - 33, int(height * y) + 49))
+        placements.append((uid, phase, px, py))
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        fonts = [Path(r"C:\Windows\Fonts\meiryo.ttc"),
+                 Path(r"C:\Windows\Fonts\YuGothM.ttc"),
+                 Path(r"C:\Windows\Fonts\msgothic.ttc")]
+        font_path = next((p for p in fonts if p.is_file()), None)
+        if font_path is None:
+            raise OSError("Japanese font unavailable")
+        font = ImageFont.truetype(str(font_path), 21)
+        canvas = Image.fromarray(cv2.cvtColor(view, cv2.COLOR_BGR2RGB))
+        painter = ImageDraw.Draw(canvas)
+        for uid, phase, px, py in placements:
+            label = f"{uid}: {DISPLAY_PHASES.get(phase, '確認中')}"
+            area = painter.textbbox((px+5, py+2), label, font=font)
+            painter.rectangle((px, py, min(width-1, area[2]+9),
+                               min(height-1, area[3]+6)), fill=(22, 30, 42))
+            painter.text((px+5, py+2), label, font=font, fill=(255, 255, 255))
+        return cv2.cvtColor(np.asarray(canvas), cv2.COLOR_RGB2BGR)
+    except (ImportError, OSError, ValueError):
+        english = {
+            "available": "FREE", "parking_in": "PARKING IN",
+            "stopped": "STOPPED", "exiting": "EXITING", "unknown": "CHECKING"
+        }
+        for uid, phase, px, py in placements:
+            label = f"{uid}: {english.get(phase, 'CHECKING')}"
+            cv2.rectangle(view, (px, py-24), (min(width-1, px+260), py+8),
+                          (22, 30, 42), -1)
+            cv2.putText(view, label, (px+5, py), cv2.FONT_HERSHEY_SIMPLEX,
+                        .57, (255, 255, 255), 2, cv2.LINE_AA)
+        return view
 
 
 def demo_status_rows(config, statuses, timestamp, phases=None):
