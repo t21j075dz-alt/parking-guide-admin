@@ -75,8 +75,8 @@ def bottom_footprint_candidate(detection, zones, inside):
     # Example: 14:11 for two adjacent spaces => strongest one wins.
     # A true 12:12 split remains ambiguous: UNKNOWN, not a false neighbor.
     winner = (
-        uid if uid and count >= 5 and count >= total * .52
-        and count >= second * 1.18 else None
+        uid if uid and count >= 5 and count >= total * .60
+        and count >= second * 1.35 else None
     )
     anchor = ((x1 + x2) / (2 * width),
               (y1 + (y2 - y1) * .96) / height)
