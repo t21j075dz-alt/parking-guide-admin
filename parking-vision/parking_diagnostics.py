@@ -29,7 +29,15 @@ class ParkingDiagnosticRecorder:
         self.last = None
 
     def write(self, vehicles, zones, statuses, now):
-        if self.last is not None and now - self.last < self.interval:
+        # The ordinary CSV is sampled at 2-second intervals. A raw YOLO ID
+        # can turn from 1 to 42 and be reassociated in less than one second,
+        # so the only frame with id_reassociated=True was previously skipped.
+        # Always retain that event without increasing the routine sampling
+        # rate or writing camera imagery to the CSV.
+        handoff = any(vehicle.get("id_reassociated") is True
+                      for vehicle in vehicles)
+        if (not handoff and self.last is not None
+                and now - self.last < self.interval):
             return
         self.last = float(now)
         stamp = datetime.now().astimezone().isoformat(timespec="seconds")
