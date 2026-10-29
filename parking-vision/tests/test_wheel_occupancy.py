@@ -1,0 +1,60 @@
+"""Camera-zone regression tests: wheel contacts and near-car human candidates."""
+import unittest
+
+from monitor import classify_spaces, mark_vehicle_overlap, SpaceObserver
+
+
+class WheelOccupancyTest(unittest.TestCase):
+    def setUp(self):
+        self.zones = {
+            "space_001": [[0, 0], [.5, 0], [.5, 1], [0, 1]],
+            "space_002": [[.5, 0], [1, 0], [1, 1], [.5, 1]],
+        }
+
+    def test_two_contacts_in_one_space_can_mark_occupied(self):
+        car = {"point": (.5, .7), "bottom_points": [(.45, .7), (.55, .7)],
+               "wheel_points": [(.60, .7), (.85, .7)]}
+        states = classify_spaces([car], [], self.zones)
+        self.assertEqual(states["space_002"], "occupied")
+        self.assertNotEqual(states["space_001"], "occupied")
+
+    def test_crossing_wheel_contacts_must_not_claim_a_slot(self):
+        car = {"point": (.5, .7), "bottom_points": [(.45, .7), (.55, .7)],
+               "wheel_points": [(.45, .7), (.65, .7)]}
+        states = classify_spaces([car], [], self.zones)
+        self.assertEqual(states["space_001"], "unknown")
+        self.assertEqual(states["space_002"], "unknown")
+
+    def test_unverified_box_bottom_is_not_an_actual_tyrepair(self):
+        car = {"point": (.65, .7), "bottom_points": [(.60, .8), (.70, .8)],
+               "wheel_points": []}
+        states = classify_spaces([car], [], self.zones)
+        self.assertEqual(states["space_002"], "unknown")
+
+    def test_person_overlap_near_vehicle_is_uncertain_not_blocked(self):
+        car = {"point": (.8, .8), "bbox": [100, 100, 300, 290],
+               "wheel_points": [(.60, .75), (.70, .75)]}
+        person = {"point": (.40, .80), "bottom_points": [(.40, .80)],
+                  "bbox": [95, 130, 135, 255], "name": "person"}
+        mark_vehicle_overlap([person], [car])
+        self.assertTrue(person["near_vehicle"])
+        self.assertEqual(classify_spaces([car], [person], self.zones)["space_001"], "unknown")
+
+    def test_isolated_person_remains_a_blocker_candidate(self):
+        person = {"point": (.20, .8), "bottom_points": [(.20, .8)],
+                  "bbox": [15, 10, 90, 180], "name": "person"}
+        mark_vehicle_overlap([person], [])
+        self.assertFalse(person.get("near_vehicle", False))
+        self.assertEqual(classify_spaces([], [person], self.zones)["space_001"], "blocked")
+
+    def test_short_lived_blocker_does_not_change_published_state(self):
+        observer = SpaceObserver(["space_001"], blocked_confirm_seconds=2.0)
+        observer.update({"space_001": "blocked"}, 0)
+        self.assertEqual(observer.update({"space_001": "blocked"}, 1)["space_001"], "unknown")
+        self.assertEqual(observer.update({"space_001": "available"}, 1.5)["space_001"], "unknown")
+        observer.update({"space_001": "blocked"}, 3)
+        self.assertEqual(observer.update({"space_001": "blocked"}, 5.2)["space_001"], "blocked")
+
+
+if __name__ == "__main__":
+    unittest.main()
