@@ -114,7 +114,7 @@ class StableIdMatcher:
         strong_reid = (
             isolated and old.group == "four_wheel"
             and not is_same_raw and color is not None and color >= .78
-            and gap >= 1.0 and distance <= min(.43, .09 + .11 * gap)
+            and gap >= 1.0 and distance <= min(.43, .09 + .145 * gap)
         )
         predicted = (old.point[0] + old.velocity[0]*gap,
                      old.point[1] + old.velocity[1]*gap)
