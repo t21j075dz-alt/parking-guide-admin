@@ -92,11 +92,17 @@ class DemoConfigTests(unittest.TestCase):
     def test_demo_status_rows_are_isolated_and_labeled(self):
         settings = make_video_config(desktop(), notebook())
         rows = demo_status_rows(settings, {"space_001": "occupied"},
-                                "2026-10-29T00:00:00+00:00")
+                                "2026-10-29T00:00:00+00:00",
+                                {"space_001": "stopped"})
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["facility_id"], DEMO_FACILITY)
         self.assertEqual(rows[0]["source"], SOURCE)
         self.assertEqual(rows[0]["status"], "occupied")
+        self.assertEqual(rows[0]["occupancy_phase"], "stopped")
+        with self.assertRaisesRegex(ValueError, "一致していません"):
+            demo_status_rows(settings, {"space_001": "available"},
+                             "2026-10-29T00:00:00+00:00",
+                             {"space_001": "stopped"})
         with self.assertRaises(ValueError):
             demo_status_rows(desktop(), {"space_001": "available"}, "now")
 
