@@ -28,6 +28,7 @@ from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from person_stability import PersonIdStabilizer
+from person_diagnostics import PersonDiagnosticRecorder
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
@@ -838,10 +839,12 @@ def main():
     sequence = 0
     visual_recorder = None
     diagnostic_recorder = None
+    person_diagnostic_recorder = None
     demo_visible = False
     try:
         folder = recording.start()
         diagnostic_recorder = ParkingDiagnosticRecorder(folder)
+        person_diagnostic_recorder = PersonDiagnosticRecorder(folder)
         # 設定したカメラと区画座標の画角が一致するかを、映像取得後に必ず確認。
         # これが失敗した場合はライブ送信せず安全に録画を閉じる。
         first_frame, sequence = recording.next_frame(sequence)
@@ -897,6 +900,7 @@ def main():
             # only once receives no displayed ID, and old YOLO raw IDs are
             # not exposed or uploaded as person identities.
             stable_people.update(blockers, track_now)
+            person_diagnostic_recorder.write(blockers, track_now if video_mode else now)
             # Map each raw vehicle to the parking area *before* stable ID
             # association. Nighttime reflections and distant parked cars
             # otherwise pollute ID memory and swap with actual incoming cars.
@@ -1019,6 +1023,8 @@ def main():
             visual_recorder.close()
         if diagnostic_recorder is not None:
             diagnostic_recorder.close()
+        if person_diagnostic_recorder is not None:
+            person_diagnostic_recorder.close()
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         if writer and video_mode:
             try:
