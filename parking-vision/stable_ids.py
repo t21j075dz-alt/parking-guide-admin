@@ -198,6 +198,30 @@ class StableIdMatcher:
             self._single_detection_now and
             (len(self.last) == 1 or (len(recent) == 1 and others_old))
         )
+        # A stale false-positive identity can prevent a legitimate raw-ID
+        # handoff even when only one *physical* car is present. Instead of
+        # relaxing all matches, select a uniquely plausible recent track:
+        # two or more plausible cars must never be merged.
+        def exclusive_turn_match(record, vector):
+            if not self._single_detection_now or record.get("track_id") is None:
+                return None
+            target = int(record["track_id"])
+            eligible = []
+            for sid, old in self.last.items():
+                gap = now - old.seen
+                if old.group != vehicle_group(record["name"]) or old.raw_id == target:
+                    continue
+                if not (1.0 <= gap <= 3.5):
+                    continue
+                distance = hypot(record["point"][0]-old.point[0],
+                                 record["point"][1]-old.point[1])
+                if distance > min(.43, .09 + .145 * gap):
+                    continue
+                color = similarity(vector, old.appearance)
+                if color is None or color < .60:
+                    continue
+                eligible.append(sid)
+            return eligible[0] if len(eligible) == 1 else None
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
@@ -212,6 +236,7 @@ class StableIdMatcher:
                 sid for sid, old in self.last.items()
                 if raw is not None and old.raw_id == int(raw)
             ]
+            unique_turn_sid = exclusive_turn_match(record, vec)
             for sid, old in self.last.items():
                 if len(raw_owners) == 1 and sid != raw_owners[0]:
                     # Only enforce ownership preference when that owner's
@@ -224,7 +249,10 @@ class StableIdMatcher:
                     )
                     if 0 <= now-owner.seen <= 9.0 and own_distance <= .45:
                         continue
-                score = self._score(record, old, now, vec, isolated=isolated)
+                score = self._score(
+                    record, old, now, vec,
+                    isolated=isolated or sid == unique_turn_sid
+                )
                 if (score is not None and
                         (raw is not None or
                          (now - old.seen <= 2.5 and score >= 1.3))):
