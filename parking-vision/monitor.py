@@ -428,10 +428,12 @@ def mark_vehicle_overlap(blockers: list[dict], vehicles: list[dict]):
     return blockers
 
 
-def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> dict[str, str]:
+def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
+                    parked_track_ids: set[int] | None = None) -> dict[str, str]:
     """Prefer a *pair* of visible tyre contacts to the YOLO bounding-box edge.
 
-    - Both estimated tyre ground contacts in one zone => occupied candidate.
+    - Both tyre contacts in one zone AND a parked track => occupied candidate.
+    - Moving/entering vehicle in a zone => UNKNOWN while it is passing through.
     - One/no wheel or wheels on different zones => uncertain, never free.
     - A person visually merged into the car => uncertain, not BLOCKED.
     The legacy non-camera data format (without 'wheel_points') is preserved
@@ -462,7 +464,15 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> 
         wheels = vehicle["wheel_points"] or []
         wheel_zones = [space_for(point, zones) for point in wheels]
         touched = {uid for uid in wheel_zones if uid is not None}
-        if len(wheels) >= 2 and len(touched) == 1 and all(uid is not None for uid in wheel_zones):
+        matched_wheels = (len(wheels) >= 2 and len(touched) == 1
+                          and all(uid is not None for uid in wheel_zones))
+        # When active tracking information is present, passing traffic must
+        # never be described as a parked car. Legacy video/offline callers
+        # intentionally omit parked_track_ids for backward compatibility.
+        track_id = vehicle.get("track_id")
+        is_parked = (parked_track_ids is None or
+                     track_id is not None and int(track_id) in parked_track_ids)
+        if matched_wheels and is_parked:
             occupied.update(touched)
         else:
             uncertain.update(touched)
@@ -701,7 +711,10 @@ def main():
             # 区画占有だけには信頼度が低い検出を使わない
             occupancy_vehicles = [d for d in vehicles
                                   if d["confidence"] >= float(config.get("confidence", 0.35))]
-            raw = classify_spaces(occupancy_vehicles, blockers, zones)
+            parked_ids = {int(track_id) for track_id, entry in tracks.vehicles.items()
+                          if entry.phase == "parked"}
+            raw = classify_spaces(occupancy_vehicles, blockers, zones,
+                                  parked_track_ids=parked_ids)
             departures = [event["space_uid"] for event in events
                           if event["phase"] == "exiting" and event.get("space_uid")]
             statuses = observer.update(raw, now, departures=departures)
