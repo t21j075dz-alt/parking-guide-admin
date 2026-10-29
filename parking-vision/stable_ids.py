@@ -131,13 +131,24 @@ class StableIdMatcher:
         # A new raw ID can also follow an abrupt turn. Only reconnect a
         # *single* car after 1–3.5s, with modest visual similarity.
         # Never relax proximity in a multi-car scene.
+        # Abrupt YOLO bbox expansion when a car turns can assign raw 42
+        # only 0.1-0.8 seconds after raw 1. The previous >=1-second
+        # requirement silently rejected this real-world turn even with
+        # strong matching colour (around 0.73 in the supplied footage).
+        # Short-gap association requires a *single plausible vehicle*,
+        # strong appearance, spatial proximity and no competing owner.
+        very_short_turn = (
+            isolated and old.group == "four_wheel"
+            and not is_same_raw and color is not None
+            and 0 <= gap < 1.0 and color >= .70 and distance <= .43
+        )
         strong_reid = (
             isolated and old.group == "four_wheel"
             and not is_same_raw and color is not None
             and ((color >= .43 and 1.0 <= gap <= 3.5)
                  or (color >= .78 and 3.5 < gap <= 6.5))
             and distance <= min(.43, .09 + .145 * gap)
-        )
+        ) or very_short_turn
         predicted = (old.point[0] + old.velocity[0]*gap,
                      old.point[1] + old.velocity[1]*gap)
         prediction_distance = hypot(
@@ -211,14 +222,17 @@ class StableIdMatcher:
                 gap = now - old.seen
                 if old.group != vehicle_group(record["name"]) or old.raw_id == target:
                     continue
-                if not (1.0 <= gap <= 3.5):
+                if not (0 <= gap <= 3.5):
                     continue
                 distance = hypot(record["point"][0]-old.point[0],
                                  record["point"][1]-old.point[1])
-                if distance > min(.43, .09 + .145 * gap):
+                distance_limit = (.43 if gap < 1.0
+                                  else min(.43, .09 + .145 * gap))
+                if distance > distance_limit:
                     continue
                 color = similarity(vector, old.appearance)
-                if color is None or color < .60:
+                minimum_color = .70 if gap < 1.0 else .60
+                if color is None or color < minimum_color:
                     continue
                 eligible.append(sid)
             return eligible[0] if len(eligible) == 1 else None
