@@ -37,6 +37,16 @@ class NightCameraMonitoringTest(unittest.TestCase):
         annotate_vehicle_zones([car], self.zones, inside, (720, 1280, 3))
         self.assertTrue(is_monitored_vehicle(car, self.zones, inside))
 
+    def test_approaching_car_is_visible_before_entering_a_stall(self):
+        # A camera must see actual movement before the driver parks.
+        approach = {"track_id": 8, "name": "car", "confidence": .9,
+                    "point": (.08,.67), "bbox": [64, 375, 150, 482],
+                    "wheel_points": []}
+        annotate_vehicle_zones([approach], self.zones, inside, (720, 1280, 3))
+        self.assertIsNone(approach["zone_candidate"])
+        self.assertTrue(is_monitored_vehicle(approach, self.zones, inside))
+        self.assertTrue(approach.get("approach_only"))
+
     def test_unrelated_road_vehicle_does_not_revoke_approved_empty(self):
         car = {"point": (.95,.2), "bbox": [1100,40,1250,120],
                "wheel_points": [], "confidence": .9}
