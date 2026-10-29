@@ -251,21 +251,28 @@ class RecordedParkingStateMachine:
                 else:
                     # Lost detections are not evidence that a car departed.
                     stall.outside_started = None
-            else:  # exiting
+            else:  # exiting: only reached after observed tracked movement out.
                 own = tracked_all.get(stall.track_id)
                 if own and own["zone"] == uid:
-                    # Camera jitter or a vehicle returning to its slot.
+                    # A temporary geometry wobble: the tracked car is back.
                     stall.outside_started = None
                     stall.set_phase("stopped", now)
-                elif own and own["moving"]:
-                    if stall.outside_started is None:
-                        stall.outside_started = now
+                elif observation is not None:
+                    # Another car is in the stall; clearing it would be unsafe.
+                    stall.outside_started = None
+                    stall.set_phase("stopped", now)
+                elif stall.outside_started is not None and (
+                        (own and own["moving"]) or own is None):
+                    # A proven departure can complete even after the car
+                    # passes beyond the configured camera monitoring region.
+                    # Mere disappearance from STOPPED never reaches here.
                     if now - stall.outside_started >= LEAVE_SECONDS:
                         stall.set_phase("available", now)
                         stall.track_id = None
                         stall.overlap_started = None
                         stall.last_inside = None
-                # A lost track does not authorize declaring a slot empty.
+                        stall.movement_observed = False
+                # Without prior movement *out*, a lost track alone is never free.
 
         # a transition-free available stall remains AVAILABLE. A physically
         # visible but unconfirmed car is reported UNKNOWN until 5s.
