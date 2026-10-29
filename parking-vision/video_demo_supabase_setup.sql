@@ -13,7 +13,8 @@ alter table public.parking_live_status
   drop constraint if exists parking_live_status_source_check;
 alter table public.parking_live_status
   add constraint parking_live_status_source_check
-  check (source in ('yolo','recorded_video_demo'));
+  check (source = 'yolo' or
+         (source = 'recorded_video_demo' and facility_id = 'home-video-demo-001'));
 
 -- 管理アプリのマップ配置は同じ6区画を使用する。
 -- 本番データを参照して録画専用施設に別行としてコピーする。
