@@ -116,7 +116,15 @@ class StableIdMatcher:
         )
         # The car can expose a very different frontal/side area; do not
         # reject a credible same-raw turn based on fragile HSV histograms.
-        if color is not None and color < .47 and not same_raw_turn:
+        # Keep strict colour rejection when multiple cars coexist.
+        # In a one-car short turn a different camera angle can reduce
+        # colour similarity slightly below the standard 0.47 threshold.
+        short_single_turn_colour = (
+            isolated and not is_same_raw and 1.0 <= gap <= 3.5
+            and color is not None and color >= .43
+        )
+        if (color is not None and color < .47
+                and not same_raw_turn and not short_single_turn_colour):
             return None
         # A new raw ID can also follow an abrupt turn. Only reconnect a
         # *single* car after 1–3.5s, with modest visual similarity.
