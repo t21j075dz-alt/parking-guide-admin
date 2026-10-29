@@ -185,7 +185,7 @@ def main():
                 raise SystemExit("【中止】保存されたカメラは外付けでない可能性があります。準備から選び直してください")
             continue
 
-        check = input("外付けUSB Webカメラの映像だと確認できたら「外付け」と入力: ").strip()
+        check = input("Camoではない外付けUSB Webカメラの映像なら「外付け」と入力: ").strip()
         if check != "外付け":
             if args.check_only:
                 raise SystemExit("【中止】外付けカメラの確認が完了していません")
@@ -197,15 +197,20 @@ def main():
 
         old_source = settings.get("source")
         old_backend = settings.get("camera_backend")
+        old_kind = str(settings.get("camera_kind") or "usb").lower()
         was_verified = settings.get("camera_verified_external") is True
         # 既存の設定はバックアップしてから変更する。カメラ変更時は枠座標を再登録。
         backup = path.with_name("config_backup_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".json")
         shutil.copy2(path, backup)
         settings["source"] = number
         settings["camera_backend"] = backend
+        # この選択画面は「Camoではない外付けUSB Webカメラ」を
+        # 目視確認する専用の画面。以前のCamo設定を残さない。
+        settings["camera_kind"] = "usb"
         settings["camera_verified_external"] = True
         settings["camera_verified_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
-        if not was_verified or old_source != number or old_backend != backend:
+        if (not was_verified or old_source != number or old_backend != backend
+                or old_kind != "usb"):
             settings["space_zones"] = {}
             settings["entry_zone"] = []
             settings["exit_zone"] = []
