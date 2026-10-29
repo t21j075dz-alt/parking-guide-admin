@@ -172,11 +172,10 @@ class StableIdMatcher:
         observations = []
         # Relaxed long-distance ReID is permissible only for an actual
         # single-car scene; prevent mixing adjacent occupied stalls.
-        active_candidates = [
-            old for old in self.last.values()
-            if now - old.seen <= 3.0
-        ]
-        isolated = (len(detections) == 1 and len(active_candidates) <= 1)
+        # Count all identities still inside the actual retention window.
+        # Two disappeared cars must never be merged into one on a turn,
+        # even if neither was seen in the most recent 3 seconds.
+        isolated = (len(detections) == 1 and len(self.last) == 1)
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
