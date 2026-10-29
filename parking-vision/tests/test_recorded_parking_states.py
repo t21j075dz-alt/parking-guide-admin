@@ -160,6 +160,45 @@ class DemoParkingStateTests(unittest.TestCase):
         chosen, touched, anchor = bottom_footprint_candidate(box,zones,inside)
         self.assertIsNone(chosen)
 
+    def test_latest_video_last_two_seconds_exit_after_id_handoff(self):
+        # Latest 2026-10-29 replay: stationary at 586.7–593s; the
+        # underside leaves both stalls at 595s and the video camera
+        # loses the car at 597s (already outside the monitor polygon).
+        # The 'stable ID' remains 1 after YOLO raw 1→42 reassociation.
+        zones = {
+            "space_003": [
+                [.52417,.61630],[.39500,.74519],
+                [.45667,.76444],[.62083,.62222],
+            ],
+            "space_004": [
+                [.61750,.63556],[.49333,.74074],
+                [.58583,.78222],[.70917,.66370],
+            ],
+        }
+        demo = RecordedParkingStateMachine(zones)
+        for clock in (581,583,585,587,589,591,593):
+            states, phases = demo.update(
+                [detection(1, (530,374,770,527),1280,720)],
+                zones, inside, float(clock))
+        self.assertEqual(phases["space_003"], "stopped")
+        states, phases = demo.update(
+            [detection(1,(698,505,1162,719),1280,720)],
+            zones, inside, 595)
+        self.assertEqual(phases["space_003"], "exiting")
+        self.assertEqual(states["space_003"], "occupied")
+        states, phases = demo.update([], zones, inside, 597)
+        self.assertEqual(phases["space_003"], "available")
+        self.assertEqual(states["space_003"], "available")
+        self.assertEqual(states["space_004"], "available")
+
+    def test_exit_jitter_returns_to_stopped_without_false_vacancy(self):
+        for second in (0,2,4,6,8):
+            self.update(second,[detection(1,(300,400,490,700))])
+        _, phases = self.update(10,[detection(1,(760,400,940,700))])
+        self.assertEqual(phases["space_001"], "exiting")
+        _, phases = self.update(11,[detection(1,(300,400,490,700))])
+        self.assertEqual(phases["space_001"], "stopped")
+
     def test_recorded_frame_clock_never_runs_backward(self):
         self.update(6,[])
         with self.assertRaisesRegex(ValueError,"逆行"):
