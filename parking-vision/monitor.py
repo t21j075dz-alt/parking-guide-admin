@@ -27,6 +27,7 @@ from camera_profiles import capture_preferences, assert_calibrated_view, fit_pre
 from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
+from person_stability import PersonIdStabilizer
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
@@ -665,7 +666,14 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         color = ((125, 125, 125) if detection.get("near_vehicle") else (70, 80, 240)) if is_obstacle else (135, 145, 155) if unverified else (70, 255, 80)
         cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
         ident = detection.get("track_id")
-        track_label = ("ID" + str(ident)) if ident is not None else "ID?"
+        if is_obstacle and detection.get("name") == "person":
+            track_label = ("PERSON ID" + str(ident)
+                           if detection.get("person_confirmed") and ident is not None
+                           else "PERSON (CHECKING)")
+        elif is_obstacle:
+            track_label = ""  # traffic cones / carts do not have person IDs
+        else:
+            track_label = ("ID" + str(ident)) if ident is not None else "ID?"
         confidence = detection.get("confidence")
         value = f"{float(confidence):.2f}" if confidence is not None else "-"
         phase = phases.get(int(ident), "") if ident is not None else ""
@@ -813,6 +821,7 @@ def main():
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
     snapshots = None if video_mode else SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
+    stable_people = PersonIdStabilizer(visible_seconds=1.0)
     night_evidence = NightVehicleEvidenceGate(
         lifetime_seconds=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
@@ -884,6 +893,10 @@ def main():
             # Video replay uses footage timestamps for identity and motion.
             # CPU stalls do not become fake 5-second vehicle observations.
             track_now = recording.frame_index / recording.fps if video_mode else now
+            # Human IDs are independent from vehicle IDs. A person detected
+            # only once receives no displayed ID, and old YOLO raw IDs are
+            # not exposed or uploaded as person identities.
+            stable_people.update(blockers, track_now)
             # Map each raw vehicle to the parking area *before* stable ID
             # association. Nighttime reflections and distant parked cars
             # otherwise pollute ID memory and swap with actual incoming cars.
