@@ -7,7 +7,9 @@ from copy import deepcopy
 
 from camera_profiles import assert_calibrated_view
 from transfer_home_zones import (source_zones, transfer_settings, zone_inventory,
-                                 select_source_path, candidate_config_files)
+                                 select_source_path, candidate_config_files,
+                                 camera_kind, desktop_settings_for_usb_transfer,
+                                 proposed_capture_resolution)
 
 
 def laptop_settings():
@@ -128,6 +130,56 @@ class HomeZoneTransferTest(unittest.TestCase):
         self.assertEqual(len(result["space_zones"]), 6)
         self.assertEqual(result["camera_kind"], "usb")
         self.assertEqual(result["calibration_capture"]["source"], "0")
+
+    def test_old_capture_metadata_determines_usb_kind(self):
+        old = laptop_settings()
+        old["camera_kind"] = None
+        self.assertEqual(camera_kind(old), "usb")
+
+    def test_stale_camo_kind_requires_explicit_usb_confirmation(self):
+        old = laptop_settings()
+        desktop = desktop_settings()
+        desktop["camera_kind"] = "camo"
+        with self.assertRaisesRegex(ValueError, "変更していません"):
+            desktop_settings_for_usb_transfer(old, desktop, lambda _: "")
+        self.assertEqual(desktop["camera_kind"], "camo")
+        converted = desktop_settings_for_usb_transfer(
+            old, desktop, lambda _: "USB"
+        )
+        self.assertEqual(converted["camera_kind"], "usb")
+        self.assertEqual(converted["source"], 0)
+        self.assertEqual(desktop["camera_kind"], "camo")
+        result = transfer_settings(old, converted, 1280, 720)
+        self.assertEqual(result["calibration_capture"]["kind"], "usb")
+
+    def test_different_camera_kind_is_never_auto_converted(self):
+        old = laptop_settings()
+        old["camera_kind"] = "camo"
+        with self.assertRaisesRegex(ValueError, "異なります"):
+            desktop_settings_for_usb_transfer(old, desktop_settings(), lambda _: "USB")
+
+    def test_probe_only_when_aspect_mismatch_and_no_explicit_capture(self):
+        old = laptop_settings()
+        desktop = desktop_settings()
+        self.assertEqual(
+            proposed_capture_resolution(old, desktop, 640, 480), (1280, 720)
+        )
+        self.assertIsNone(
+            proposed_capture_resolution(old, desktop, 1920, 1080)
+        )
+        desktop["camera_capture_width"] = 1280
+        desktop["camera_capture_height"] = 960
+        self.assertIsNone(
+            proposed_capture_resolution(old, desktop, 640, 480)
+        )
+
+    def test_probe_does_not_write_desktop_capture_settings(self):
+        old = laptop_settings()
+        desktop = desktop_settings()
+        self.assertEqual(
+            proposed_capture_resolution(old, desktop, 640, 480), (1280, 720)
+        )
+        self.assertNotIn("camera_capture_width", desktop)
 
     def test_reject_wrong_aspect_ratio(self):
         with self.assertRaisesRegex(ValueError, "縦横比"):
