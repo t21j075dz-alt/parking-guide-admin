@@ -26,6 +26,7 @@ from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from wheel_geometry import estimate_wheel_contacts
+from vehicle_zone import annotate_vehicle_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
 _TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
@@ -217,7 +218,7 @@ class VehicleTracker:
             if track_id is None:
                 continue  # YOLO追跡IDなしでも区画の占有判定は別処理で行う
             point = detected["point"]
-            uid = space_for(point, zones)
+            uid = detected.get("zone_candidate") if "zone_candidate" in detected else space_for(point, zones)
             entry = self.vehicles.get(int(track_id))
             is_new = entry is None
             if is_new:
@@ -472,12 +473,24 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
         track_id = vehicle.get("track_id")
         is_parked = (parked_track_ids is None or
                      track_id is not None and int(track_id) in parked_track_ids)
+        # Field mode provides a lower-body zone estimate as a fallback:
+        # the car must ALSO have remained stationary long enough.
+        candidate = vehicle.get("zone_candidate")
+        zone_touched = set(vehicle.get("zone_touched", []))
+        if "zone_candidate" in vehicle:
+            if is_parked and candidate and (
+                    not matched_wheels or candidate in touched):
+                occupied.add(candidate)
+            else:
+                uncertain.update(zone_touched)
+                if candidate:
+                    uncertain.add(candidate)
+            continue
         if matched_wheels and is_parked:
             occupied.update(touched)
         else:
             uncertain.update(touched)
-            # When wheel detection failed entirely, the box-bottom points
-            # merely identify potentially affected spaces, not free spaces.
+            # Legacy input without image dimensions.
             if not touched:
                 for point in vehicle.get("bottom_points", []):
                     uid = space_for(point, zones)
@@ -509,9 +522,6 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
         # No confident pair => []; never invent wheel locations from a box.
         contacts = estimate_wheel_contacts(frame, vehicle["bbox"])
         vehicle["wheel_points"] = contacts
-        if len(contacts) == 2:
-            vehicle["point"] = tuple(sum(point[i] for point in contacts) / 2
-                                     for i in (0, 1))
     # 追跡器には低確信度の検出も渡すが、占有判定には最低限の信頼を求める。
     # IDの連続性向上のため、検出した車両そのものはここでは除外しない。
     blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
@@ -585,6 +595,10 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         text_y = y1 - 7 if y1 >= 31 else min(height - 8, y2 + 17)
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
+            zone_candidate = detection.get("zone_candidate")
+            if zone_candidate:
+                draw_text(f"ZONE EST: {zone_candidate}", (x1, min(height - 8, y2 + 16)),
+                          .44, (245, 210, 80), 1)
             wheel_points = detection.get("wheel_points") or []
             for nx, ny in wheel_points:
                 px, py = round(nx * width), round(ny * height)
@@ -705,6 +719,9 @@ def main():
             )
             now = time.monotonic()
             vehicles = stable_ids.update(vehicles, now, frame=frame)
+            # Keep tracking point independent of flickering wheel detection.
+            # Lower-body zones take over only the *space* mapping.
+            annotate_vehicle_zones(vehicles, zones, inside, frame.shape)
             events = tracks.update(vehicles, zones, config.get("exit_zone", []), now)
             for event in events:
                 pending_sessions[event["session_id"]] = event
