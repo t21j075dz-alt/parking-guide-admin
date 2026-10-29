@@ -29,6 +29,7 @@ from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from wheel_geometry import estimate_wheel_contacts
 from vehicle_zone import annotate_vehicle_zones
+from parking_diagnostics import ParkingDiagnosticRecorder
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
 _TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
@@ -286,6 +287,7 @@ class VehicleTracker:
             detected["confirmed_parked_space"] = (
                 entry.space_uid if entry.phase == "parked"
                 and (uid in (None, entry.space_uid))
+                and detected.get("zone_basis") != "conflict"
                 and (entry.stationary or uid == entry.space_uid)
                 else None)
             if is_new or entry.phase != previous:
@@ -762,8 +764,10 @@ def main():
     )
     sequence = 0
     visual_recorder = None
+    diagnostic_recorder = None
     try:
         folder = recording.start()
+        diagnostic_recorder = ParkingDiagnosticRecorder(folder)
         # 設定したカメラと区画座標の画角が一致するかを、映像取得後に必ず確認。
         # これが失敗した場合はライブ送信せず安全に録画を閉じる。
         first_frame, sequence = recording.next_frame(sequence)
@@ -779,6 +783,7 @@ def main():
         )
         print(f"【録画保存先】{folder}")
         print("【録画について】生映像とYOLO判定付き動画をPC内に別々に保存します")
+        print("【原因の特定】同じフォルダの「駐車区画_判定診断.csv」に位置・停止・区画投票を記録します")
         while True:
             frame, sequence = recording.next_frame(sequence)
             try:
@@ -815,6 +820,10 @@ def main():
                 recording.log_status(statuses)
             # ネットワーク更新が遅くても、推論直後の判定映像を先に保存する。
             phases = {int(tid): record.phase for tid, record in tracks.vehicles.items()}
+            for detection in vehicles:
+                ident = detection.get("track_id")
+                detection["phase"] = phases.get(int(ident), "untracked") if ident is not None else "untracked"
+            diagnostic_recorder.write(vehicles, zones, statuses, now)
             annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
             visual_recorder.write(annotated, now=time.monotonic())
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
@@ -860,6 +869,8 @@ def main():
         # 再生可能なMP4にするため、停止時には両方のライターを閉じる。
         if visual_recorder is not None:
             visual_recorder.close()
+        if diagnostic_recorder is not None:
+            diagnostic_recorder.close()
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         camera.release()
         if args.preview:
