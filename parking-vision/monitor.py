@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from math import hypot
+from statistics import median
 from datetime import datetime, timezone
 from getpass import getpass
 import json
@@ -141,7 +143,50 @@ class Vehicle:
     candidate_started_at: str | None = None
     outside_since: float = 0.0
     outside_started_at: str | None = None
-    locations: deque = field(default_factory=lambda: deque(maxlen=90))
+    locations: deque = field(default_factory=lambda: deque(maxlen=150))
+    zone_history: deque = field(default_factory=lambda: deque(maxlen=150))
+    stationary: bool = False
+    smoothed_uid: str | None = None
+    zone_votes: int = 0
+    park_anchor: tuple[float, float] | None = None
+
+    def _stable_space(self, uid: str | None, now: float) -> str | None:
+        """Do not erase a stall vote because wheels are missing for one frame.
+
+        Only recorded observations within 4.5 seconds count. A competing
+        stall or too few votes gives UNKNOWN, never a best-guess occupancy.
+        """
+        self.zone_history.append((now, uid))
+        recent = [zone for clock, zone in self.zone_history if now - clock <= 4.5]
+        votes = {zone: recent.count(zone) for zone in set(recent) if zone is not None}
+        ordered = sorted(votes.items(), key=lambda item: item[1], reverse=True)
+        top, count = ordered[0] if ordered else (None, 0)
+        second = ordered[1][1] if len(ordered) > 1 else 0
+        self.zone_votes = count
+        if (top and count >= 3 and count > second * 2 and
+                count >= 0.32 * len(recent)):
+            return top
+        return None
+
+    def _is_stationary(self, now: float) -> bool:
+        """Robust to occasional YOLO box jitter, but not a passing car.
+
+        Requires more than 1.8 seconds of observations with an unmoving
+        endpoint and most points near the median. No vehicle ID means no
+        stationary state and therefore no new OCCUPIED detection.
+        """
+        recent = [(t, p) for t, p in self.locations if now - t <= 3.5]
+        if len(recent) < 3 or recent[-1][0] - recent[0][0] < 1.8:
+            return False
+        xs = [p[0] for _, p in recent]
+        ys = [p[1] for _, p in recent]
+        center = (median(xs), median(ys))
+        distances = sorted(hypot(p[0] - center[0], p[1] - center[1])
+                           for _, p in recent)
+        p80 = distances[min(len(distances) - 1, int(.8 * (len(distances) - 1)))]
+        # A continuously moving car can have a compact box for 1-2 frames;
+        # compare the endpoints as well as spread over a >=1.8-second window.
+        return p80 <= .022 and hypot(xs[-1] - xs[0], ys[-1] - ys[0]) <= .028
 
     def observe(self, point: tuple[float, float], uid: str | None,
                 in_exit: bool, now: float, park_seconds: float):
@@ -149,33 +194,39 @@ class Vehicle:
         self.last_seen_at = utc_now()
         self.position_x, self.position_y = point
         self.locations.append((now, point))
+        self.stationary = self._is_stationary(now)
+        self.smoothed_uid = self._stable_space(uid, now)
         if uid is None and self.phase in {"entering", "moving"}:
             self.arrived_from_outside = True
-        recent = [p for t, p in self.locations if now - t <= 3]
-        stationary = len(recent) >= 3 and max(
-            ((p[0] - recent[0][0]) ** 2 + (p[1] - recent[0][1]) ** 2) ** 0.5
-            for p in recent
-        ) < 0.015
 
         if self.phase in {"entering", "moving"}:
-            if uid and stationary:
-                if self.candidate_uid != uid:
-                    self.candidate_uid, self.candidate_since = uid, now
+            # Require multiple observations of the same zone and at least
+            # park_seconds of a stable position, even if raw zone estimates
+            # temporarily disappear on shadows or camera edges.
+            if self.smoothed_uid and self.stationary:
+                if self.candidate_uid != self.smoothed_uid:
+                    self.candidate_uid = self.smoothed_uid
+                    self.candidate_since = now
                     self.candidate_started_at = utc_now()
                 elif now - self.candidate_since >= park_seconds:
-                    self.phase, self.space_uid = "parked", uid
-                    # 駐車開始は「確定した時刻」ではなく「停止を始めた時刻」。
-                    # 動画開始時点で既に駐車していた車は、駐車開始時刻が不明。
-                    # 入場/移動を画面で確認した車だけ開始時刻を確定する。
+                    self.phase, self.space_uid = "parked", self.smoothed_uid
+                    self.park_anchor = point
+                    # Camera started while already parked => start unknown.
                     self.parked_at = (self.candidate_started_at or utc_now()) if self.arrived_from_outside else None
             else:
+                # A few lost zone samples are covered by smoothed_uid;
+                # real motion resets parking confirmation.
                 self.candidate_uid = None
                 self.candidate_started_at = None
                 if self.phase == "entering" and len(self.locations) > 3:
                     self.phase = "moving"
 
         if self.phase == "parked":
-            if uid != self.space_uid:
+            moved_from_space = (self.park_anchor is not None
+                                and hypot(point[0] - self.park_anchor[0],
+                                          point[1] - self.park_anchor[1]) >= .045)
+            # Missing zone estimates ALONE are not evidence of departure.
+            if not self.stationary and moved_from_space and uid != self.space_uid:
                 if self.outside_since == 0.0:
                     self.outside_since = now
                     self.outside_started_at = utc_now()
@@ -226,6 +277,17 @@ class VehicleTracker:
                 self.vehicles[int(track_id)] = entry
             previous = entry.phase
             entry.observe(point, uid, bool(exit_zone and inside(point, exit_zone)), now, self.park_seconds)
+            detected["zone_smoothed"] = entry.smoothed_uid
+            detected["stationary"] = entry.stationary
+            detected["zone_votes"] = entry.zone_votes
+            # If a reliably parked vehicle briefly loses its wheel and
+            # lower-body position, keep the previously verified stall,
+            # unless this frame gives contradictory zone evidence.
+            detected["confirmed_parked_space"] = (
+                entry.space_uid if entry.phase == "parked"
+                and (uid in (None, entry.space_uid))
+                and (entry.stationary or uid == entry.space_uid)
+                else None)
             if is_new or entry.phase != previous:
                 changed.append(entry.row())
         for track_id, entry in list(self.vehicles.items()):
@@ -478,13 +540,21 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
         candidate = vehicle.get("zone_candidate")
         zone_touched = set(vehicle.get("zone_touched", []))
         if "zone_candidate" in vehicle:
-            if is_parked and candidate and (
-                    not matched_wheels or candidate in touched):
-                occupied.add(candidate)
+            confirmed = vehicle.get("confirmed_parked_space")
+            chosen = candidate or confirmed
+            # All other touched stalls are unknown, not silently AVAILABLE.
+            # In particular, bbox overflow into a neighboring stall must
+            # not be advertised as an empty parking space.
+            if is_parked and chosen and (
+                    candidate is None or not matched_wheels or candidate in touched):
+                occupied.add(chosen)
+                uncertain.update(zone_touched - {chosen})
             else:
                 uncertain.update(zone_touched)
                 if candidate:
                     uncertain.add(candidate)
+                if confirmed:
+                    uncertain.add(confirmed)
             continue
         if matched_wheels and is_parked:
             occupied.update(touched)
@@ -596,9 +666,14 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
             zone_candidate = detection.get("zone_candidate")
-            if zone_candidate:
-                draw_text(f"ZONE EST: {zone_candidate}", (x1, min(height - 8, y2 + 16)),
-                          .44, (245, 210, 80), 1)
+            phase_name = phases.get(int(ident), "") if ident is not None else ""
+            reported = zone_candidate or detection.get("zone_smoothed") or "?"
+            diagnostic = (f"ZONE {reported} ({detection.get('zone_basis', '?')}) "
+                          f"VOTES {detection.get('zone_votes', 0)} "
+                          f"STILL {int(bool(detection.get('stationary')))} "
+                          f"{phase_name.upper()}")
+            draw_text(diagnostic, (x1, min(height - 8, y2 + 16)),
+                      .43, (245, 210, 80), 1)
             wheel_points = detection.get("wheel_points") or []
             for nx, ny in wheel_points:
                 px, py = round(nx * width), round(ny * height)
