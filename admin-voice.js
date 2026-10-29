@@ -10,6 +10,7 @@ window.ParkingAdminVoice = (() => {
   const seen = new Map();
   let statusText = null;
   let active = false;
+  let getContext = null;
 
   function setup() {
     if (document.querySelector("#admin-voice-queue-panel")) return;
@@ -128,5 +129,17 @@ window.ParkingAdminVoice = (() => {
       + " 件／生成中 " + (t.processing || 0) + " 件／再試行待ち " + (t.retry || 0)
       + " 件／生成失敗 " + (t.failed || 0) + " 件");
   }
-  return Object.freeze({ setup, queueLayout, queueCatalog, refresh, itemsForFacility, itemsForCatalog });
+  function configure(callback) { getContext = callback; }
+  async function requestBackfill() {
+    if (!getContext) return;
+    const x = getContext();
+    return queueCatalog(x.facilities, x.layouts, x.config, x.token);
+  }
+  async function requestStatus() {
+    if (!getContext) return;
+    const x = getContext();
+    return refresh(x.config, x.token);
+  }
+  return Object.freeze({ setup, configure, requestBackfill, requestStatus,
+    queueLayout, queueCatalog, refresh, itemsForFacility, itemsForCatalog });
 })();
