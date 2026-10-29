@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Check JavaScript syntax
-        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js
+        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js && node --check admin-voice.js && node --check voice-speech-readings.js
       - name: Run admin tests
         run: node --test tests/*.test.cjs
       - name: Install dependencies for camera snapshot tests
