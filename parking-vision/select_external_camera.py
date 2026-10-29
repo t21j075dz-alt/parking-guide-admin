@@ -16,22 +16,99 @@ import cv2
 from camera_recording import open_camera
 
 
-def preview(camera):
-    """Sで確認、Nで別のカメラ、Qで中止。"""
-    name = "Web camera confirmation (S=external / N=other / Q=quit)"
+PREVIEW_WIDTH = 1080
+PREVIEW_HEIGHT = 740
+VIDEO_TOP = 108
+VIDEO_BOTTOM = 590
+
+
+def _prepare_preview_text(number, backend):
+    """日本語操作パネルを一度だけ描く。動画の上には文字を重ねない。"""
+    import numpy as np
+
+    panel = np.empty((PREVIEW_HEIGHT, PREVIEW_WIDTH, 3), dtype=np.uint8)
+    panel[:] = (26, 28, 32)
+    # OpenCV Hersheyフォントは日本語非対応。PillowとWindowsの日本語
+    # フォントを使い、失敗したら読める英語で表示する。
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        windows_fonts = [
+            Path(r"C:\Windows\Fonts\meiryo.ttc"),
+            Path(r"C:\Windows\Fonts\YuGothM.ttc"),
+            Path(r"C:\Windows\Fonts\msgothic.ttc"),
+        ]
+        font_path = next((p for p in windows_fonts if p.is_file()), None)
+        if not font_path:
+            raise FileNotFoundError("日本語フォントがありません")
+
+        title_font = ImageFont.truetype(str(font_path), 29)
+        main_font = ImageFont.truetype(str(font_path), 25)
+        small_font = ImageFont.truetype(str(font_path), 20)
+        canvas = Image.fromarray(cv2.cvtColor(panel, cv2.COLOR_BGR2RGB))
+        painter = ImageDraw.Draw(canvas)
+        painter.text((22, 12), "外付けUSBカメラの映像を確認してください",
+                     font=title_font, fill=(252, 252, 255))
+        painter.text((22, 58), f"カメラ番号：{number}　　接続方式：{backend}",
+                     font=main_font, fill=(170, 214, 244))
+        painter.text((22, 615), "[ S ] 正しいカメラ　　[ N ] 別のカメラ　　[ Q ] 中止",
+                     font=main_font, fill=(255, 255, 255))
+        painter.text((22, 678), "Sキーで確認後、PowerShell画面で「外付け」と入力します",
+                     font=small_font, fill=(188, 197, 209))
+        return cv2.cvtColor(np.asarray(canvas), cv2.COLOR_RGB2BGR)
+    except (ImportError, OSError, ValueError):
+        # 日本語フォントやPillowがないPCでも操作を止めない。
+        instructions = [
+            "CHECK YOUR EXTERNAL USB CAMERA",
+            f"Camera {number} / Backend {backend}",
+            "S = CONFIRM   N = OTHER CAMERA   Q = QUIT",
+            "After S, return to PowerShell and type the requested confirmation.",
+        ]
+        for label, y, size in zip(instructions, (39, 83, 645, 699),
+                                  (0.90, 0.75, 0.85, 0.56)):
+            cv2.putText(panel, label, (22, y), cv2.FONT_HERSHEY_SIMPLEX,
+                        size, (242, 245, 249), 2, cv2.LINE_AA)
+        return panel
+
+
+def render_preview_frame(image, panel):
+    """大きなプレビュー領域へ縦横比を維持して表示（画角は切り抜かない）。"""
+    import numpy as np
+
+    result = panel.copy()
+    h, w = image.shape[:2]
+    if w <= 0 or h <= 0:
+        return result
+    video_width = PREVIEW_WIDTH - 32
+    video_height = VIDEO_BOTTOM - VIDEO_TOP - 12
+    scale = min(video_width / w, video_height / h)
+    display_w = max(1, round(w * scale))
+    display_h = max(1, round(h * scale))
+    resized = cv2.resize(image, (display_w, display_h),
+                         interpolation=cv2.INTER_AREA if scale < 1 else cv2.INTER_LINEAR)
+    x = (PREVIEW_WIDTH - display_w) // 2
+    y = VIDEO_TOP + (video_height - display_h) // 2
+    result[y:y + display_h, x:x + display_w] = resized
+    cv2.rectangle(result, (x - 2, y - 2), (x + display_w + 2, y + display_h + 2),
+                  (120, 130, 144), 2, cv2.LINE_AA)
+    return result
+
+
+def preview(camera, number="?", backend="auto"):
+    """大きな日本語表示でS=確認、N=別カメラ、Q=中止。"""
+    name = "Parking Camera Check (S=OK / N=Next / Q=Quit)"
     cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(name, PREVIEW_WIDTH, PREVIEW_HEIGHT)
+    panel = _prepare_preview_text(number, backend)
+    print(f"【確認画面】カメラ番号 {number} / 接続方式 {backend}")
+    print("【映像画面の操作】S=このカメラで決定、N=別のカメラ、Q=中止")
     try:
         while True:
             ok, image = camera.read()
             if not ok:
                 print("【注意】映像を取得できません。別の番号を選んでください。")
                 return "other"
-            view = image.copy()
-            cv2.putText(
-                view, "Is this your EXTERNAL USB camera? S=yes N=no Q=quit",
-                (12, 30), cv2.FONT_HERSHEY_SIMPLEX, .53, (10, 255, 20), 2
-            )
-            cv2.imshow(name, view)
+            cv2.imshow(name, render_preview_frame(image, panel))
             key = cv2.waitKey(30) & 0xFF
             if key in (ord("s"), ord("S")):
                 return "select"
@@ -96,7 +173,7 @@ def main():
                 continue
 
         try:
-            answer = preview(camera)
+            answer = preview(camera, number=number, backend=backend)
         finally:
             camera.release()
             cv2.destroyAllWindows()
