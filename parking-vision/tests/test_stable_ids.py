@@ -30,6 +30,15 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(changed["track_id"], 1)
         self.assertEqual(changed["raw_track_id"], 3)
 
+    def test_unique_turn_accepts_moderate_color_match_below_standard_gate(self):
+        matching=StableIdMatcher(max_missing=12)
+        old=detection(1,.477,.757,appearance=[1,0])
+        old["bbox"]=[481,385,741,545]
+        new=detection(42,.741,.995,appearance=[.445,.896])
+        new["bbox"]=[669,504,1227,720]
+        self.assertEqual(matching.update([old],592)[0]["track_id"],1)
+        self.assertEqual(matching.update([new],594)[0]["track_id"],1)
+
     def test_turn_reid_does_not_bridge_different_color(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
