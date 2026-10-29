@@ -843,20 +843,25 @@ def main():
                 night_vision_mode=str(config.get("night_vision_mode", "auto")),
             )
             now = time.monotonic()
-            vehicles = stable_ids.update(vehicles, now, frame=frame)
-            # Keep tracking point independent of flickering wheel detection.
-            # Lower-body zones take over only the *space* mapping.
+            # Map each raw vehicle to the parking area *before* stable ID
+            # association. Nighttime reflections and distant parked cars
+            # otherwise pollute ID memory and swap with actual incoming cars.
             annotate_vehicle_zones(vehicles, zones, inside, frame.shape)
-            # Night-time false car boxes at the distant road, hedge and frame
-            # borders must not become vehicle sessions for this parking lot.
-            monitored_vehicles = []
+            monitored_raw = []
+            ignored = []
             for vehicle in vehicles:
                 relevant = is_monitored_vehicle(
                     vehicle, zones, inside, config.get("entry_zone", []),
                     config.get("exit_zone", []))
                 vehicle["monitored"] = relevant
                 if relevant:
-                    monitored_vehicles.append(vehicle)
+                    monitored_raw.append(vehicle)
+                else:
+                    vehicle["ignored_raw_track_id"] = vehicle.get("track_id")
+                    vehicle["track_id"] = None  # Not a managed vehicle session.
+                    ignored.append(vehicle)
+            monitored_vehicles = stable_ids.update(monitored_raw, now, frame=frame)
+            vehicles = monitored_vehicles + ignored
             events = tracks.update(monitored_vehicles, zones,
                                    config.get("exit_zone", []), now)
             for event in events:
