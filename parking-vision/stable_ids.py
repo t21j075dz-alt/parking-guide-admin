@@ -113,8 +113,9 @@ class StableIdMatcher:
         # strong appearance match; all ordinary multi-car matches stay local.
         strong_reid = (
             isolated and old.group == "four_wheel"
-            and not is_same_raw and color is not None and color >= .60
-            and 1.0 <= gap <= 3.5
+            and not is_same_raw and color is not None
+            and ((color >= .60 and 1.0 <= gap <= 3.5)
+                 or (color >= .78 and 3.5 < gap <= 6.5))
             and distance <= min(.43, .09 + .145 * gap)
         )
         continuous_raw_after_turn = (
