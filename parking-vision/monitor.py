@@ -29,7 +29,8 @@ from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from wheel_geometry import estimate_wheel_contacts
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
-from night_vision import inference_frame
+from night_vision import inference_frame, is_low_light
+from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
 from zone_geometry import normalize_corners, audit_zones
 
@@ -568,6 +569,15 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
         candidate = vehicle.get("zone_candidate")
         zone_touched = set(vehicle.get("zone_touched", []))
         if "zone_candidate" in vehicle:
+            if vehicle.get("night_verified") is False:
+                # At night a static railing, reflection or hedge may be a
+                # highly confident car class. Treat its affected spaces as
+                # UNKNOWN rather than letting a ghost vehicle occupy/free one.
+                uncertain.update(zone_touched)
+                uncertain.update(vehicle.get("zone_nearby", []))
+                if candidate:
+                    uncertain.add(candidate)
+                continue
             confirmed = vehicle.get("confirmed_parked_space")
             chosen = candidate or confirmed
             # All other touched stalls are unknown, not silently AVAILABLE.
@@ -680,20 +690,27 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         y1 = max(0, min(height - 1, y1))
         y2 = max(0, min(height - 1, y2))
         is_obstacle = detection in obstacles
-        color = ((125, 125, 125) if detection.get("near_vehicle") else (70, 80, 240)) if is_obstacle else (70, 255, 80)
+        unverified = (not is_obstacle and (detection.get("monitored") is False
+                        or detection.get("night_verified") is False))
+        color = ((125, 125, 125) if detection.get("near_vehicle") else (70, 80, 240)) if is_obstacle else (135, 145, 155) if unverified else (70, 255, 80)
         cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
         ident = detection.get("track_id")
         track_label = ("ID" + str(ident)) if ident is not None else "ID?"
         confidence = detection.get("confidence")
         value = f"{float(confidence):.2f}" if confidence is not None else "-"
         phase = phases.get(int(ident), "") if ident is not None else ""
-        line = f"{detection.get('name', 'object')} {track_label} {value}"
+        detected_name = detection.get('name', 'object')
+        if unverified:
+            detected_name += "? (UNVERIFIED)"
+        line = f"{detected_name} {track_label} {value}"
         if detection.get("near_vehicle"):
             line += " UNCERTAIN (near vehicle)"
         if phase:
             line += f" {phase.upper()}"
         if not is_obstacle and detection.get("monitored") is False:
             line += " IGNORED: OUTSIDE CAMERA ZONES"
+        elif not is_obstacle and detection.get("night_verified") is False:
+            line += " NIGHT: NO APPROACH EVIDENCE"
         text_y = y1 - 7 if y1 >= 31 else min(height - 8, y2 + 17)
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
@@ -717,8 +734,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
     stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
     draw_text(f"YOLO ANALYSIS AT {stamp}", (12, height + 25), .58, (255, 255, 255), 2)
     draw_text(
-        f"VEHICLES: {len(vehicle_detections)}   BLOCKERS: {len(obstacles)}"
-        "   GREEN=vehicle   RED=obstacle",
+        f"VEHICLES VERIFIED: {sum(1 for v in vehicle_detections if v.get('night_verified', True) and v.get('monitored', True))}"
+        f" / DETECTED: {len(vehicle_detections)}   BLOCKERS: {len(obstacles)}"
+        "   GREEN=verified GRAY=unverified RED=obstacle",
         (12, height + 50), .48,
     )
     draw_text(
@@ -797,6 +815,8 @@ def main():
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
     snapshots = SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
+    night_evidence = NightVehicleEvidenceGate(
+        lifetime_seconds=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
     pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
@@ -861,8 +881,13 @@ def main():
                     vehicle["track_id"] = None  # Not a managed vehicle session.
                     ignored.append(vehicle)
             monitored_vehicles = stable_ids.update(monitored_raw, now, frame=frame)
+            dark = is_low_light(frame)
+            night_evidence.update(monitored_vehicles, now, low_light=dark)
+            # Keep doubtful car boxes visible for diagnosis, but never start
+            # a live vehicle session for them merely because YOLO says 'car'.
+            verified_vehicles = [d for d in monitored_vehicles if d["night_verified"]]
             vehicles = monitored_vehicles + ignored
-            events = tracks.update(monitored_vehicles, zones,
+            events = tracks.update(verified_vehicles, zones,
                                    config.get("exit_zone", []), now)
             for event in events:
                 pending_sessions[event["session_id"]] = event
