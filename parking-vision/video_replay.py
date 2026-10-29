@@ -70,7 +70,7 @@ class VideoReplay:
             "w", newline="", encoding="utf-8-sig"
         )
         self._status_writer = csv.writer(self._status_file)
-        self._status_writer.writerow(["判定日時", "録画経過秒数", "区画UID", "判定状態"])
+        self._status_writer.writerow(["判定日時", "録画経過秒数", "区画UID", "判定状態", "車両段階"])
         self._status_file.flush()
         print(f"【録画実演】{self.filename.name} / FPS {self.fps:.2f} / "
               f"総フレーム {self.frame_total or '不明'}")
@@ -117,13 +117,13 @@ class VideoReplay:
         self.frame_index = target
         return frame, target + 1
 
-    def log_status(self, statuses):
+    def log_status(self, statuses, phases=None):
         if self._status_writer is None:
             return
         timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
         elapsed = f"{self.frame_index / self.fps:.3f}"
         for uid, status in statuses.items():
-            self._status_writer.writerow([timestamp, elapsed, uid, status])
+            self._status_writer.writerow([timestamp, elapsed, uid, status, (phases or {}).get(uid, "unknown")])
         self._status_file.flush()
 
     def close(self):
