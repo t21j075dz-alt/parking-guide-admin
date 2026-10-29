@@ -27,7 +27,6 @@ from camera_profiles import capture_preferences, assert_calibrated_view, fit_pre
 from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
-from wheel_geometry import estimate_wheel_contacts
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
@@ -619,7 +618,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
                 tracker_file: str = DEFAULT_TRACKER, image_size: int = 960,
                 occupancy_confidence: float = 0.35,
                 night_vision_mode: str = "auto"):
-    """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
+    """モデルが使えるか確認し、車体底面判定で追跡する。"""
     height, width = frame.shape[:2]
     model_frame, _, _ = inference_frame(frame, mode=night_vision_mode)
     results = vehicle_model.track(
@@ -627,11 +626,8 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
         imgsz=image_size, verbose=False,
     )
     vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
-    for vehicle in vehicles:
-        # Actual image features are checked for two tyre-like circles.
-        # No confident pair => []; never invent wheel locations from a box.
-        contacts = estimate_wheel_contacts(frame, vehicle["bbox"])
-        vehicle["wheel_points"] = contacts
+    # Only the bottom of the vehicle detection box decides stall location.
+    # Untrained Hough wheel-circle estimates are not executed.
     # 追跡器には低確信度の検出も渡すが、占有判定には最低限の信頼を求める。
     # IDの連続性向上のため、検出した車両そのものはここでは除外しない。
     blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
@@ -723,11 +719,7 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
                           f"{phase_name.upper()}")
             draw_text(diagnostic, (x1, min(height - 8, y2 + 16)),
                       .43, (245, 210, 80), 1)
-            wheel_points = detection.get("wheel_points") or []
-            for nx, ny in wheel_points:
-                px, py = round(nx * width), round(ny * height)
-                cv2.circle(view, (px, py), 7, (255, 0, 255), 2, cv2.LINE_AA)
-                draw_text("WHEEL EST.", (px + 8, py - 6), .35, (255, 0, 255), 1)
+            # 車体底面方式に統一。ホイール推定点は表示しない。
 
     # RECではなくYOLO ANALYSIS。推論が間に合わずコマを複製しても
     # 「毎フレーム新しい判定が走った」と誤解されないように時刻を固定。
@@ -743,7 +735,7 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
         (12, height + 72), .45,
     )
-    draw_text("Magenta WHEEL EST. = image-based estimate, not verified tyre keypoint",
+    draw_text("ZONE = CAR BOTTOM FOOTPRINT / NO WHEEL-CIRCLE ESTIMATION",
               (12, height + 91), .40, (180, 185, 190))
     # Keep the timing warning in the PowerShell log; repeated video frames
     # still carry the same YOLO ANALYSIS timestamp.
