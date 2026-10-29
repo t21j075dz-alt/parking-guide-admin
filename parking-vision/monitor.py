@@ -285,7 +285,14 @@ class SpaceObserver:
                       and uid not in self.initial_approved):
                     # 初期フレームで見えない車があるかもしれない
                     desired = "unknown"
-            elif reported not in {"blocked", "unknown"}:
+            elif reported == "unknown":
+                # If a wheel pair is briefly lost but this space was recently
+                # confirmed occupied, keep OCCUPIED for the configured hold.
+                # A persistent uncertain view returns to UNKNOWN, never FREE.
+                last_seen = self.last_vehicle_seen.get(uid)
+                if last_seen is not None and now - last_seen < self.absence_hold_seconds:
+                    desired = "occupied"
+            elif reported != "blocked":
                 desired = "unknown"
 
             if desired != self.candidates.get(uid):
