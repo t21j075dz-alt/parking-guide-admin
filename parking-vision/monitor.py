@@ -756,32 +756,51 @@ def main():
     parser.add_argument("--config", default="config.json", help="撮影範囲とクラウド設定")
     parser.add_argument("--preview", action="store_true", help="検知範囲と状態を表示する")
     parser.add_argument("--dry-run", action="store_true", help="クラウドに書き込まず試す")
+    parser.add_argument("--video", default="", help="録画動画を実時間に合わせてYOLO判定する")
+    parser.add_argument("--demo-publish", action="store_true",
+                        help="録画実演専用施設だけに判定を共有（実カメラ施設とは分離）")
+    parser.add_argument("--verified-empty", default="",
+                        help="録画の冒頭で目視確認した空き区画ID（カンマ区切り、省略可能）")
     args = parser.parse_args()
     config = load_config(args.config)
+    from video_demo_support import (
+        require_demo_mode, parse_verified_empty, draw_demo_watermark,
+        verify_overlay_with_operator, demo_status_rows, set_demo_visibility,
+    )
+    require_demo_mode(config, args)
+    video_mode = bool(args.video)
+    if args.verified_empty and not video_mode:
+        raise ValueError("--verified-empty は録画実演用です")
     try:
         import cv2
         from ultralytics import YOLO
     except ImportError as ex:
         raise SystemExit("必要なライブラリがありません。python -m pip install -r requirements.txt") from ex
 
-    source = config["source"]
-    req_w, req_h, req_fps = capture_preferences(config)
-    camera = open_camera(cv2, source, config.get("camera_backend", "auto"),
-                         config.get("camera_manual_exposure"),
-                         req_w, req_h, req_fps)
-    if not camera.isOpened():
-        raise SystemExit("カメラを開けません。config.json の source を確認してください")
-    # 録画ファイルを誤って「今現在の駐車場」として公開しないための防止策。
-    if isinstance(source, str) and Path(source).suffix.lower() in {
-        ".mp4", ".mov", ".avi", ".mkv", ".webm"
-    } and not args.dry_run:
-        raise SystemExit("録画ファイルはリアルタイム公開できません。analyze_video.py を使用してください")
+    camera = None
+    if video_mode:
+        from video_replay import VideoReplay
+        recording = VideoReplay(args.video, cv2)
+        print("【入力】録画映像を再生しながらYOLO推論（実カメラは使用しません）")
+        print("【重要】動画の状態は実際の駐車場の現在の空きではありません。")
+    else:
+        source = config["source"]
+        req_w, req_h, req_fps = capture_preferences(config)
+        camera = open_camera(cv2, source, config.get("camera_backend", "auto"),
+                             config.get("camera_manual_exposure"),
+                             req_w, req_h, req_fps)
+        if not camera.isOpened():
+            raise SystemExit("カメラを開けません。config.json の source を確認してください")
+        if isinstance(source, str) and Path(source).suffix.lower() in {
+            ".mp4", ".mov", ".avi", ".mkv", ".webm"
+        } and not args.dry_run:
+            raise SystemExit("録画ファイルは実カメラとして公開できません。--video を使用してください")
     vehicle_model = YOLO(config.get("vehicle_model", "yolo11n.pt"))
     obstacle_path = config.get("obstacle_model")
     obstacle_model = YOLO(obstacle_path) if obstacle_path else None
 
     writer = None
-    if not args.dry_run:
+    if not args.dry_run and (not video_mode or args.demo_publish):
         print("Supabaseの管理者アカウントでログインします。")
         email = input("管理者メールアドレス: ").strip()
         password = getpass("パスワード（画面に表示されません）: ")
@@ -802,33 +821,42 @@ def main():
         except (TypeError, ValueError, OverflowError) as exc:
             initial_empty_deadline = 0
             print(f"【初期空車確認が無効】確認日時を解釈できません: {type(exc).__name__}")
+    confirmed_empty = parse_verified_empty(args.verified_empty, zones) if video_mode else (
+        config.get("initially_confirmed_empty_uids", [])
+    )
+    if video_mode and confirmed_empty:
+        print("【要確認】録画冒頭で空きと確認した区画：" + ", ".join(confirmed_empty))
+        print("【安全】YOLOが空きと判定し始めるのは継続観測後です。")
     observer = SpaceObserver(
         zones,
-        allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
+        allow_initial_empty=(False if video_mode else bool(config.get("allow_unverified_initial_empty", False))),
         absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
         blocked_confirm_seconds=float(config.get("blocked_confirm_seconds", 2)),
-        initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
-        initial_empty_deadline_epoch=initial_empty_deadline,
+        initially_confirmed_empty_uids=confirmed_empty,
+        initial_empty_deadline_epoch=(None if video_mode else initial_empty_deadline),
     )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
-    snapshots = SnapshotPublisher(writer, config)
+    snapshots = None if video_mode else SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     night_evidence = NightVehicleEvidenceGate(
         lifetime_seconds=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
     previous_statuses = None
     pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
-    # 画像取得とローカル録画は別スレッド。重いYOLO処理中も映像を保存する。
-    recording = RecordingCamera(
-        camera, cv2,
-        fps=int(config.get("recording_fps", 10)),
-        segment_seconds=int(config.get("recording_segment_seconds", 600)),
-    )
+    # 実カメラのときだけ別スレッドで生映像を録画する。
+    # 動画再生のときはVideoReplayを用いて元動画を変更せず推論する。
+    if not video_mode:
+        recording = RecordingCamera(
+            camera, cv2,
+            fps=int(config.get("recording_fps", 10)),
+            segment_seconds=int(config.get("recording_segment_seconds", 600)),
+        )
     sequence = 0
     visual_recorder = None
     diagnostic_recorder = None
+    demo_visible = False
     try:
         folder = recording.start()
         diagnostic_recorder = ParkingDiagnosticRecorder(folder)
@@ -837,7 +865,21 @@ def main():
         first_frame, sequence = recording.next_frame(sequence)
         first_h, first_w = first_frame.shape[:2]
         assert_calibrated_view(config, first_w, first_h)
-        print(f"【撮影サイズ】{first_w} x {first_h}（元画像を切り抜かずに解析・録画）")
+        print(f"【映像サイズ】{first_w} x {first_h}（元画像を切り抜かずに解析）")
+        if video_mode:
+            if not verify_overlay_with_operator(first_frame, zones, cv2):
+                print("【実演中止】録画と6区画が一致しないため共有しません。")
+                return
+            if confirmed_empty:
+                approve_empty = input(
+                    "録画の冒頭で指定区画に車も障害物も無いことを確認したら「空き確認」と入力: "
+                ).strip()
+                if approve_empty != "空き確認":
+                    print("【実演中止】空き確認ができていません。")
+                    return
+            if writer:
+                set_demo_visibility(writer, False)
+                print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
         print("【画角】iPhone/Camoのレンズ・ズーム・トリミング設定は端末側をご確認ください。")
         # 生映像とYOLO判定済み映像は同じ実験フォルダに別々に保存する。
         visual_recorder = YoloVisualRecorder(
@@ -846,14 +888,20 @@ def main():
             segment_seconds=int(config.get("recording_segment_seconds", 600)),
         )
         print(f"【録画保存先】{folder}")
-        print("【録画について】生映像とYOLO判定付き動画をPC内に別々に保存します")
+        if video_mode:
+            print("【保存】元動画はそのまま。YOLO判定付き動画とCSVを研究フォルダに保存します。")
+        else:
+            print("【録画について】生映像とYOLO判定付き動画をPC内に別々に保存します")
         print("【原因の特定】同じフォルダの「駐車区画_判定診断.csv」に位置・停止・区画投票を記録します")
         while True:
             frame, sequence = recording.next_frame(sequence)
-            try:
-                snapshots.publish(frame)
-            except (error.URLError, OSError, ValueError, KeyError) as exc:
-                print(f"カメラ写真の共有に失敗: {type(exc).__name__}")
+            if frame is None:  # 録画動画の終端。実カメラの場合はNoneにならない。
+                break
+            if snapshots:
+                try:
+                    snapshots.publish(frame)
+                except (error.URLError, OSError, ValueError, KeyError) as exc:
+                    print(f"カメラ写真の共有に失敗: {type(exc).__name__}")
             vehicles, blockers = infer_frame(
                 vehicle_model, obstacle_model, frame,
                 float(config.get("tracking_confidence", 0.15)),
@@ -911,17 +959,25 @@ def main():
                 detection["phase"] = phases.get(int(ident), "untracked") if ident is not None else "untracked"
             diagnostic_recorder.write(vehicles, zones, statuses, now)
             annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
+            if video_mode:
+                annotated = draw_demo_watermark(
+                    annotated, cv2, recording.frame_index / recording.fps
+                )
             visual_recorder.write(annotated, now=time.monotonic())
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
                 if writer:
-                    rows = [{
+                    rows = (demo_status_rows(config, statuses, utc_now())
+                            if video_mode else [{
                         "facility_id": config["facility_id"], "space_uid": uid,
-                        "status": status, "confidence": None,  # 測定していない確信度を捏造しない
+                        "status": status, "confidence": None,
                         "source": "yolo", "checked_at": utc_now(),
-                    } for uid, status in statuses.items()]
+                    } for uid, status in statuses.items()])
                     try:
                         writer.upsert("parking_live_status", rows, "facility_id,space_uid")
+                        if video_mode and not demo_visible:
+                            set_demo_visibility(writer, True)
+                            demo_visible = True
                         # 追跡IDは同じカメラ稼働中だけ有効。車の画像は保存しない。
                         session_rows = {entry.session_id: entry.row() for entry in tracks.vehicles.values()}
                         for sid, event in pending_sessions.items():
@@ -948,7 +1004,8 @@ def main():
                                    interpolation=cv2.INTER_AREA)
                         if (shown_w, shown_h) != (annotated.shape[1], annotated.shape[0])
                         else annotated)
-                cv2.imshow("Parking camera (q to quit)", view)
+                cv2.imshow("Recorded video YOLO demo (q to stop)" if video_mode else
+                           "Parking camera (q to quit)", view)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
     finally:
@@ -958,7 +1015,14 @@ def main():
         if diagnostic_recorder is not None:
             diagnostic_recorder.close()
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
-        camera.release()
+        if writer and video_mode:
+            try:
+                set_demo_visibility(writer, False)
+            except (error.URLError, error.HTTPError, OSError, ValueError) as exc:
+                print(f"【重要】録画実演の共有OFFに失敗しました。"
+                      f"20秒で古い状態は無効になりますが管理者が公開設定を確認してください: {exc}")
+        if camera is not None:
+            camera.release()
         if args.preview:
             cv2.destroyAllWindows()
         if recording.folder:
