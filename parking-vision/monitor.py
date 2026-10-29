@@ -667,9 +667,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
         ident = detection.get("track_id")
         if is_obstacle and detection.get("name") == "person":
-            track_label = ("PERSON ID" + str(ident)
+            track_label = ("ID" + str(ident)
                            if detection.get("person_confirmed") and ident is not None
-                           else "PERSON (CHECKING)")
+                           else "ID:CHECKING")
         elif is_obstacle:
             track_label = ""  # traffic cones / carts do not have person IDs
         else:
