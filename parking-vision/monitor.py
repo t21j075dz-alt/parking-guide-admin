@@ -962,7 +962,10 @@ def main():
             for detection in vehicles:
                 ident = detection.get("track_id")
                 detection["phase"] = phases.get(int(ident), "untracked") if ident is not None else "untracked"
-            diagnostic_recorder.write(vehicles, zones, statuses, now)
+            diagnostic_recorder.write(
+                vehicles, zones, statuses, track_now,
+                video_seconds=(track_now if video_mode else None),
+            )
             annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
