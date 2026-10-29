@@ -2,6 +2,7 @@
 import unittest
 
 from monitor import inside
+from stable_ids import StableIdMatcher
 from recorded_parking_states import (
     RecordedParkingStateMachine, bottom_footprint_candidate,
     STATUS_FOR_PHASE,
@@ -198,6 +199,50 @@ class DemoParkingStateTests(unittest.TestCase):
         self.assertEqual(phases["space_001"], "exiting")
         _, phases = self.update(11,[detection(1,(300,400,490,700))])
         self.assertEqual(phases["space_001"], "stopped")
+
+    def test_full_video_chain_raw_1_to_42_and_then_exit(self):
+        """Replicate the last 4 seconds of the user's submitted video.
+
+        The same car has raw YOLO ID1 while stopped, then raw42 at a
+        radically different lower-screen bounding box. Stable ID must
+        remain 1, allowing the parking state to reach EXITING and FREE.
+        """
+        zones = {
+            "space_003": [
+                [.52417,.61630],[.39500,.74519],
+                [.45667,.76444],[.62083,.62222],
+            ]
+        }
+        matcher = StableIdMatcher(max_missing=12)
+        machine = RecordedParkingStateMachine(zones)
+
+        def obs(raw, bbox, appearance):
+            x1,y1,x2,y2 = bbox
+            record=detection(raw,bbox,1280,720)
+            record["name"]="car"
+            record["point"]=((x1+x2)/(2*1280),y2/720)
+            record["appearance"]=appearance
+            return record
+
+        for t in (582,584,586,588,590,592,594.4):
+            original=matcher.update([
+                obs(1,(481,385,741,545),[1,0])
+            ],t)
+            status,phases=machine.update(original,zones,inside,t)
+        self.assertEqual(phases["space_003"],"stopped")
+
+        departing=matcher.update([
+            obs(42,(705,507,1176,719),[.74,.6726])
+        ],594.8)
+        self.assertEqual(departing[0]["track_id"],1)
+        self.assertTrue(departing[0]["id_reassociated"])
+        status,phases=machine.update(departing,zones,inside,594.8)
+        self.assertEqual(phases["space_003"],"exiting")
+        self.assertEqual(status["space_003"],"occupied")
+
+        status,phases=machine.update([],zones,inside,596.6)
+        self.assertEqual(phases["space_003"],"available")
+        self.assertEqual(status["space_003"],"available")
 
     def test_recorded_frame_clock_never_runs_backward(self):
         self.update(6,[])
