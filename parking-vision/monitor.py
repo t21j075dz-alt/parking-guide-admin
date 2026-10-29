@@ -25,6 +25,7 @@ from camera_profiles import capture_preferences, assert_calibrated_view, fit_pre
 from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
+from wheel_geometry import estimate_wheel_contacts
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
 _TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
@@ -246,7 +247,8 @@ class SpaceObserver:
     """
 
     def __init__(self, space_uids, allow_initial_empty=False,
-                 absence_hold_seconds=8.0, initially_confirmed_empty_uids=()):
+                 absence_hold_seconds=8.0, initially_confirmed_empty_uids=(),
+                 blocked_confirm_seconds=2.0):
         self.states = {uid: "unknown" for uid in space_uids}
         self.candidates = {}
         self.since = {}
@@ -254,6 +256,7 @@ class SpaceObserver:
         self.allow_initial_empty = bool(allow_initial_empty)
         self.initial_approved = set(initially_confirmed_empty_uids)
         self.absence_hold_seconds = float(absence_hold_seconds)
+        self.blocked_confirm_seconds = max(0.3, float(blocked_confirm_seconds))
         self.last_vehicle_seen = {}
         self.had_vehicle = set()
         self.departure_verified = set()
@@ -291,8 +294,10 @@ class SpaceObserver:
                 self.frames[uid] = 1
             else:
                 self.frames[uid] += 1
+            # A passing person / shadow-like false detection must not make
+            # a space BLOCKED for a single short-lived YOLO prediction.
             min_seconds = (5.0 if desired == "available"
-                           else 0.3 if desired in {"occupied", "blocked"}
+                           else self.blocked_confirm_seconds if desired == "blocked"
                            else 0.3)
             if self.frames[uid] >= 2 and now - self.since[uid] >= min_seconds:
                 self.states[uid] = desired
@@ -385,14 +390,48 @@ def detector_boxes(result, width: int, height: int, allowed: set[str]) -> list[d
 
 
 
+def mark_vehicle_overlap(blockers: list[dict], vehicles: list[dict]):
+    """Mark blocker predictions merged into the vehicle silhouette as uncertain.
+
+    A real person standing in front of a car can overlap the car too: do not
+    silently mark the touched area free; downgrade it to UNKNOWN instead.
+    """
+    for blocker in blockers:
+        box = blocker.get("bbox")
+        if not box or len(box) != 4:
+            continue
+        bx1, by1, bx2, by2 = (float(value) for value in box)
+        area = max(0., bx2-bx1) * max(0., by2-by1)
+        if area <= 0:
+            continue
+        for vehicle in vehicles:
+            vehicle_box = vehicle.get("bbox")
+            if not vehicle_box or len(vehicle_box) != 4:
+                continue
+            vx1, vy1, vx2, vy2 = (float(value) for value in vehicle_box)
+            overlap = (max(0., min(bx2, vx2) - max(bx1, vx1))
+                       * max(0., min(by2, vy2) - max(by1, vy1))) / area
+            if overlap >= 0.55:
+                blocker["near_vehicle"] = True
+                break
+    return blockers
+
+
 def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> dict[str, str]:
-    """接地点を優先。区画境界にかかる曖昧な車は空きとして案内しない。"""
+    """Prefer a *pair* of visible tyre contacts to the YOLO bounding-box edge.
+
+    - Both estimated tyre ground contacts in one zone => occupied candidate.
+    - One/no wheel or wheels on different zones => uncertain, never free.
+    - A person visually merged into the car => uncertain, not BLOCKED.
+    The legacy non-camera data format (without 'wheel_points') is preserved
+    for old recordings and unit-test fixtures.
+    """
     occupied, blocked, uncertain = set(), set(), set()
 
-    def put(detection, definite):
+    def put_legacy(detection, definite):
         center_uid = space_for(detection["point"], zones)
         points = detection.get("bottom_points") or [detection["point"]]
-        touched = {space_for(p, zones) for p in points}
+        touched = {space_for(point, zones) for point in points}
         touched.discard(None)
         if center_uid and (not touched or touched == {center_uid}):
             definite.add(center_uid)
@@ -404,15 +443,35 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict) -> 
             definite.add(center_uid)
 
     for vehicle in vehicles:
-        put(vehicle, occupied)
+        # Camera detections explicitly contain wheel_points, even if no
+        # reliable wheel pair is visible. Do not call a box edge a tyre.
+        if "wheel_points" not in vehicle:
+            put_legacy(vehicle, occupied)
+            continue
+        wheels = vehicle["wheel_points"] or []
+        wheel_zones = [space_for(point, zones) for point in wheels]
+        touched = {uid for uid in wheel_zones if uid is not None}
+        if len(wheels) >= 2 and len(touched) == 1 and all(uid is not None for uid in wheel_zones):
+            occupied.update(touched)
+        else:
+            uncertain.update(touched)
+            # When wheel detection failed entirely, the box-bottom points
+            # merely identify potentially affected spaces, not free spaces.
+            if not touched:
+                for point in vehicle.get("bottom_points", []):
+                    uid = space_for(point, zones)
+                    if uid is not None:
+                        uncertain.add(uid)
+
     for blocker in blockers:
-        put(blocker, blocked)
+        put_legacy(blocker, uncertain if blocker.get("near_vehicle") else blocked)
     return {
         uid: ("occupied" if uid in occupied else
               "unknown" if uid in uncertain else
               "blocked" if uid in blocked else "available")
         for uid in zones
     }
+
 
 def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
                 tracker_file: str = DEFAULT_TRACKER, image_size: int = 960,
@@ -424,6 +483,14 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
         imgsz=image_size, verbose=False,
     )
     vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
+    for vehicle in vehicles:
+        # Actual image features are checked for two tyre-like circles.
+        # No confident pair => []; never invent wheel locations from a box.
+        contacts = estimate_wheel_contacts(frame, vehicle["bbox"])
+        vehicle["wheel_points"] = contacts
+        if len(contacts) == 2:
+            vehicle["point"] = tuple(sum(point[i] for point in contacts) / 2
+                                     for i in (0, 1))
     # 追跡器には低確信度の検出も渡すが、占有判定には最低限の信頼を求める。
     # IDの連続性向上のため、検出した車両そのものはここでは除外しない。
     blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
@@ -431,6 +498,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     if obstacle_model:
         results_extra = obstacle_model.predict(frame, conf=confidence, verbose=False)
         blockers.extend(detector_boxes(results_extra[0], width, height, BLOCKING_NAMES))
+    mark_vehicle_overlap(blockers, vehicles)
     return vehicles, blockers
 
 
@@ -481,7 +549,7 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         y1 = max(0, min(height - 1, y1))
         y2 = max(0, min(height - 1, y2))
         is_obstacle = detection in obstacles
-        color = (70, 80, 240) if is_obstacle else (70, 255, 80)
+        color = ((125, 125, 125) if detection.get("near_vehicle") else (70, 80, 240)) if is_obstacle else (70, 255, 80)
         cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
         ident = detection.get("track_id")
         track_label = ("ID" + str(ident)) if ident is not None else "ID?"
@@ -489,10 +557,18 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         value = f"{float(confidence):.2f}" if confidence is not None else "-"
         phase = phases.get(int(ident), "") if ident is not None else ""
         line = f"{detection.get('name', 'object')} {track_label} {value}"
+        if detection.get("near_vehicle"):
+            line += " UNCERTAIN (near vehicle)"
         if phase:
             line += f" {phase.upper()}"
         text_y = y1 - 7 if y1 >= 31 else min(height - 8, y2 + 17)
         draw_text(line, (x1, text_y), .48, color, 2)
+        if not is_obstacle:
+            wheel_points = detection.get("wheel_points") or []
+            for nx, ny in wheel_points:
+                px, py = round(nx * width), round(ny * height)
+                cv2.circle(view, (px, py), 7, (255, 0, 255), 2, cv2.LINE_AA)
+                draw_text("WHEEL EST.", (px + 8, py - 6), .35, (255, 0, 255), 1)
 
     # RECではなくYOLO ANALYSIS。推論が間に合わずコマを複製しても
     # 「毎フレーム新しい判定が走った」と誤解されないように時刻を固定。
@@ -507,8 +583,11 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
         (12, height + 72), .45,
     )
-    draw_text("Frozen frames between YOLO updates are not new detections",
+    draw_text("Magenta WHEEL EST. = image-based estimate, not verified tyre keypoint",
               (12, height + 91), .40, (180, 185, 190))
+    # Keep the timing warning in the PowerShell log; repeated video frames
+    # still carry the same YOLO ANALYSIS timestamp.
+
     return view
 
 
@@ -554,6 +633,7 @@ def main():
         zones,
         allow_initial_empty=bool(config.get("allow_unverified_initial_empty", False)),
         absence_hold_seconds=float(config.get("occupied_hold_seconds", 8)),
+        blocked_confirm_seconds=float(config.get("blocked_confirm_seconds", 2)),
         initially_confirmed_empty_uids=config.get("initially_confirmed_empty_uids", []),
     )
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
