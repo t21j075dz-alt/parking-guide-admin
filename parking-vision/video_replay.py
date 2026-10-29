@@ -26,6 +26,11 @@ def validate_video(path):
         raise ValueError(f"録画ファイルが見つかりません: {path}")
     if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
         raise ValueError("動画はMP4/AVI/MOV/MKV/WebMを選択してください")
+    if path.name.startswith("YOLO判定_") or path.name.lower().startswith("yolo_annotated"):
+        raise ValueError(
+            "これはYOLOの判定結果を重ねた動画です。"
+            "再解析には元の『映像_001.mp4』など、1280x720の元録画を選んでください"
+        )
     if path.stat().st_size == 0:
         raise ValueError("録画ファイルが空です")
     return path
