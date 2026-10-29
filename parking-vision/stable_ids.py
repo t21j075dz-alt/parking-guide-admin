@@ -164,16 +164,16 @@ class StableIdMatcher:
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
-            if raw is None:
-                observations.append((index, record, None))
-                continue
-            record["track_id"] = int(raw)
+            if raw is not None:
+                record["track_id"] = int(raw)
             vec = (appearance_vector(frame, record)
                    if frame is not None else record.get("appearance"))
             observations.append((index, record, vec))
             for sid, old in self.last.items():
                 score = self._score(record, old, now, vec, isolated=isolated)
-                if score is not None:
+                if (score is not None and
+                        (raw is not None or
+                         (now - old.seen <= 2.5 and score >= 1.3))):
                     candidates.append((score, index, sid))
 
         # 同時出現する車両に同じIDを振らない。
@@ -206,15 +206,19 @@ class StableIdMatcher:
         output = []
         for index, record, vec in observations:
             raw = record.get("track_id")
-            if raw is None:
+            stable = assigned.get(index)
+            if stable is None and raw is None:
+                # A YOLO detection without a tracker ID may be displayed,
+                # but do not invent a new vehicle session for it.
                 output.append(record)
                 continue
-            stable = assigned.get(index)
             if stable is None:
                 stable = self.next_id
                 self.next_id += 1
                 self.new_tracks += 1
-            elif raw != self.last[stable].raw_id:
+            previous_raw = self.last[stable].raw_id if stable in self.last else None
+            reassociated = stable in self.last and raw is not None and raw != previous_raw
+            if reassociated:
                 self.reassociated += 1
             prev = self.last.get(stable)
             velocity = (0., 0.)
@@ -231,13 +235,15 @@ class StableIdMatcher:
                 else:
                     velocity = prev.velocity
             self.last[stable] = Remembered(
-                stable, raw, vehicle_group(record["name"]),
+                stable, raw if raw is not None else previous_raw,
+                vehicle_group(record["name"]),
                 tuple(record["point"]), float(now),
                 vec if vec is not None else (prev.appearance if prev else None),
                 record.get("bbox") or (prev.bbox if prev else None),
                 velocity,
             )
             record["raw_track_id"] = raw
+            record["id_reassociated"] = reassociated
             record["track_id"] = stable
             output.append(record)
         return output
