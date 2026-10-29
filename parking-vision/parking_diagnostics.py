@@ -17,6 +17,7 @@ class ParkingDiagnosticRecorder:
         "日時", "追跡ID", "車両状態", "停止判定", "検出信頼度",
         "瞬間区画", "安定区画", "区画票数", "判定根拠",
         "車両検出枠", "監視対象", "夜間車両確認", "確認理由", "近接区画", "区画状態の一覧", "注意事項",
+        "YOLO生ID", "安定車両ID", "ID引継ぎ", "使用した区画根拠",
     )
 
     def __init__(self, folder, interval_seconds=2.0):
@@ -38,6 +39,7 @@ class ParkingDiagnosticRecorder:
             self.writer.writerow([
                 stamp, "", "not detected", "", "", "", "", 0, "",
                 "", "", "", "", "", state_summary, "NO_CAR",
+                "", "", "", "",
             ])
         for vehicle in vehicles:
             instantaneous = vehicle.get("zone_candidate") or ""
@@ -47,8 +49,8 @@ class ParkingDiagnosticRecorder:
             warnings = []
             if not instantaneous:
                 warnings.append("ZONE_UNKNOWN")
-            if basis == "conflict":
-                warnings.append("WHEEL_BODY_CONFLICT")
+            if basis == "ambiguous-bottom":
+                warnings.append("BOTTOM_CROSSES_MULTIPLE_SPACES")
             if not vehicle.get("stationary"):
                 warnings.append("NOT_STATIONARY")
             if not stable:
@@ -69,6 +71,10 @@ class ParkingDiagnosticRecorder:
                 vehicle.get("night_verification_reason", ""),
                 ",".join(vehicle.get("zone_nearby", [])),
                 state_summary, "|".join(warnings),
+                (vehicle.get("raw_track_id") if vehicle.get("raw_track_id") is not None else ""),
+                (vehicle.get("track_id") if vehicle.get("track_id") is not None else ""),
+                ("YES" if vehicle.get("id_reassociated") else ""),
+                "bottom-footprint",
             ])
         self.file.flush()
 
