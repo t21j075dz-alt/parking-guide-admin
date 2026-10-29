@@ -80,6 +80,18 @@ class DemoParkingStateTests(unittest.TestCase):
         self.assertEqual(phases["space_001"], "available")
         self.assertEqual(statuses["space_001"], "available")
 
+    def test_confirmed_exit_can_complete_after_car_leaves_monitor_region(self):
+        for sec in (0,2,4,6,8):
+            self.update(sec,[detection(1,(300,400,490,700))])
+        self.update(12,[detection(1,(760,400,940,700))])
+        self.update(13,[detection(1,(780,400,960,700))])
+        _, phases = self.update(14,[detection(1,(800,400,980,700))])
+        self.assertEqual(phases["space_001"], "exiting")
+        # Once positively observed outside, monitor-area filtering can lose it.
+        statuses, phases = self.update(16,[])
+        self.assertEqual(phases["space_001"], "available")
+        self.assertEqual(statuses["space_001"], "available")
+
     def test_no_automatic_free_after_track_vanishes(self):
         for sec in (0,2,4,6):
             self.update(sec,[detection(1,(300,400,490,700))])
