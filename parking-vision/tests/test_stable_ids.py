@@ -61,6 +61,28 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matcher.update([before],594)[0]["track_id"],1)
         self.assertEqual(matcher.update([after],596)[0]["track_id"],1)
 
+    def test_raw_same_id_after_large_turn_and_seven_second_occlusion(self):
+        # Actual footage: first car left the sixth stall and reappeared
+        # roughly seven video seconds later approaching the third stall.
+        matcher = StableIdMatcher(max_missing=12)
+        a = detection(1,.68,.99,appearance=[1.0,0.0])
+        a["bbox"]=[608,499,1133,714]
+        b = detection(1,.43,.82,appearance=[.82,.57])
+        b["bbox"]=[428,408,674,594]
+        self.assertEqual(matcher.update([a],162)[0]["track_id"],1)
+        self.assertEqual(matcher.update([b],169)[0]["track_id"],1)
+
+    def test_new_raw_id_with_color_shift_at_foreground_turn(self):
+        # Crops from the user's 593s and 595s YOLO overlay were around
+        # 0.71 cosine similarity, so this tests an adverse 0.63 case.
+        matcher = StableIdMatcher(max_missing=12)
+        a = detection(1,.477,.76,appearance=[1,0])
+        a["bbox"]=[481,385,741,545]
+        b = detection(42,.72,.99,appearance=[.63,.78])
+        b["bbox"]=[701,507,1153,717]
+        self.assertEqual(matcher.update([a],593)[0]["track_id"],1)
+        self.assertEqual(matcher.update([b],595)[0]["track_id"],1)
+
     def test_short_yolo_id_dropout_keeps_stable_car_identity(self):
         matcher = StableIdMatcher(max_missing=8)
         first = detection(3, .43, .73, appearance=[.9,.1,0])
