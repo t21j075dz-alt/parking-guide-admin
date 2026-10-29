@@ -309,6 +309,19 @@ class StableIdMatcher:
                 output.append(record)
                 continue
             if stable is None:
+                # The latest diagnostic had one isolated false/weak car
+                # (raw 16, confidence 0.41) which needlessly consumed a
+                # stable display number. Keep the low-confidence detection
+                # for diagnostics, but allocate an ID only once it has
+                # sufficient evidence. Already matched existing tracks
+                # may still survive temporary confidence dips.
+                confidence = record.get("confidence")
+                if confidence is not None and float(confidence) < .50:
+                    record["raw_track_id"] = raw
+                    record["id_reassociated"] = False
+                    record["track_id"] = None
+                    output.append(record)
+                    continue
                 stable = self.next_id
                 self.next_id += 1
                 self.new_tracks += 1
