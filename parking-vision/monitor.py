@@ -28,7 +28,8 @@ from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from wheel_geometry import estimate_wheel_contacts
-from vehicle_zone import annotate_vehicle_zones
+from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
+from night_vision import inference_frame
 from parking_diagnostics import ParkingDiagnosticRecorder
 from zone_geometry import normalize_corners, audit_zones
 
@@ -607,8 +608,9 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
                 occupancy_confidence: float = 0.35):
     """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
     height, width = frame.shape[:2]
+    model_frame, _, _ = inference_frame(frame)
     results = vehicle_model.track(
-        frame, persist=True, tracker=tracker_file, conf=confidence,
+        model_frame, persist=True, tracker=tracker_file, conf=confidence,
         imgsz=image_size, verbose=False,
     )
     vehicles = detector_boxes(results[0], width, height, VEHICLE_NAMES)
@@ -622,7 +624,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     blockers = [d for d in detector_boxes(results[0], width, height, BLOCKING_NAMES)
                 if d["confidence"] >= occupancy_confidence]
     if obstacle_model:
-        results_extra = obstacle_model.predict(frame, conf=confidence, verbose=False)
+        results_extra = obstacle_model.predict(model_frame, conf=confidence, verbose=False)
         blockers.extend(detector_boxes(results_extra[0], width, height, BLOCKING_NAMES))
     mark_vehicle_overlap(blockers, vehicles)
     return vehicles, blockers
@@ -687,6 +689,8 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
             line += " UNCERTAIN (near vehicle)"
         if phase:
             line += f" {phase.upper()}"
+        if not is_obstacle and detection.get("monitored") is False:
+            line += " IGNORED: OUTSIDE CAMERA ZONES"
         text_y = y1 - 7 if y1 >= 31 else min(height - 8, y2 + 17)
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
@@ -839,11 +843,22 @@ def main():
             # Keep tracking point independent of flickering wheel detection.
             # Lower-body zones take over only the *space* mapping.
             annotate_vehicle_zones(vehicles, zones, inside, frame.shape)
-            events = tracks.update(vehicles, zones, config.get("exit_zone", []), now)
+            # Night-time false car boxes at the distant road, hedge and frame
+            # borders must not become vehicle sessions for this parking lot.
+            monitored_vehicles = []
+            for vehicle in vehicles:
+                relevant = is_monitored_vehicle(
+                    vehicle, zones, inside, config.get("entry_zone", []),
+                    config.get("exit_zone", []))
+                vehicle["monitored"] = relevant
+                if relevant:
+                    monitored_vehicles.append(vehicle)
+            events = tracks.update(monitored_vehicles, zones,
+                                   config.get("exit_zone", []), now)
             for event in events:
                 pending_sessions[event["session_id"]] = event
             # 区画占有だけには信頼度が低い検出を使わない
-            occupancy_vehicles = [d for d in vehicles
+            occupancy_vehicles = [d for d in monitored_vehicles
                                   if d["confidence"] >= float(config.get("confidence", 0.35))]
             parked_ids = {int(track_id) for track_id, entry in tracks.vehicles.items()
                           if entry.phase == "parked"}
