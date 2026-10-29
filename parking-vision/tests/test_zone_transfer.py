@@ -120,6 +120,15 @@ class HomeZoneTransferTest(unittest.TestCase):
             laptop.write_text(json.dumps(laptop_settings()), encoding="utf-8")
             self.assertEqual(select_source_path(current, laptop), laptop)
 
+    def test_powershell_export_null_kind_uses_calibration_usb(self):
+        old = laptop_settings()
+        old["camera_kind"] = None
+        self.assertEqual(old["calibration_capture"]["kind"], "usb")
+        result = transfer_settings(old, desktop_settings(), 1280, 720)
+        self.assertEqual(len(result["space_zones"]), 6)
+        self.assertEqual(result["camera_kind"], "usb")
+        self.assertEqual(result["calibration_capture"]["source"], "0")
+
     def test_reject_wrong_aspect_ratio(self):
         with self.assertRaisesRegex(ValueError, "縦横比"):
             transfer_settings(laptop_settings(), desktop_settings(), 1280, 960)
