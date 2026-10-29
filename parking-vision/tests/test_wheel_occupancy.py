@@ -47,6 +47,15 @@ class WheelOccupancyTest(unittest.TestCase):
         self.assertFalse(person.get("near_vehicle", False))
         self.assertEqual(classify_spaces([], [person], self.zones)["space_001"], "blocked")
 
+    def test_short_missing_wheel_observation_keeps_known_occupancy(self):
+        observer = SpaceObserver(["space_002"], absence_hold_seconds=8)
+        observer.update({"space_002": "occupied"}, 0)
+        self.assertEqual(observer.update({"space_002": "occupied"}, 1)["space_002"], "occupied")
+        self.assertEqual(observer.update({"space_002": "unknown"}, 2)["space_002"], "occupied")
+        self.assertEqual(observer.update({"space_002": "unknown"}, 4)["space_002"], "occupied")
+        observer.update({"space_002": "unknown"}, 10)
+        self.assertEqual(observer.update({"space_002": "unknown"}, 11)["space_002"], "unknown")
+
     def test_short_lived_blocker_does_not_change_published_state(self):
         observer = SpaceObserver(["space_001"], blocked_confirm_seconds=2.0)
         observer.update({"space_001": "blocked"}, 0)
