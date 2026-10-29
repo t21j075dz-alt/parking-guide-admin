@@ -877,12 +877,11 @@ def main():
                 if approve_empty != "空き確認":
                     print("【実演中止】空き確認ができていません。")
                     return
-            # Do not count the time spent on this confirmation screen as
-            # playback time; otherwise the first processed frame may be EOF.
-            recording.reset_clock_after_confirmation()
             if writer:
                 set_demo_visibility(writer, False)
                 print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
+            # 確認画面や認証にかかった時間は動画の再生時間に含めない。
+            recording.reset_clock_after_confirmation()
         print("【画角】iPhone/Camoのレンズ・ズーム・トリミング設定は端末側をご確認ください。")
         # 生映像とYOLO判定済み映像は同じ実験フォルダに別々に保存する。
         visual_recorder = YoloVisualRecorder(
