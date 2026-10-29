@@ -80,6 +80,33 @@ def bottom_footprint_candidate(detection, zones, inside):
     )
     anchor = ((x1 + x2) / (2 * width),
               (y1 + (y2 - y1) * .96) / height)
+    if winner is None and total >= 12:
+        # A car parked diagonally can cover exactly half of two polygons
+        # with its rectangular YOLO bbox. This is common in the user's
+        # 3rd/4th-space footage (13/13 samples for several minutes).
+        # Use the bottom-center proximity to the actual calibrated stalls
+        # ONLY when one polygon is substantially nearer. Do not force
+        # a win for a symmetric vehicle or a box far from either stall.
+        contenders = [(uid, n) for uid, n in ranked[:2] if n >= 6]
+        if len(contenders) == 2:
+            distances = []
+            for zone_uid, n in contenders:
+                corners = zones[zone_uid]
+                centroid = (
+                    sum(float(p[0]) for p in corners) / len(corners),
+                    sum(float(p[1]) for p in corners) / len(corners),
+                )
+                dist = hypot(
+                    anchor[0] - centroid[0], anchor[1] - centroid[1]
+                )
+                distances.append((dist, zone_uid, n))
+            distances.sort()
+            nearest, zone_uid, n = distances[0]
+            runner_up = distances[1][0]
+            if (nearest <= .075 and runner_up > 0
+                    and nearest <= runner_up * .64
+                    and n >= total * .30):
+                winner = zone_uid
     return winner, touched, anchor
 
 
