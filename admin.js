@@ -4365,6 +4365,7 @@ const liveMonitor = {
   refresh: document.querySelector("#live-monitor-refresh"),
   published: document.querySelector("#live-monitor-published"),
   spaces: document.querySelector("#live-monitor-spaces"),
+  completion: document.querySelector("#live-monitor-parking-complete"),
   sessions: document.querySelector("#live-monitor-sessions"),
 };
 let liveMonitorLoading = false;
@@ -4441,13 +4442,30 @@ async function refreshLiveMonitor() {
     const registered = (getCurrentLayout()?.objects || [])
       .filter(obj => obj.objectType === "parkingSpace");
     const now = Date.now();
+    const cameraConfirmed = [];
     for (const object of registered) {
       const status = statusByUid.get(object.uid);
       const age = Date.parse(status?.checked_at || "");
       const current = Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
       const label = current ? status.status : "unknown";
+      if (label === "occupied") {
+        cameraConfirmed.push(String(object.spaceNumber || object.name || object.uid));
+      }
       appendLiveItem(liveMonitor.spaces,
         String(object.spaceNumber || object.name || object.uid) + "：" + liveMonitorStatus(label));
+    }
+    if (liveMonitor.completion) {
+      liveMonitor.completion.textContent = cameraConfirmed.length
+        ? liveMonitorLanguage(
+            "カメラの駐車検知が完了：" + cameraConfirmed.join("、")
+              + "。利用者本人の確認はユーザーアプリ側で行います。",
+            "Camera parking confirmed: " + cameraConfirmed.join(", ")
+              + ". The user must verify their own vehicle in the user app.",
+          )
+        : liveMonitorLanguage(
+            "駐車検知待ち：現在、駐車を確定した区画はありません。",
+            "Waiting for parking detection. No space is currently camera-confirmed.",
+          );
     }
     if (!registered.length) {
       appendLiveItem(liveMonitor.spaces, liveMonitorLanguage(
