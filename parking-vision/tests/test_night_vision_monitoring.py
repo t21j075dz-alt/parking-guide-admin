@@ -49,9 +49,14 @@ class NightCameraMonitoringTest(unittest.TestCase):
         import numpy as np
         dark = np.full((120, 160, 3), 20, dtype=np.uint8)
         filtered, applied, brightness = inference_frame(dark)
-        self.assertTrue(applied)
+        self.assertFalse(applied)  # Near-black: do not amplify sensor noise
+        self.assertIs(filtered, dark)
         self.assertEqual(filtered.shape, dark.shape)
-        self.assertLess(brightness, 58)
+        self.assertLess(brightness, 35)
+        moderate = np.full((120, 160, 3), 45, dtype=np.uint8)
+        moderate_result, applied, _ = inference_frame(moderate)
+        self.assertTrue(applied)  # Moderate low light: cautious CLAHE
+        self.assertEqual(moderate_result.shape, moderate.shape)
         bright = np.full((120, 160, 3), 170, dtype=np.uint8)
         clean, applied, _ = inference_frame(bright)
         self.assertFalse(applied)
