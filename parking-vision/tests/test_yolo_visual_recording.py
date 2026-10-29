@@ -146,7 +146,7 @@ class AnnotatedRecordingTest(unittest.TestCase):
         written = " ".join(fake_cv2.texts)
         self.assertIn("space_002: OCCUPIED", written)
         self.assertIn("car ID15 0.82 PARKED", written)
-        self.assertIn("person ID? 0.76", written)
+        self.assertIn("person ID:CHECKING 0.76", written)
         self.assertIn("YOLO ANALYSIS AT", written)
 
 
