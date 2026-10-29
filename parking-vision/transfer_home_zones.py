@@ -31,26 +31,142 @@ def read_settings(path):
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
 
+def zone_inventory(settings):
+    """Return safe diagnostic metadata. Never print cloud credentials or geometry."""
+    if not isinstance(settings, dict):
+        return {"facility": False, "ids": 0, "polygons": 0,
+                "valid_polygons": 0, "complete": False}
+    ids = settings.get("space_uids")
+    ids = list(ids) if isinstance(ids, list) else []
+    polygons = settings.get("space_zones") or {}
+    polygons = polygons if isinstance(polygons, dict) else {}
+    valid = 0
+    for points in polygons.values():
+        try:
+            normalize_corners(points)
+            valid += 1
+        except (ValueError, TypeError):
+            pass
+    expected = {f"space_{i:03d}" for i in range(1, 7)}
+    keys = set(map(str, polygons))
+    id_set = set(map(str, ids))
+    return {
+        "facility": settings.get("facility_id") == EXPECTED_FACILITY,
+        "ids": len(ids),
+        "polygons": len(polygons),
+        "valid_polygons": valid,
+        "complete": (
+            settings.get("facility_id") == EXPECTED_FACILITY
+            and keys == expected and valid == 6
+            and (id_set == expected or len(ids) < 6)
+        ),
+    }
+
+
 def source_zones(source):
+    """Use only all six verified camera polygons, never fabricate missing ones.
+
+    Older setups may contain all six space_zones but only one space_uid
+    after a 'quick setup'. Canonical six IDs may be recovered in that case
+    because the actual polygons are present and will be visually checked.
+    """
     if source.get("facility_id") != EXPECTED_FACILITY:
         raise ValueError("移行元が自宅駐車場の設定ではありません")
     zone_ids = list(map(str, source.get("space_uids") or []))
     polygons = source.get("space_zones") or {}
-    if len(zone_ids) != 6 or len(set(zone_ids)) != 6:
-        raise ValueError("移行元に自宅駐車場の6区画IDがそろっていません")
-    if set(polygons) != set(zone_ids):
-        missing = set(zone_ids) - set(polygons)
+    expected = [f"space_{i:03d}" for i in range(1, 7)]
+    if not isinstance(polygons, dict):
+        raise ValueError("カメラの区画座標が正しい形式ではありません")
+    if len(zone_ids) == 6 and len(set(zone_ids)) == 6:
+        if set(polygons) != set(zone_ids):
+            missing = set(zone_ids) - set(polygons)
+            raise ValueError(
+                "6区画のカメラ座標がそろっていません。未登録: " +
+                ", ".join(sorted(missing))
+            )
+    elif set(polygons) == set(expected) and len(zone_ids) < 6:
+        print("【復元可能】区画ID一覧は不足していますが、画像上の6区画座標が保存されています。")
+        print("【確認必須】space_001～006として復元します。実映像の重ね合わせで確認してください。")
+        zone_ids = expected
+    else:
         raise ValueError(
-            "6区画のカメラ座標がそろっていません。未登録: " +
-            ", ".join(sorted(missing))
+            f"移行元に6区画分のカメラ座標がありません"
+            f"（区画ID {len(zone_ids)}件、座標 {len(polygons)}件）。"
+            "ノートPCで実際に6区画を登録したconfig.jsonをコピーしてください"
         )
     repaired = {}
     for uid in zone_ids:
         try:
             repaired[uid] = normalize_corners(polygons[uid])
-        except ValueError as exc:
+        except (ValueError, TypeError) as exc:
             raise ValueError(f"{uid} の四隅を確認してください: {exc}") from exc
     return zone_ids, repaired
+
+
+def candidate_config_files(directory, active_config):
+    """Find local JSON backups only; never read or transmit private files."""
+    directory = Path(directory)
+    active = Path(active_config).resolve()
+    candidates = []
+    for pattern in (
+        "config_backup*.json",
+        "config_from_laptop*.json",
+        "config_laptop*.json",
+        "config_notebook*.json",
+        "config_old*.json",
+    ):
+        candidates.extend(directory.glob(pattern))
+    unique = {p.resolve() for p in candidates if p.is_file()
+              and p.resolve() != active}
+    return sorted(unique, key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def select_source_path(desktop_path, explicit_path=None, input_fn=input):
+    """Show inventory before selecting. Incomplete default backups are skipped."""
+    desktop_path = Path(desktop_path).resolve()
+    if explicit_path is not None:
+        source = Path(explicit_path).expanduser().resolve()
+        if source == desktop_path or not source.is_file():
+            raise ValueError("指定したバックアップが存在しないか、現在のconfig.json自身です")
+        return source
+
+    choices = candidate_config_files(desktop_path.parent, desktop_path)
+    readable = []
+    print("========== 区画バックアップの検索結果 ==========")
+    for filename in choices:
+        try:
+            info = zone_inventory(read_settings(filename))
+        except (OSError, json.JSONDecodeError, UnicodeError, ValueError):
+            info = {"ids": 0, "polygons": 0, "valid_polygons": 0, "complete": False}
+        readable.append((filename, info))
+        state = "利用可能" if info["complete"] else "不完全"
+        print(f"【{len(readable)}】{filename.name} / "
+              f"区画ID {info['ids']} / カメラ座標 {info['valid_polygons']} / {state}")
+    valid = [p for p, info in readable if info["complete"]]
+    if len(valid) == 1:
+        print(f"【自動選択】6区画のある {valid[0].name} を使用します。")
+        return valid[0]
+    if len(valid) > 1:
+        print("【複数候補】元のカメラに対応するファイル番号を選んでください。")
+        selection = input_fn("使用するファイルの番号（キャンセルはEnter）: ").strip()
+        if not selection.isdecimal():
+            raise ValueError("バックアップを選択しなかったため変更していません")
+        index = int(selection) - 1
+        if index < 0 or index >= len(readable) or not readable[index][1]["complete"]:
+            raise ValueError("選択したファイルに6区画がないため変更していません")
+        return readable[index][0]
+
+    print("【6区画のバックアップがありません】現行のデスクトップ設定は変更しません。")
+    print("ノートPCの parking-guide-admin\\parking-vision\\config.json を")
+    print("USB等でこのフォルダに config_from_laptop.json の名前でコピーしてください。")
+    print("すでにコピー済みなら、そのファイルのフルパスも指定できます。")
+    raw = input_fn("移行元のファイルパス（まだ無ければEnterで中止）: ").strip().strip('"')
+    if not raw:
+        raise ValueError("6区画の登録データがないため変更していません")
+    other = Path(raw).expanduser().resolve()
+    if not other.is_file() or other == desktop_path:
+        raise ValueError("指定した元ファイルが見つからないか、現在の設定と同じです")
+    return other
 
 
 def transfer_settings(old_settings, desktop_settings, frame_width, frame_height):
@@ -210,16 +326,10 @@ def main():
     desktop_path = Path(args.config).resolve()
     if not desktop_path.is_file():
         raise SystemExit("デスクトップのconfig.jsonがありません")
-    source_path = Path(args.from_config).resolve() if args.from_config else (
-        desktop_path.parent / DEFAULT_BACKUP
-    ).resolve()
-    if not source_path.is_file():
-        raw = input("ノートPCのconfig.jsonまたはバックアップJSONのフルパス: ").strip().strip('"')
-        source_path = Path(raw).resolve()
-    if not source_path.is_file():
-        raise SystemExit("指定された移行元ファイルが見つかりません")
-    if desktop_path == source_path:
-        raise SystemExit("現在使っているconfig.json自身からは移行できません。元のバックアップを指定してください")
+    try:
+        source_path = select_source_path(desktop_path, args.from_config)
+    except ValueError as exc:
+        raise SystemExit(f"【移行中止】{exc}") from exc
 
     old_settings = read_settings(source_path)
     desktop_settings = read_settings(desktop_path)
