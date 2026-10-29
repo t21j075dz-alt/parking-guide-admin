@@ -55,6 +55,67 @@ def locate_vehicle_zone(detection, zones, inside):
     return None, touched, "uncertain"
 
 
+
+
+def _point_to_segment_distance(point, a, b):
+    """Normalized image distance from a contact point to a zone edge."""
+    px, py = point
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    length_sq = dx * dx + dy * dy
+    fraction = 0.0 if length_sq < 1e-12 else max(
+        0., min(1., ((px - ax) * dx + (py - ay) * dy) / length_sq)
+    )
+    return ((px - (ax + fraction * dx)) ** 2 +
+            (py - (ay + fraction * dy)) ** 2) ** .5
+
+
+def nearest_monitored_spaces(detection, zones, inside, distance_limit=.055):
+    """Potential stall interaction even before the wheels cross its border.
+
+    A rectangular vehicle detection need not mean its wheels are there.
+    This defines monitoring relevance, not a definite occupied state.
+    """
+    size = detection.get("image_size")
+    box = detection.get("bbox")
+    if not size or not box or len(box) != 4:
+        return set()
+    width, height = size
+    if width <= 0 or height <= 0:
+        return set()
+    x1, _, x2, y2 = [float(v) for v in box]
+    contact_points = [((x1 + (x2 - x1) * f) / width, y2 / height)
+                      for f in (0.30, 0.50, 0.70)]
+    nearby = set()
+    for uid, polygon in zones.items():
+        if any(inside(point, polygon) for point in contact_points):
+            nearby.add(uid)
+            continue
+        if any(min(_point_to_segment_distance(point, a, b)
+                   for a, b in zip(polygon, polygon[1:] + polygon[:1]))
+               <= distance_limit for point in contact_points):
+            nearby.add(uid)
+    return nearby
+
+
+def is_monitored_vehicle(vehicle, zones, inside, entry_zone=None,
+                         exit_zone=None):
+    """Keep the parking/entrance region; reject distant false car tracks.
+
+    Historical/offline detections lacking an image bounding box pass through.
+    """
+    if "bbox" not in vehicle or "image_size" not in vehicle:
+        return True
+    if vehicle.get("zone_candidate") or vehicle.get("zone_touched"):
+        return True
+    if vehicle.get("zone_nearby"):
+        return True
+    for region in (entry_zone or [], exit_zone or []):
+        if len(region) >= 3 and inside(vehicle.get("point", (-1., -1.)), region):
+            return True
+    return False
+
 def annotate_vehicle_zones(vehicles, zones, inside, frame_shape):
     height, width = frame_shape[:2]
     for vehicle in vehicles:
@@ -63,4 +124,6 @@ def annotate_vehicle_zones(vehicles, zones, inside, frame_shape):
         vehicle["zone_candidate"] = candidate
         vehicle["zone_touched"] = sorted(touched)
         vehicle["zone_basis"] = basis
+        vehicle["zone_nearby"] = sorted(nearest_monitored_spaces(
+            vehicle, zones, inside))
     return vehicles
