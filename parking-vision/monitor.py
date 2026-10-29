@@ -521,15 +521,7 @@ def mark_vehicle_overlap(blockers: list[dict], vehicles: list[dict]):
 
 def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
                     parked_track_ids: set[int] | None = None) -> dict[str, str]:
-    """Prefer a *pair* of visible tyre contacts to the YOLO bounding-box edge.
-
-    - Both tyre contacts in one zone AND a parked track => occupied candidate.
-    - Moving/entering vehicle in a zone => UNKNOWN while it is passing through.
-    - One/no wheel or wheels on different zones => uncertain, never free.
-    - A person visually merged into the car => uncertain, not BLOCKED.
-    The legacy non-camera data format (without 'wheel_points') is preserved
-    for old recordings and unit-test fixtures.
-    """
+    """Camera bottom-footprint only. Parked track and unique zone required."""
     occupied, blocked, uncertain = set(), set(), set()
 
     def put_legacy(detection, definite):
@@ -547,63 +539,45 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
             definite.add(center_uid)
 
     for vehicle in vehicles:
-        # Camera detections explicitly contain wheel_points, even if no
-        # reliable wheel pair is visible. Do not call a box edge a tyre.
-        if "wheel_points" not in vehicle:
-            put_legacy(vehicle, occupied)
-            continue
-        wheels = vehicle["wheel_points"] or []
-        wheel_zones = [space_for(point, zones) for point in wheels]
-        touched = {uid for uid in wheel_zones if uid is not None}
-        matched_wheels = (len(wheels) >= 2 and len(touched) == 1
-                          and all(uid is not None for uid in wheel_zones))
-        # When active tracking information is present, passing traffic must
-        # never be described as a parked car. Legacy video/offline callers
-        # intentionally omit parked_track_ids for backward compatibility.
-        track_id = vehicle.get("track_id")
-        is_parked = (parked_track_ids is None or
-                     track_id is not None and int(track_id) in parked_track_ids)
-        # Field mode provides a lower-body zone estimate as a fallback:
-        # the car must ALSO have remained stationary long enough.
-        candidate = vehicle.get("zone_candidate")
-        zone_touched = set(vehicle.get("zone_touched", []))
-        if "zone_candidate" in vehicle:
-            if vehicle.get("night_verified") is False:
-                # At night a static railing, reflection or hedge may be a
-                # highly confident car class. Treat its affected spaces as
-                # UNKNOWN rather than letting a ghost vehicle occupy/free one.
-                uncertain.update(zone_touched)
-                uncertain.update(vehicle.get("zone_nearby", []))
-                if candidate:
-                    uncertain.add(candidate)
-                continue
-            confirmed = vehicle.get("confirmed_parked_space")
-            chosen = candidate or confirmed
-            # All other touched stalls are unknown, not silently AVAILABLE.
-            # In particular, bbox overflow into a neighboring stall must
-            # not be advertised as an empty parking space.
-            if is_parked and chosen and (
-                    candidate is None or not matched_wheels or candidate in touched):
-                occupied.add(chosen)
-                uncertain.update(zone_touched - {chosen})
+        # Actual camera detections have zone_candidate based solely on the
+        # lower vehicle silhouette. Never use wheel_points, even in old JSON.
+        if "zone_candidate" not in vehicle:
+            point_uid = space_for(vehicle["point"], zones)
+            touched = {space_for(p, zones) for p in
+                       (vehicle.get("bottom_points") or [vehicle["point"]])}
+            touched.discard(None)
+            raw_id = vehicle.get("track_id")
+            is_parked = (parked_track_ids is None or
+                         raw_id is not None and int(raw_id) in parked_track_ids)
+            if point_uid and touched <= {point_uid} and is_parked:
+                occupied.add(point_uid)
             else:
-                uncertain.update(zone_touched)
-                if candidate:
-                    uncertain.add(candidate)
-                if confirmed:
-                    uncertain.add(confirmed)
+                uncertain.update(touched)
+                if point_uid:
+                    uncertain.add(point_uid)
             continue
-        if matched_wheels and is_parked:
-            occupied.update(touched)
+
+        candidate = vehicle.get("zone_candidate")
+        touched = set(vehicle.get("zone_touched") or [])
+        if vehicle.get("night_verified") is False:
+            uncertain.update(touched)
+            if candidate:
+                uncertain.add(candidate)
+            continue
+        raw_id = vehicle.get("track_id")
+        is_parked = (parked_track_ids is None or
+                     raw_id is not None and int(raw_id) in parked_track_ids)
+        confirmed = vehicle.get("confirmed_parked_space")
+        chosen = candidate or confirmed
+        if is_parked and chosen:
+            occupied.add(chosen)
+            uncertain.update(touched - {chosen})
         else:
             uncertain.update(touched)
-            # Legacy input without image dimensions.
-            if not touched:
-                for point in vehicle.get("bottom_points", []):
-                    uid = space_for(point, zones)
-                    if uid is not None:
-                        uncertain.add(uid)
-
+            if candidate:
+                uncertain.add(candidate)
+            if confirmed:
+                uncertain.add(confirmed)
     for blocker in blockers:
         put_legacy(blocker, uncertain if blocker.get("near_vehicle") else blocked)
     return {
