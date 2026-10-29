@@ -124,6 +124,8 @@ def load_config(path: str) -> dict:
         value = float(content.get(key, .35 if key == "confidence" else .15))
         if not 0 < value <= 1:
             raise ValueError(f"{key} は0より大きく1以下で設定してください")
+    if content.get("night_vision_mode", "auto") not in ("auto", "on", "off"):
+        raise ValueError("night_vision_mode は auto / on / off のどれかを選んでください")
     if float(content.get("occupied_hold_seconds", 8)) < 0:
         raise ValueError("occupied_hold_seconds は0以上にしてください")
     if float(content.get("reid_window_seconds", 12)) <= 0:
@@ -605,10 +607,11 @@ def classify_spaces(vehicles: list[dict], blockers: list[dict], zones: dict,
 
 def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
                 tracker_file: str = DEFAULT_TRACKER, image_size: int = 960,
-                occupancy_confidence: float = 0.35):
+                occupancy_confidence: float = 0.35,
+                night_vision_mode: str = "auto"):
     """モデルが使えるか確認しながら1フレームを判定する。車両IDはByteTrackで取得する。"""
     height, width = frame.shape[:2]
-    model_frame, _, _ = inference_frame(frame)
+    model_frame, _, _ = inference_frame(frame, mode=night_vision_mode)
     results = vehicle_model.track(
         model_frame, persist=True, tracker=tracker_file, conf=confidence,
         imgsz=image_size, verbose=False,
@@ -837,6 +840,7 @@ def main():
                 tracker_file=str(config.get("tracker_file", DEFAULT_TRACKER)),
                 image_size=int(config.get("image_size", 960)),
                 occupancy_confidence=float(config.get("confidence", 0.35)),
+                night_vision_mode=str(config.get("night_vision_mode", "auto")),
             )
             now = time.monotonic()
             vehicles = stable_ids.update(vehicles, now, frame=frame)
