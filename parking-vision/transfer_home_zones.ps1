@@ -35,5 +35,6 @@ Write-Host "【検索】6区画が残ったバックアップを自動で確認�
 Write-Host "【重要】バックアップが1区画だけなら、以前のノートPCのconfig.jsonが必要です。"
 & $python (Join-Path $PSScriptRoot "transfer_home_zones.py") --config $configFile
 if ($LASTEXITCODE -ne 0) {
-  throw "引き継ぎを完了できませんでした。区画を保存していない場合は変更ありません。"
+  Write-Host "【設定は未変更】画面の理由を確認してください。カメラ種別・画角が合うまでは移行しません。"
+  exit 1
 }
