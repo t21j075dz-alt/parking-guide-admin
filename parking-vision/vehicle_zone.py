@@ -111,6 +111,12 @@ def is_monitored_vehicle(vehicle, zones, inside, entry_zone=None,
         return True
     if vehicle.get("zone_nearby"):
         return True
+    # A real car needs several moving frames BEFORE its wheels enter the
+    # stall. Include a modest approach corridor around the calibrated zones
+    # for motion verification. This never confirms occupancy on its own.
+    if nearest_monitored_spaces(vehicle, zones, inside, distance_limit=.13):
+        vehicle["approach_only"] = True
+        return True
     for region in (entry_zone or [], exit_zone or []):
         if len(region) >= 3 and inside(vehicle.get("point", (-1., -1.)), region):
             return True
