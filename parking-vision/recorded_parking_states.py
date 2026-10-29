@@ -259,22 +259,26 @@ class RecordedParkingStateMachine:
                     stall.outside_started = None
                     if stall.phase == "parking_in" and own["stopped"]:
                         stall.set_phase("stopped", now)
-                elif own and own["zone"] != uid and own["moving"]:
+                elif (own and own["zone"] != uid and own["moving"]
+                      and uid not in own["touched"]):
                     if stall.outside_started is None:
                         stall.outside_started = now
-                    # Require positive, tracked movement out for 0.5s; a
-                    # single box jitter must not clear a parked vehicle.
-                    if now - stall.outside_started >= .5:
-                        if stall.phase == "stopped":
-                            stall.set_phase("exiting", now)
-                        elif now - stall.outside_started >= LEAVE_SECONDS:
-                            # Aborted parking manoeuvre (never stopped).
-                            # Only a previously stopped car enters EXITING.
-                            stall.set_phase("available", now)
-                            stall.track_id = None
-                            stall.overlap_started = None
-                            stall.last_inside = None
-                            stall.movement_observed = False
+                    if stall.phase == "stopped":
+                        # The user's exit definition is a stationary car
+                        # *starting to move* with its lower edge no longer
+                        # inside the stall. Register EXITING immediately
+                        # after positive tracked motion out. A momentary
+                        # bbox wobble returning inside will be rolled back
+                        # below; no 0.5s blind delay until the ID vanishes.
+                        stall.set_phase("exiting", now)
+                    elif now - stall.outside_started >= LEAVE_SECONDS:
+                        # Aborted parking manoeuvre (never stopped).
+                        # Only a previously stopped car enters EXITING.
+                        stall.set_phase("available", now)
+                        stall.track_id = None
+                        stall.overlap_started = None
+                        stall.last_inside = None
+                        stall.movement_observed = False
                 else:
                     # Lost detections are not evidence that a car departed.
                     stall.outside_started = None
