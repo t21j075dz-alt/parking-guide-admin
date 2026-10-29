@@ -31,13 +31,9 @@ Write-Host "========== ノートPCの駐車区画をデスクトップへ ======
 Write-Host "【Python】$python"
 Write-Host "【安全】カメラ番号・モデルパス・Supabase接続先はデスクトップの設定を維持します。"
 Write-Host "【安全】旧PCの空き確認状態はコピーしません。"
-if (Test-Path -LiteralPath $backupFile -PathType Leaf) {
-  Write-Host "【元ファイル】$backupFile"
-  & $python (Join-Path $PSScriptRoot "transfer_home_zones.py") --config $configFile --from-config $backupFile
-} else {
-  Write-Host "【元ファイル】バックアップが見つからないため、コピーしたノートPCのconfig.jsonを指定してください。"
-  & $python (Join-Path $PSScriptRoot "transfer_home_zones.py") --config $configFile
-}
+Write-Host "【検索】6区画が残ったバックアップを自動で確認します。"
+Write-Host "【重要】バックアップが1区画だけなら、以前のノートPCのconfig.jsonが必要です。"
+& $python (Join-Path $PSScriptRoot "transfer_home_zones.py") --config $configFile
 if ($LASTEXITCODE -ne 0) {
   throw "引き継ぎを完了できませんでした。区画を保存していない場合は変更ありません。"
 }
