@@ -16,7 +16,7 @@ class ParkingDiagnosticRecorder:
     FIELDS = (
         "日時", "追跡ID", "車両状態", "停止判定", "検出信頼度",
         "瞬間区画", "安定区画", "区画票数", "判定根拠",
-        "車両検出枠", "区画状態の一覧", "注意事項",
+        "車両検出枠", "監視対象", "近接区画", "区画状態の一覧", "注意事項",
     )
 
     def __init__(self, folder, interval_seconds=2.0):
@@ -37,7 +37,7 @@ class ParkingDiagnosticRecorder:
         if not vehicles:
             self.writer.writerow([
                 stamp, "", "not detected", "", "", "", "", 0, "",
-                "", state_summary, "NO_CAR",
+                "", "", "", state_summary, "NO_CAR",
             ])
         for vehicle in vehicles:
             instantaneous = vehicle.get("zone_candidate") or ""
@@ -53,12 +53,16 @@ class ParkingDiagnosticRecorder:
                 warnings.append("NOT_STATIONARY")
             if not stable:
                 warnings.append("NOT_ENOUGH_ZONE_VOTES")
+            if vehicle.get("monitored") is False:
+                warnings.append("IGNORED_OUTSIDE_MONITOR_AREA")
             self.writer.writerow([
                 stamp, vehicle.get("track_id") if vehicle.get("track_id") is not None else "",
                 phase, int(bool(vehicle.get("stationary"))),
                 round(float(vehicle.get("confidence", 0)), 3),
                 instantaneous, stable, vehicle.get("zone_votes", 0), basis,
                 ",".join(str(int(v)) for v in vehicle.get("bbox", [])),
+                ("yes" if vehicle.get("monitored", True) else "no"),
+                ",".join(vehicle.get("zone_nearby", [])),
                 state_summary, "|".join(warnings),
             ])
         self.file.flush()
