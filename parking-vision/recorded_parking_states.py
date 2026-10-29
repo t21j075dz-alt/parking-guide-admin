@@ -198,9 +198,10 @@ class RecordedParkingStateMachine:
             if stall.phase == "available":
                 if observation is not None:
                     tid = observation["tid"]
-                    if stall.track_id != tid or stall.last_inside is None or now - stall.last_inside > MAX_GAP_SECONDS:
+                    reset_overlap = (stall.track_id != tid or stall.last_inside is None
+                                     or now - stall.last_inside > MAX_GAP_SECONDS)
+                    if reset_overlap:
                         stall.overlap_started = now
-                    if stall.track_id != tid:
                         stall.movement_observed = False
                     stall.track_id = tid
                     stall.last_inside = now
@@ -263,13 +264,16 @@ class RecordedParkingStateMachine:
 
         # a transition-free available stall remains AVAILABLE. A physically
         # visible but unconfirmed car is reported UNKNOWN until 5s.
-        phases = {uid: stall.phase for uid, stall in self.stalls.items()}
-        statuses = {uid: STATUS_FOR_PHASE[phase] for uid, phase in phases.items()}
+        phases = {}
         for uid, stall in self.stalls.items():
-            if stall.phase == "available" and (
-                stall.last_inside is not None or uid in ambiguous
-            ):
-                # Underbody is present but not yet proven to be a parking
-                # event. Suppress guidance until the 5s test completes.
-                statuses[uid] = "unknown"
+            # Internal "available" while a body is being assessed is exposed
+            # as UNKNOWN, so the map and DB do not contradict each other.
+            phases[uid] = (
+                "unknown"
+                if stall.phase == "available" and (
+                    stall.last_inside is not None or uid in ambiguous
+                )
+                else stall.phase
+            )
+        statuses = {uid: STATUS_FOR_PHASE[phase] for uid, phase in phases.items()}
         return statuses, phases
