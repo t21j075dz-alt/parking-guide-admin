@@ -113,11 +113,16 @@ class TrackHistory:
                         for _, p in recent) >= .85 * len(recent))
 
     def is_moving(self, clock):
-        samples = [(t, p) for t, p in self.samples if clock - t <= 2.6]
-        if len(samples) < 2 or samples[-1][0] - samples[0][0] < .4:
-            return False
-        first, last = samples[0][1], samples[-1][1]
-        return hypot(last[0]-first[0], last[1]-first[1]) >= .018
+        # Very slow reversing/parking is often <2% of the frame per 2s.
+        # Inspect both short motion (rapid exit) and 5s cumulative drift.
+        for window, minimum in ((2.6, .018), (5.2, .025)):
+            samples = [(t, p) for t, p in self.samples if clock - t <= window]
+            if len(samples) < 2 or samples[-1][0] - samples[0][0] < .4:
+                continue
+            first, last = samples[0][1], samples[-1][1]
+            if hypot(last[0]-first[0], last[1]-first[1]) >= minimum:
+                return True
+        return False
 
 
 @dataclass
