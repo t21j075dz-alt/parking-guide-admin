@@ -1,4 +1,4 @@
-# 自宅駐車場のYOLO区画を、管理アプリの登録データに合わせて再登録する。
+﻿# 自宅駐車場のYOLO区画を、管理アプリの登録データに合わせて再登録する。
 # Supabase側のデータ・録画・学習済み重みは削除しない。
 $ErrorActionPreference = "Stop"
 Set-Location -LiteralPath $PSScriptRoot
