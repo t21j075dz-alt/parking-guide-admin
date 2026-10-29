@@ -106,13 +106,15 @@ class StableIdMatcher:
         limit = min(.16, .042 + .018 * gap)
         is_same_raw = det.get("track_id") == old.raw_id
         color = similarity(vector, old.appearance)
-        # In this recording, the same YOLO raw ID (=1) survived a turn
-        # after a 6s detection gap, while our local stable ID became 3.
-        # This is a *local* mistake, not a new model ID: prefer same raw
-        # identity only in a true single-car scene, with plausible motion.
+        # If the same raw YOLO ID reappears after a brief blind spot,
+        # keep it even when old phantom stable tracks remain in memory.
+        # Only an unambiguous raw owner with no other *visible* vehicle
+        # qualifies. A tracker may recycle raw IDs after long gaps, hence
+        # the strict 9-second bound and spatial plausibility check.
         same_raw_turn = (
-            isolated and old.group == "four_wheel" and is_same_raw
-            and 2.0 <= gap <= 9.0 and distance <= .45
+            old.group == "four_wheel" and is_same_raw
+            and 1.0 <= gap <= 9.0 and distance <= .45
+            and self._single_detection_now
         )
         # The car can expose a very different frontal/side area; do not
         # reject a credible same-raw turn based on fragile HSV histograms.
@@ -183,7 +185,19 @@ class StableIdMatcher:
         # Count all identities still inside the actual retention window.
         # Two disappeared cars must never be merged into one on a turn,
         # even if neither was seen in the most recent 3 seconds.
-        isolated = (len(detections) == 1 and len(self.last) == 1)
+        self._single_detection_now = len(detections) == 1
+        # A turning vehicle may coexist with a stale (unseen) phantom
+        # remembered track. Relax new-raw ReID only if one recently seen
+        # car exists, with all other tracks truly stale (> 6.5 seconds).
+        recent = [old for old in self.last.values() if 0 <= now-old.seen <= 3.5]
+        others_old = all(
+            (now - old.seen > 6.5) for old in self.last.values()
+            if old not in recent
+        )
+        isolated = (
+            self._single_detection_now and
+            (len(self.last) == 1 or (len(recent) == 1 and others_old))
+        )
         for index, det in enumerate(detections):
             record = dict(det)
             raw = record.get("track_id")
@@ -192,7 +206,24 @@ class StableIdMatcher:
             vec = (appearance_vector(frame, record)
                    if frame is not None else record.get("appearance"))
             observations.append((index, record, vec))
+            # Prefer a unique existing owner of the identical raw YOLO
+            # ID, even when other stale ID records remain in memory.
+            raw_owners = [
+                sid for sid, old in self.last.items()
+                if raw is not None and old.raw_id == int(raw)
+            ]
             for sid, old in self.last.items():
+                if len(raw_owners) == 1 and sid != raw_owners[0]:
+                    # Only enforce ownership preference when that owner's
+                    # position is still plausible, to avoid tracking an ID
+                    # recycled across widely separated cars.
+                    owner = self.last[raw_owners[0]]
+                    own_distance = hypot(
+                        record["point"][0]-owner.point[0],
+                        record["point"][1]-owner.point[1]
+                    )
+                    if 0 <= now-owner.seen <= 9.0 and own_distance <= .45:
+                        continue
                 score = self._score(record, old, now, vec, isolated=isolated)
                 if (score is not None and
                         (raw is not None or
