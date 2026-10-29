@@ -83,6 +83,29 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matcher.update([a],593)[0]["track_id"],1)
         self.assertEqual(matcher.update([b],595)[0]["track_id"],1)
 
+    def test_same_raw_id_1_after_six_second_turn_with_low_color(self):
+        matcher=StableIdMatcher(max_missing=12)
+        before=detection(1, .734, .998, appearance=[1,0,0])
+        before["bbox"]=[650,509,1230,720]
+        after=detection(1, .425, .846, appearance=[0,1,0])
+        after["bbox"]=[425,415,663,610]
+        self.assertEqual(matcher.update([before],162)[0]["track_id"],1)
+        det=matcher.update([after],168)[0]
+        self.assertEqual(det["track_id"],1)
+        self.assertFalse(det["id_reassociated"])
+        self.assertEqual(matcher.new_tracks,1)
+
+    def test_single_car_42_raw_turn_in_two_seconds(self):
+        matcher=StableIdMatcher(max_missing=12)
+        previous=detection(1,.477,.757,appearance=[1,.35,.1])
+        previous["bbox"]=[481,385,741,545]
+        current=detection(42,.741,.995,appearance=[.78,.50,.1])
+        current["bbox"]=[669,504,1227,720]
+        self.assertEqual(matcher.update([previous],592)[0]["track_id"],1)
+        after=matcher.update([current],594)[0]
+        self.assertEqual(after["track_id"],1)
+        self.assertTrue(after["id_reassociated"])
+
     def test_short_yolo_id_dropout_keeps_stable_car_identity(self):
         matcher = StableIdMatcher(max_missing=8)
         first = detection(3, .43, .73, appearance=[.9,.1,0])
