@@ -22,6 +22,13 @@ def estimate_wheel_contacts(frame, bbox):
         return []
     image_h, image_w = frame.shape[:2]
     x1, y1, x2, y2 = [float(value) for value in bbox]
+    # A partially off-screen car made roof/window highlights look like
+    # circular wheels in the 2026-10-29 field recording. Reject cropped
+    # vehicle boxes instead of inventing two wheel-ground points.
+    edge_margin = 3
+    if (x1 <= edge_margin or y1 <= edge_margin or
+            x2 >= image_w - edge_margin or y2 >= image_h - edge_margin):
+        return []
     x1, y1 = max(0, int(x1)), max(0, int(y1))
     x2, y2 = min(image_w, int(x2)), min(image_h, int(y2))
     width, height = x2 - x1, y2 - y1
