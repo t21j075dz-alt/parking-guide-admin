@@ -18,6 +18,28 @@ class WheelOccupancyTest(unittest.TestCase):
         self.assertEqual(states["space_002"], "occupied")
         self.assertNotEqual(states["space_001"], "occupied")
 
+    def test_moving_car_wheels_do_not_claim_parked_status(self):
+        car = {"track_id": 8, "point": (.70, .75),
+               "bottom_points": [(.60, .8), (.80, .8)],
+               "wheel_points": [(.61, .76), (.80, .76)]}
+        raw = classify_spaces([car], [], self.zones, parked_track_ids=set())
+        self.assertEqual(raw["space_002"], "unknown")
+        parked = classify_spaces([car], [], self.zones, parked_track_ids={8})
+        self.assertEqual(parked["space_002"], "occupied")
+
+    def test_unknown_track_is_not_parked(self):
+        car = {"point": (.7, .75),
+               "wheel_points": [(.61, .76), (.80, .76)]}
+        raw = classify_spaces([car], [], self.zones, parked_track_ids={8})
+        self.assertEqual(raw["space_002"], "unknown")
+
+    def test_clipped_car_cannot_report_wheel_contacts(self):
+        import numpy as np
+        from wheel_geometry import estimate_wheel_contacts
+        frame = np.zeros((240, 320, 3), dtype=np.uint8)
+        self.assertEqual(estimate_wheel_contacts(frame, [180, 50, 320, 180]), [])
+        self.assertEqual(estimate_wheel_contacts(frame, [10, 50, 170, 240]), [])
+
     def test_crossing_wheel_contacts_must_not_claim_a_slot(self):
         car = {"point": (.5, .7), "bottom_points": [(.45, .7), (.55, .7)],
                "wheel_points": [(.45, .7), (.65, .7)]}
