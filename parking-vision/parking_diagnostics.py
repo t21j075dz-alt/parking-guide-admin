@@ -17,7 +17,7 @@ class ParkingDiagnosticRecorder:
         "日時", "追跡ID", "車両状態", "停止判定", "検出信頼度",
         "瞬間区画", "安定区画", "区画票数", "判定根拠",
         "車両検出枠", "監視対象", "夜間車両確認", "確認理由", "近接区画", "区画状態の一覧", "注意事項",
-        "YOLO生ID", "安定車両ID", "ID引継ぎ", "使用した区画根拠",
+        "YOLO生ID", "安定車両ID", "ID引継ぎ", "使用した区画根拠", "録画経過秒",
     )
 
     def __init__(self, folder, interval_seconds=2.0):
@@ -28,7 +28,7 @@ class ParkingDiagnosticRecorder:
         self.interval = max(0.5, float(interval_seconds))
         self.last = None
 
-    def write(self, vehicles, zones, statuses, now):
+    def write(self, vehicles, zones, statuses, now, video_seconds=None):
         # The ordinary CSV is sampled at 2-second intervals. A raw YOLO ID
         # can turn from 1 to 42 and be reassociated in less than one second,
         # so the only frame with id_reassociated=True was previously skipped.
@@ -47,7 +47,8 @@ class ParkingDiagnosticRecorder:
             self.writer.writerow([
                 stamp, "", "not detected", "", "", "", "", 0, "",
                 "", "", "", "", "", state_summary, "NO_CAR",
-                "", "", "", "",
+                "", "", "", "", 
+                (round(float(video_seconds), 2) if video_seconds is not None else ""),
             ])
         for vehicle in vehicles:
             instantaneous = vehicle.get("zone_candidate") or ""
@@ -83,6 +84,7 @@ class ParkingDiagnosticRecorder:
                 (vehicle.get("track_id") if vehicle.get("track_id") is not None else ""),
                 ("YES" if vehicle.get("id_reassociated") else ""),
                 "bottom-footprint",
+                (round(float(video_seconds), 2) if video_seconds is not None else ""),
             ])
         self.file.flush()
 
