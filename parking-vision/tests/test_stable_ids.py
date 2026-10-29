@@ -39,6 +39,20 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matching.update([a], 0)[0]["track_id"], 1)
         self.assertEqual(matching.update([b], 5.8)[0]["track_id"], 2)
 
+    def test_short_yolo_id_dropout_keeps_stable_car_identity(self):
+        matcher = StableIdMatcher(max_missing=8)
+        first = detection(3, .43, .73, appearance=[.9,.1,0])
+        first["bbox"] = [420,420,720,650]
+        unknown = detection(None, .44, .73, appearance=[.9,.1,0])
+        unknown["bbox"] = [425,420,730,650]
+        renewed = detection(4, .45, .73, appearance=[.9,.1,0])
+        renewed["bbox"] = [430,420,735,650]
+        self.assertEqual(matcher.update([first], 0)[0]["track_id"], 1)
+        mid=matcher.update([unknown], 1)[0]
+        self.assertEqual(mid["track_id"],1)
+        self.assertIsNone(mid["raw_track_id"])
+        self.assertEqual(matcher.update([renewed],2)[0]["track_id"],1)
+
     def test_large_turn_reid_requires_a_single_car_scene(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
