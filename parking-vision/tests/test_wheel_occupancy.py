@@ -56,6 +56,14 @@ class WheelOccupancyTest(unittest.TestCase):
         observer.update({"space_002": "unknown"}, 10)
         self.assertEqual(observer.update({"space_002": "unknown"}, 11)["space_002"], "unknown")
 
+    def test_new_blocker_suspends_previously_available_space(self):
+        observer = SpaceObserver(["space_001"], allow_initial_empty=True)
+        observer.update({"space_001": "available"}, 0)
+        self.assertEqual(observer.update({"space_001": "available"}, 6)["space_001"], "available")
+        self.assertEqual(observer.update({"space_001": "blocked"}, 7)["space_001"], "unknown")
+        self.assertEqual(observer.update({"space_001": "blocked"}, 8)["space_001"], "unknown")
+        self.assertEqual(observer.update({"space_001": "blocked"}, 9.2)["space_001"], "blocked")
+
     def test_short_lived_blocker_does_not_change_published_state(self):
         observer = SpaceObserver(["space_001"], blocked_confirm_seconds=2.0)
         observer.update({"space_001": "blocked"}, 0)
