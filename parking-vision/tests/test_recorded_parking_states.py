@@ -121,6 +121,45 @@ class DemoParkingStateTests(unittest.TestCase):
         self.assertNotEqual(uid,"space_004")
         self.assertIn("space_003",touched)
 
+    def test_real_six_stalls_diagonal_parking_3_versus_4(self):
+        # Calibrated polygons from 2026-10-29 laptop camera (1280x720).
+        # In user's reanalysis, underbody counted 13/13 in these two
+        # neighboring spaces for roughly 280 seconds, but center of car
+        # footprint is much nearer the center of space_003.
+        zones = {
+            "space_003": [
+                [.52417,.61630],[.39500,.74519],
+                [.45667,.76444],[.62083,.62222],
+            ],
+            "space_004": [
+                [.61750,.63556],[.49333,.74074],
+                [.58583,.78222],[.70917,.66370],
+            ],
+        }
+        vehicle = detection(3, (530,374,770,527), 1280,720)
+        chosen, touched, anchor = bottom_footprint_candidate(
+            vehicle,zones,inside)
+        self.assertEqual(chosen,"space_003")
+        self.assertIn("space_004",touched)
+        self.assertIn("space_003",touched)
+        demo = RecordedParkingStateMachine(zones)
+        for clock in (0,1,2,3,4):
+            status,phase = demo.update([detection(3,(530,374,770,527),1280,720)],
+                                       zones,inside,float(clock))
+            self.assertNotEqual(status["space_004"],"occupied")
+        status, phase = demo.update([detection(3,(530,374,770,527),1280,720)],
+                                    zones,inside,5.1)
+        self.assertEqual(phase["space_003"],"stopped")
+        self.assertEqual(status["space_003"],"occupied")
+        self.assertEqual(status["space_004"],"available")
+
+    def test_actual_equal_distance_remains_unknown(self):
+        zones={"a":[[.1,.3],[.49,.3],[.49,.9],[.1,.9]],
+               "b":[[.51,.3],[.9,.3],[.9,.9],[.51,.9]]}
+        box=detection(6,(300,300,700,700),1000,1000)
+        chosen, touched, anchor = bottom_footprint_candidate(box,zones,inside)
+        self.assertIsNone(chosen)
+
     def test_recorded_frame_clock_never_runs_backward(self):
         self.update(6,[])
         with self.assertRaisesRegex(ValueError,"逆行"):
