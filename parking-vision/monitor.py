@@ -30,6 +30,7 @@ from stable_ids import StableIdMatcher
 from wheel_geometry import estimate_wheel_contacts
 from vehicle_zone import annotate_vehicle_zones
 from parking_diagnostics import ParkingDiagnosticRecorder
+from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
 _TRACKER_PROFILE = Path(__file__).with_name("botsort-parking.yaml")
@@ -100,6 +101,18 @@ def load_config(path: str) -> dict:
     for uid, polygon in zones.items():
         if not valid_polygon(polygon):
             raise ValueError(f"{uid} の四隅座標が正しくありません")
+        if len(polygon) == 4:
+            # Old calibrations may have saved corner clicks in crossing order.
+            # Repair the ordering in memory without rewriting config.json.
+            try:
+                ordered = normalize_corners(polygon)
+            except ValueError as exc:
+                raise ValueError(f"{uid} の四隅を再登録してください: {exc}") from exc
+            if ordered != polygon:
+                print(f"【区画座標の補正】{uid} の4点を正しい周回順に整えました（元ファイルは維持）")
+            zones[uid] = ordered
+    for warning in audit_zones(zones):
+        print(f"【区画の位置に注意】{warning}")
     for name in ("entry_zone", "exit_zone"):
         if content.get(name) and not valid_polygon(content[name]):
             raise ValueError(f"{name} の範囲が正しくありません")
