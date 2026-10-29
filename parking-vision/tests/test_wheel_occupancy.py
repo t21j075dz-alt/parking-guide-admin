@@ -1,4 +1,4 @@
-"""Camera-zone regression tests: wheel contacts and near-car human candidates."""
+"""Camera-zone tests: tyre-circle estimates MUST NOT influence occupancy."""
 import unittest
 
 from monitor import classify_spaces, mark_vehicle_overlap, SpaceObserver
@@ -15,7 +15,8 @@ class WheelOccupancyTest(unittest.TestCase):
         car = {"point": (.5, .7), "bottom_points": [(.45, .7), (.55, .7)],
                "wheel_points": [(.60, .7), (.85, .7)]}
         states = classify_spaces([car], [], self.zones)
-        self.assertEqual(states["space_002"], "occupied")
+        # A contradictory wheel guess MUST NOT override the body footprint.
+        self.assertNotEqual(states["space_002"], "occupied")
         self.assertNotEqual(states["space_001"], "occupied")
 
     def test_moving_car_wheels_do_not_claim_parked_status(self):
@@ -50,7 +51,7 @@ class WheelOccupancyTest(unittest.TestCase):
     def test_unverified_box_bottom_is_not_an_actual_tyrepair(self):
         car = {"point": (.65, .7), "bottom_points": [(.60, .8), (.70, .8)],
                "wheel_points": []}
-        states = classify_spaces([car], [], self.zones)
+        states = classify_spaces([car], [], self.zones, parked_track_ids=set())
         self.assertEqual(states["space_002"], "unknown")
 
     def test_person_overlap_near_vehicle_is_uncertain_not_blocked(self):
