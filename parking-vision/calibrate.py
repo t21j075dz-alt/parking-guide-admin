@@ -19,6 +19,7 @@ import cv2
 from camera_exposure import is_valid_manual_exposure, step_manual_exposure
 from camera_recording import open_camera
 from camera_profiles import capture_preferences
+from zone_geometry import normalize_corners
 
 
 WINDOW = "Parking space setup - LIVE camera / SPACE = freeze"
@@ -105,7 +106,7 @@ def main():
     print("【- / +】実際のカメラの露出を暗く/明るく（対応機種のみ）")
     print("【A】自動露出に戻す（対応機種のみ）")
     print("【Space】映像の静止/再開。映像をクリックすると自動で静止します。")
-    print("【左クリック4回】四隅を登録 / 【Backspace】1点戻す / 【R】対象枠を削除")
+    print("【左クリック4回】四隅を登録（クリックの順番は自由） / 【Backspace】1点戻す / 【R】対象枠を削除")
     print("【Enter / S】次の区画 / 【E】入口範囲 / 【X】出口範囲")
     print("【Q】保存して終了 / 【Esc】今回の変更を保存せず終了")
     print("【注意】画像の見かけだけを暗くしても、白飛びした細部は戻りません。")
@@ -193,10 +194,16 @@ def main():
             key = cv2.waitKey(30) & 0xFF
             if len(clicked) == 4:
                 label = current_name()
-                areas[label] = clicked[:]
+                try:
+                    ordered = normalize_corners(clicked)
+                except ValueError as exc:
+                    print(f"【登録し直してください】{label}：{exc}")
+                    clicked.clear()
+                    continue
+                areas[label] = ordered
                 changed = True
                 clicked.clear()
-                print(f"【登録】{label}")
+                print(f"【登録】{label}（四隅を自動で正しい順序に並べました）")
                 if phase == "spaces":
                     mode += 1
                     if mode >= len(names):
