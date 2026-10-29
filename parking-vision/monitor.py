@@ -827,6 +827,9 @@ def main():
     if video_mode and confirmed_empty:
         print("【要確認】録画冒頭で空きと確認した区画：" + ", ".join(confirmed_empty))
         print("【安全】YOLOが空きと判定し始めるのは継続観測後です。")
+    from recorded_parking_states import RecordedParkingStateMachine
+    demo_machine = RecordedParkingStateMachine(zones) if video_mode else None
+    previous_demo_phases = None
     observer = SpaceObserver(
         zones,
         allow_initial_empty=(False if video_mode else bool(config.get("allow_unverified_initial_empty", False))),
@@ -950,10 +953,25 @@ def main():
                                   parked_track_ids=parked_ids)
             departures = [event["space_uid"] for event in events
                           if event["phase"] == "exiting" and event.get("space_uid")]
-            statuses = observer.update(raw, now, departures=departures)
-            changed = statuses != previous_statuses
-            if changed:
-                recording.log_status(statuses)
+            if video_mode:
+                # Camera-independent recorded-video state machine. Time is
+                # derived from the actual source-video frame index, not
+                # inference completion, so 5s always means 5s of footage.
+                video_seconds = recording.frame_index / recording.fps
+                statuses, demo_phases = demo_machine.update(
+                    monitored_vehicles, zones, inside, video_seconds
+                )
+                changed = (statuses != previous_statuses
+                           or demo_phases != previous_demo_phases)
+                if changed:
+                    recording.log_status(statuses, phases=demo_phases)
+                previous_demo_phases = demo_phases.copy()
+            else:
+                statuses = observer.update(raw, now, departures=departures)
+                demo_phases = None
+                changed = statuses != previous_statuses
+                if changed:
+                    recording.log_status(statuses)
             # ネットワーク更新が遅くても、推論直後の判定映像を先に保存する。
             phases = {int(tid): record.phase for tid, record in tracks.vehicles.items()}
             for detection in vehicles:
@@ -962,6 +980,10 @@ def main():
             diagnostic_recorder.write(vehicles, zones, statuses, now)
             annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
             if video_mode:
+                from video_demo_support import draw_demo_phase_labels
+                annotated = draw_demo_phase_labels(
+                    annotated, cv2, zones, demo_phases
+                )
                 annotated = draw_demo_watermark(
                     annotated, cv2, recording.frame_index / recording.fps
                 )
@@ -969,7 +991,7 @@ def main():
             should_send = changed or now - last_push >= 5 or (bool(pending_sessions) and now - last_push >= 1)
             if should_send:
                 if writer:
-                    rows = (demo_status_rows(config, statuses, utc_now())
+                    rows = (demo_status_rows(config, statuses, utc_now(), demo_phases)
                             if video_mode else [{
                         "facility_id": config["facility_id"], "space_uid": uid,
                         "status": status, "confidence": None,
