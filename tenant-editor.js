@@ -20,6 +20,6 @@
   q("tenant-save").onclick=()=>{
     if(facilityId!==state.facilityId){q("tenant-status").textContent="施設が変わりました。開き直してください。";return;}
     if(draft.some(d=>!d.name||!d.buildingId||d.sourceUrl&&!/^https:\/\//.test(d.sourceUrl))||new Set(draft.map(d=>d.id)).size!==draft.length){q("tenant-status").textContent="店舗名・建物ID・公式URLの形式を確認してください。";return;}
-    getCurrentLayout().destinations=structuredClone(draft);saveLocal();updateBuildingIdOptions();q("tenant-status").textContent="店舗一覧を保存しました";
+    getCurrentLayout().destinations=structuredClone(draft);saveLocal();updateBuildingIdOptions();q("tenant-status").textContent="店舗一覧を端末に保存しました。管理者ログイン中はクラウド保存後に店舗名の音声を自動で生成待ちへ登録します。";
   };
 })();
