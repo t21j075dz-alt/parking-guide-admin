@@ -128,7 +128,7 @@ class StallProgress:
     last_inside: float | None = None
     missing_started: float | None = None
     outside_started: float | None = None
-    moving_before_exit: bool = False
+    movement_observed: bool = False
     last_change: float = 0.0
 
     def set_phase(self, phase, now):
@@ -200,19 +200,25 @@ class RecordedParkingStateMachine:
                     tid = observation["tid"]
                     if stall.track_id != tid or stall.last_inside is None or now - stall.last_inside > MAX_GAP_SECONDS:
                         stall.overlap_started = now
+                    if stall.track_id != tid:
+                        stall.movement_observed = False
                     stall.track_id = tid
                     stall.last_inside = now
                     stall.missing_started = None
+                    stall.movement_observed |= observation["moving"]
                     if observation["stopped"] and now - stall.overlap_started >= ENTRY_SECONDS:
                         stall.set_phase("stopped", now)
-                    elif now - stall.overlap_started >= ENTRY_SECONDS:
-                        # Overlap >5s and vehicle still not stopped.
+                    elif (now - stall.overlap_started >= ENTRY_SECONDS
+                          and stall.movement_observed):
+                        # A moving vehicle spent at least five observed seconds
+                        # with its underside above this parking polygon.
                         stall.set_phase("parking_in", now)
                 else:
                     if stall.last_inside is not None and now - stall.last_inside > MAX_GAP_SECONDS:
                         stall.track_id = None
                         stall.overlap_started = None
                         stall.last_inside = None
+                        stall.movement_observed = False
             elif stall.phase in ("parking_in", "stopped"):
                 own = tracked_all.get(stall.track_id)
                 if own and own["zone"] == uid:
@@ -228,8 +234,14 @@ class RecordedParkingStateMachine:
                     if now - stall.outside_started >= .5:
                         if stall.phase == "stopped":
                             stall.set_phase("exiting", now)
-                        else:
-                            stall.set_phase("exiting", now)
+                        elif now - stall.outside_started >= LEAVE_SECONDS:
+                            # Aborted parking manoeuvre (never stopped).
+                            # Only a previously stopped car enters EXITING.
+                            stall.set_phase("available", now)
+                            stall.track_id = None
+                            stall.overlap_started = None
+                            stall.last_inside = None
+                            stall.movement_observed = False
                 else:
                     # Lost detections are not evidence that a car departed.
                     stall.outside_started = None
@@ -249,15 +261,15 @@ class RecordedParkingStateMachine:
                         stall.last_inside = None
                 # A lost track does not authorize declaring a slot empty.
 
-            # While first 5s of body overlap are accumulating, the space
-            # cannot safely be recommended to a new car.
-            if stall.phase == "available" and observation is None and uid in ambiguous:
-                pass  # Ambiguous detections do not manufacture occupancy.
         # a transition-free available stall remains AVAILABLE. A physically
         # visible but unconfirmed car is reported UNKNOWN until 5s.
         phases = {uid: stall.phase for uid, stall in self.stalls.items()}
         statuses = {uid: STATUS_FOR_PHASE[phase] for uid, phase in phases.items()}
         for uid, stall in self.stalls.items():
-            if stall.phase == "available" and stall.last_inside is not None:
+            if stall.phase == "available" and (
+                stall.last_inside is not None or uid in ambiguous
+            ):
+                # Underbody is present but not yet proven to be a parking
+                # event. Suppress guidance until the 5s test completes.
                 statuses[uid] = "unknown"
         return statuses, phases
