@@ -219,6 +219,13 @@ class VideoReplayTests(unittest.TestCase):
             self.assertEqual(replay.next_frame(1)[1], 2)
             replay.close()
 
+    def test_reject_annotated_output_as_video_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "YOLO判定_001.mp4"
+            output.write_bytes(b"existing annotated video")
+            with self.assertRaisesRegex(ValueError, "元録画"):
+                validate_video(output)
+
     def test_reject_unexpected_file_suffix(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "data.json"
