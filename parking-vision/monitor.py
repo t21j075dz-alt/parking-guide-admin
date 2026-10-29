@@ -877,6 +877,9 @@ def main():
                 if approve_empty != "空き確認":
                     print("【実演中止】空き確認ができていません。")
                     return
+            # Do not count the time spent on this confirmation screen as
+            # playback time; otherwise the first processed frame may be EOF.
+            recording.reset_clock_after_confirmation()
             if writer:
                 set_demo_visibility(writer, False)
                 print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
