@@ -169,6 +169,63 @@ def select_source_path(desktop_path, explicit_path=None, input_fn=input):
     return other
 
 
+def camera_kind(settings):
+    """Get camera type, including PowerShell exports with a null kind."""
+    return str(
+        settings.get("camera_kind")
+        or (settings.get("calibration_capture") or {}).get("kind")
+        or "usb"
+    ).lower()
+
+
+def desktop_settings_for_usb_transfer(old, desktop, confirm_fn=input):
+    """Correct only a stale Camo label, after explicit USB camera confirmation.
+
+    This does not write config.json. A physical camera view and six-zone
+    overlay are still required before any state is persisted.
+    """
+    result = deepcopy(desktop)
+    old_kind = camera_kind(old)
+    current_kind = camera_kind(result)
+    if old_kind == current_kind:
+        return result
+    if old_kind != "usb" or current_kind != "camo":
+        raise ValueError("ノートPCとデスクトップのカメラ種類が異なります。元のカメラを使用してください")
+    if result.get("camera_verified_external") is not True:
+        raise ValueError("デスクトップの外付けUSBカメラが未確認です")
+    print("【カメラ設定の不一致】移行元はUSB、デスクトップの設定がCamoになっています。")
+    print("【重要】実際の映像がCamoではなく外付けUSB Webカメラなら、設定の種類だけ修正できます。")
+    answer = confirm_fn("今つないでいるカメラが外付けUSB Webカメラなら「USB」と入力（違えばEnter）: ").strip()
+    if answer != "USB":
+        raise ValueError("USBカメラと確認できないため設定を変更していません")
+    result["camera_kind"] = "usb"
+    print("【仮設定】カメラ種類をUSBとして照合します。最終確認まで保存しません。")
+    return result
+
+
+def proposed_capture_resolution(old, desktop, width, height):
+    """Only probe the notebook's actual resolution when aspect ratios differ.
+
+    The camera driver can refuse the request. The caller must read a *real*
+    frame after reopening and verify the output dimensions. Never rescale a
+    4:3 image to 16:9 or claim that letterboxing preserves calibration.
+    """
+    previous = old.get("calibration_capture") or {}
+    expected_w = int(previous.get("width") or 0)
+    expected_h = int(previous.get("height") or 0)
+    if min(expected_w, expected_h, width, height) <= 0:
+        return None
+    if abs(expected_w / expected_h - width / height) <= .025:
+        return None
+    requested_w, requested_h, _ = capture_preferences(desktop)
+    if requested_w and requested_h:
+        # A user's explicit dimensions are not silently overridden.
+        return None
+    if expected_w > 3840 or expected_h > 2160:
+        return None
+    return expected_w, expected_h
+
+
 def transfer_settings(old_settings, desktop_settings, frame_width, frame_height):
     """Prepare a safe result; no file is written before camera confirmation."""
     if desktop_settings.get("facility_id") != EXPECTED_FACILITY:
@@ -185,16 +242,8 @@ def transfer_settings(old_settings, desktop_settings, frame_width, frame_height)
     # Old PowerShell Select-Object exports a null camera_kind even when
     # calibration_capture.kind correctly identifies the USB camera.
     # Prefer an explicit kind, then the recorded capture kind.
-    old_kind = str(
-        old_settings.get("camera_kind")
-        or (old_settings.get("calibration_capture") or {}).get("kind")
-        or "usb"
-    ).lower()
-    desktop_kind = str(
-        desktop_settings.get("camera_kind")
-        or (desktop_settings.get("calibration_capture") or {}).get("kind")
-        or "usb"
-    ).lower()
+    old_kind = camera_kind(old_settings)
+    desktop_kind = camera_kind(desktop_settings)
     if old_kind != desktop_kind:
         raise ValueError(
             "CamoとUSBカメラの座標は流用できません。同じカメラ種類で確認してください"
@@ -356,6 +405,15 @@ def main():
     if desktop_settings.get("camera_verified_external") is not True:
         raise SystemExit("【未確認】まず新しいPCで外付けUSBカメラを目視確認してください")
 
+    # Existing desktop configs can still be marked 'camo' after the user
+    # verified an ordinary external USB camera. Never guess based on index 0.
+    try:
+        desktop_settings = desktop_settings_for_usb_transfer(
+            old_settings, desktop_settings
+        )
+    except ValueError as exc:
+        raise SystemExit(f"【移行中止】{exc}") from exc
+
     import cv2
     from camera_recording import open_camera
 
@@ -370,6 +428,42 @@ def main():
         ok, frame = camera.read()
         if not ok or frame is None:
             raise SystemExit("【中止】カメラから映像を取得できません")
+        print(f"【実際の映像】{frame.shape[1]}x{frame.shape[0]}")
+
+        proposal = proposed_capture_resolution(
+            old_settings, desktop_settings, frame.shape[1], frame.shape[0]
+        )
+        if proposal is not None:
+            old_w, old_h = proposal
+            print(f"【画角が異なります】現状は{frame.shape[1]}x{frame.shape[0]}、"
+                  f"ノートPCでは{old_w}x{old_h}で登録されました。")
+            print(f"【自動確認】カメラに{old_w}x{old_h}の出力を要求します。"
+                  "カメラが対応しなければ保存せず終了します。")
+            camera.release()
+            camera = open_camera(cv2, desktop_settings["source"],
+                                 desktop_settings.get("camera_backend", "auto"),
+                                 desktop_settings.get("camera_manual_exposure"),
+                                 old_w, old_h, fps)
+            if not camera.isOpened():
+                raise SystemExit("【中止】元の16:9解像度でカメラを開けません。"
+                                 "カメラの対応解像度を確認してください")
+            ok, frame = camera.read()
+            if not ok or frame is None:
+                raise SystemExit("【中止】再接続後のカメラ映像を取得できません")
+            print(f"【再確認した実映像】{frame.shape[1]}x{frame.shape[0]}")
+            expected_ratio = old_w / old_h
+            actual_ratio = frame.shape[1] / frame.shape[0]
+            if abs(expected_ratio - actual_ratio) > .025:
+                raise SystemExit(
+                    f"【移行中止】カメラは{old_w}x{old_h}要求後も"
+                    f"{frame.shape[1]}x{frame.shape[0]}で出力しています。"
+                    "ズームや引き伸ばしはせず、対応する16:9カメラを使用するか"
+                    "現在の画角で6区画を再登録してください。"
+                )
+            desktop_settings["camera_capture_width"] = old_w
+            desktop_settings["camera_capture_height"] = old_h
+            print(f"【仮設定】{old_w}x{old_h}でカメラを開く設定を用意しました。"
+                  "区画が合う場合だけ後で保存します。")
         try:
             candidate = transfer_settings(old_settings, desktop_settings,
                                           frame.shape[1], frame.shape[0])
