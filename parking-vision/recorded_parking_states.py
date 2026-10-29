@@ -12,7 +12,7 @@
 - YOLOボックスの『下側だけ』から接地領域を推定し、車体全体で
   隣接区画を占有させない。タイヤキーポイントとは呼ばない。
 - 5秒は動画の経過時間。読み飛ばしフレームを5秒の証拠として
-  加算しない。1.4秒以上の観測断絶は連続判定をやり直す。
+  加算しない。2.5秒を超える観測断絶は連続判定をやり直す。
 - ID消失だけでは出庫としない。追跡された車の区画外移動が必要。
 - 重なり候補が同程度のときは『未確認』にし、隣の区画を駐車中にしない。
 """
@@ -41,7 +41,7 @@ STATUS_FOR_PHASE = {
 ENTRY_SECONDS = 5.0
 STOP_SECONDS = 5.0
 LEAVE_SECONDS = 1.5
-MAX_GAP_SECONDS = 1.4
+MAX_GAP_SECONDS = 2.5
 TRACK_HISTORY_SECONDS = 6.2
 
 
@@ -230,8 +230,6 @@ class RecordedParkingStateMachine:
                             stall.set_phase("exiting", now)
                         else:
                             stall.set_phase("exiting", now)
-                elif own and own["zone"] == uid:
-                    stall.outside_started = None
                 else:
                     # Lost detections are not evidence that a car departed.
                     stall.outside_started = None
