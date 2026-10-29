@@ -28,7 +28,7 @@ class PersonTrack:
 
 
 class PersonIdStabilizer:
-    def __init__(self, visible_seconds=1.0, missing_seconds=7.0):
+    def __init__(self, visible_seconds=1.0, missing_seconds=24.0):
         self.visible_seconds = float(visible_seconds)
         self.missing_seconds = float(missing_seconds)
         self.tracks = {}
@@ -65,9 +65,20 @@ class PersonIdStabilizer:
                     continue
                 distance = hypot(point[0]-saved.point[0], point[1]-saved.point[1])
                 same_raw = raw is not None and raw == saved.raw_id
-                # Most people in a parking-camera image are slow and small,
-                # but a walking person may move much farther over 2s.
-                limit = min(.17, .04 + gap*.055)
+                # The uploaded sequence contains 26->ID8->ID9 and
+                # 37->ID13->ID14->ID15, despite the raw ID and location
+                # remaining unchanged. Allow long pauses ONLY for that raw
+                # ID near its previous position. No face recognition.
+                resume_same_raw = (
+                    same_raw and gap > 7.0
+                    and gap <= 24.0 and distance <= .035
+                )
+                if gap > 7.0 and not resume_same_raw:
+                    continue
+                # Walking people move between frames, but a stale ID must
+                # not jump to another person across the parking lot.
+                limit = (.035 if resume_same_raw
+                         else min(.17, .04 + gap*.055))
                 if distance > limit:
                     continue
                 a = bbox
@@ -78,7 +89,12 @@ class PersonIdStabilizer:
                 area_b = max(0,(b[2]-b[0])*(b[3]-b[1]))
                 iou = intersection / max(1.,area_a+area_b-intersection)
                 score = (3.0 * iou + 1.5 * (1.0-distance/max(limit,.001))
-                         + (1.0 if same_raw else 0))
+                         + (1.8 if same_raw else 0))
+                # A long absence must not automatically confirm a person:
+                # the identity is retained while its display confirmation
+                # counter is reset below.
+                if resume_same_raw:
+                    score += .3
                 if iou < .03 and distance > .035 and not same_raw:
                     continue
                 candidates.append((score, index, sid))
