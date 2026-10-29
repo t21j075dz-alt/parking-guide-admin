@@ -114,7 +114,8 @@ class StableIdMatcher:
         strong_reid = (
             isolated and old.group == "four_wheel"
             and not is_same_raw and color is not None and color >= .70
-            and gap >= 1.0 and distance <= min(.43, .09 + .145 * gap)
+            and 1.0 <= gap <= 6.5
+            and distance <= min(.43, .09 + .145 * gap)
         )
         predicted = (old.point[0] + old.velocity[0]*gap,
                      old.point[1] + old.velocity[1]*gap)
@@ -124,7 +125,7 @@ class StableIdMatcher:
         # Only trust velocity prediction if it meaningfully improves on the
         # last position; a stationary car may suddenly begin reversing.
         moving_prediction = (
-            hypot(*old.velocity) >= .005
+            gap <= 4.0 and hypot(*old.velocity) >= .005
             and prediction_distance < distance * .72
             and prediction_distance <= .14 + .035 * gap
         )
