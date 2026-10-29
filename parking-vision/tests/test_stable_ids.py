@@ -139,6 +139,30 @@ class StableIdTest(unittest.TestCase):
         self.assertEqual(matcher.update([original],594.4)[0]["track_id"],1)
         self.assertEqual(matcher.update([unrelated],594.8)[0]["track_id"],2)
 
+    def test_weak_one_frame_car_does_not_consume_stable_id(self):
+        matcher=StableIdMatcher(max_missing=12)
+        weak=detection(16,.716,.998,appearance=[.75,.2])
+        weak["bbox"]=[733,523,1102,719]
+        weak["confidence"] = .41
+        record=matcher.update([weak],0)[0]
+        self.assertIsNone(record["track_id"])
+        self.assertEqual(record["raw_track_id"],16)
+        self.assertEqual(matcher.new_tracks,0)
+        # A later confident car should still receive the first usable ID.
+        strong=detection(1,.477,.757,appearance=[1,0])
+        strong["bbox"]=[481,385,741,545]
+        strong["confidence"] = .88
+        self.assertEqual(matcher.update([strong],1)[0]["track_id"],1)
+
+    def test_existing_car_keeps_id_during_temporary_low_confidence(self):
+        matcher=StableIdMatcher()
+        strong=detection(1,.4,.7,appearance=[1,0])
+        strong["confidence"] = .92
+        weak=detection(1,.4,.7,appearance=[1,0])
+        weak["confidence"] = .44
+        self.assertEqual(matcher.update([strong],0)[0]["track_id"],1)
+        self.assertEqual(matcher.update([weak],.4)[0]["track_id"],1)
+
     def test_turn_reid_does_not_bridge_different_color(self):
         matching = StableIdMatcher(max_missing=12)
         a = detection(1, .72, .83, appearance=[1,0,0])
