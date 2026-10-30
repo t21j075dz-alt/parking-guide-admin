@@ -44,7 +44,7 @@ async function enqueue(items: unknown[]) {
   for (const item of items) {
     if (!item || typeof item !== "object") return { error: "invalid item" };
     const { text, type } = item as {text?:unknown,type?:unknown};
-    if (!safeText(text) || !["facility","tenant","other"].includes(String(type))) return { error: "invalid name" };
+    if (!safeText(text) || !["facility","tenant","other","space"].includes(String(type))) return { error: "invalid name" };
     const message = (text as string).trim();
     if (seen.has(message)) continue;
     seen.add(message);
@@ -167,7 +167,7 @@ Deno.serve(async req => {
     // PostgRESTの行数上限で1000件を超える場合も正確に集計。
     const totals = { ready: 0, pending: 0, processing: 0, retry: 0, failed: 0 };
     const byType: Record<string,{ready:number,total:number}> = {
-      facility:{ready:0,total:0}, tenant:{ready:0,total:0}, other:{ready:0,total:0}
+      facility:{ready:0,total:0}, tenant:{ready:0,total:0}, other:{ready:0,total:0}, space:{ready:0,total:0}
     };
     let total = 0;
     for (let offset = 0; offset < 100000; offset += 500) {

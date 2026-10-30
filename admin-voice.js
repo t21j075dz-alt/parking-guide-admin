@@ -68,12 +68,40 @@ window.ParkingAdminVoice = (() => {
         type: "tenant",
       })).filter(x => String(x.text).trim());
   }
+  /** 地図に表示される番号と同じ読みを音声部品として生成する。 */
+  function spaceNames(layout) {
+    const objects = Array.isArray(layout?.objects) ? layout.objects : [];
+    const result = [];
+    for (const space of objects) {
+      if (!space || space.objectType !== "parkingSpace") continue;
+      // ユーザーアプリの mapDisplay.spaceName と日本語読み上げ規則に合わせる。
+      const numberRaw = String(space.spaceNumber
+        ?? String(space.name || "").match(/(?:普通車|軽|車椅子|EV|駐車区画)\s+(\d+)$/)?.[1]
+        ?? space.name ?? "").normalize("NFKC").trim();
+      const number = numberRaw.replace(/\d+/g, digits => digits.replace(/^0+(?=\d)/, ""));
+      const group = String(space.spaceGroup || "").normalize("NFKC")
+        .trim().replace(/(?:区画|列)$/u, "");
+      const groupLabel = group ? group + (space.spaceGroupKind === "area" ? "区画" : "列") : "";
+      const combined = [groupLabel, number].filter(Boolean).join(" ");
+      const customReading = space.spaceNumberReading || space.nameReading;
+      const text = customReading
+        ? String(customReading).trim()
+        : typeof japaneseSpaceReading === "function"
+          ? japaneseSpaceReading(combined) : combined;
+      const normalized = typeof normalizeJapaneseSpeech === "function"
+        ? normalizeJapaneseSpeech(text) : text;
+      if (normalized && normalized.trim().length <= 160)
+        result.push({ text: normalized.trim(), type: "space" });
+    }
+    return result;
+  }
   function itemsForFacility(facility, layout) {
     const list = [];
     const name = speechName(facility);
     if (name) list.push({ text: name, type: "facility" });
     list.push(...destinationNames(layout));
-    return list;
+    list.push(...spaceNames(layout));
+    return [...new Map(list.map(x => [x.text, x])).values()];
   }
   function itemsForCatalog(facilities, layouts) {
     const all = [];
@@ -84,7 +112,8 @@ window.ParkingAdminVoice = (() => {
       if (reading) all.push({ text: reading, type: "facility" });
     }
     for (const [id, layout] of Object.entries(layouts || {})) {
-      if (!(facilities || []).some(f => f.id === id)) all.push(...destinationNames(layout));
+      if (!(facilities || []).some(f => f.id === id))
+        all.push(...destinationNames(layout), ...spaceNames(layout));
     }
     return [...new Map(all.map(x => [x.text, x])).values()];
   }
@@ -109,13 +138,17 @@ window.ParkingAdminVoice = (() => {
     if (!items.length) return;
     const signature = JSON.stringify(items);
     if (seen.get(facility?.id) === signature) return;
-    const result = await call("enqueue", config, token, items);
-    if (result.error) {
-      say("施設データは保存しましたが、音声登録は未完了：" + result.error);
-      return;
+    let queued = 0;
+    for (let i = 0; i < items.length; i += 200) {
+      const result = await call("enqueue", config, token, items.slice(i, i + 200));
+      if (result.error) {
+        say("施設データは保存しましたが、一部の音声登録は未完了：" + result.error);
+        return;
+      }
+      queued += result.accepted || 0;
     }
     seen.set(facility?.id, signature);
-    say("施設・店舗の音声を生成待ちに登録しました（" + result.accepted + "件）。音声の保存完了は「準備状況を更新」で確認できます。");
+    say("施設・店舗・駐車枠の音声を生成待ちに登録しました（" + queued + "件）。保存完了は「準備状況を更新」で確認できます。");
   }
   async function queueCatalog(facilities, layouts, config, token) {
     if (active) return;
@@ -140,11 +173,13 @@ window.ParkingAdminVoice = (() => {
     const facility = by.facility || {};
     const tenant = by.tenant || {};
     const fixed = by.other || {};
+    const spaces = by.space || {};
     const retry = document.querySelector("#admin-voice-retry-failed");
     if (retry) retry.hidden = !(t.failed > 0);
     say("施設名 " + (facility.ready || 0) + "/" + (facility.total || 0)
       + " 件、施設内店舗名 " + (tenant.ready || 0) + "/" + (tenant.total || 0)
       + " 件、共通案内文 " + (fixed.ready || 0) + "/" + (fixed.total || 0)
+      + " 件、駐車枠番号 " + (spaces.ready || 0) + "/" + (spaces.total || 0)
       + " 件を保存済み。生成待ち " + (t.pending || 0)
       + " 件／再試行待ち " + (t.retry || 0) + " 件／失敗 " + (t.failed || 0) + " 件。"
       + (result.cooldownMinutes ? " 音声サービスの制限解除まで約"
@@ -181,5 +216,5 @@ window.ParkingAdminVoice = (() => {
   }
   return Object.freeze({ setup, configure, requestBackfill, requestStatus,
     requestRetryFailed, retryFailed, queueLayout, queueCatalog, refresh,
-    itemsForFacility, itemsForCatalog });
+    itemsForFacility, itemsForCatalog, spaceNames });
 })();
