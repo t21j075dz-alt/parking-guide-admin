@@ -247,6 +247,63 @@ $app = Make-Button "ユーザーアプリを開く" 221 432 205 37
 $app.Add_Click({ Start-Process "https://t21j075dz-alt.github.io/parking-guide-user/" })
 $form.Controls.Add($app)
 
+$modelButton = Make-Button "使用するYOLOモデルを選ぶ" 438 432 326 37
+$modelButton.Add_Click({
+    if ($script:running -and -not $script:running.HasExited) {
+        Warn "実験中はモデルを変更できません。判定を終了してから選択してください。"
+        return
+    }
+    if (-not (Test-Path -LiteralPath $script:python -PathType Leaf)) {
+        Warn "研究用Pythonが見つかりません。"
+        return
+    }
+    $choose = New-Object System.Windows.Forms.OpenFileDialog
+    $choose.Filter = "YOLOモデル|*.pt"
+    $choose.Title = "信頼できる学習済みYOLOモデルを選択"
+    $weights = Join-Path $env:USERPROFILE "parking-vision\weights"
+    $preferred = Join-Path $weights "best_from_usb.pt"
+    if (Test-Path -LiteralPath $weights -PathType Container) {
+        $choose.InitialDirectory = $weights
+        if (Test-Path -LiteralPath $preferred -PathType Leaf) {
+            $choose.FileName = $preferred
+        }
+    }
+    if ($choose.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+        $choose.Dispose()
+        return
+    }
+    $modelPath = $choose.FileName
+    $choose.Dispose()
+    try {
+        & $script:python -c "from ultralytics import YOLO; import sys; YOLO(sys.argv[1]); print('MODEL OK')" $modelPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "指定されたYOLOモデルを読み込めませんでした。"
+        }
+        if (-not (Test-Path -LiteralPath $script:config -PathType Leaf)) {
+            throw "録画用設定ファイルがありません。"
+        }
+        $configData = Get-Content -LiteralPath $script:config -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($configData.facility_id -ne "home-video-demo-001") {
+            throw "録画専用施設以外の設定は変更できません。"
+        }
+        $choice = [System.Windows.Forms.MessageBox]::Show(
+            "録画用モデルを変更します。以前の設定はバックアップされます。" +
+            [Environment]::NewLine + [IO.Path]::GetFileName($modelPath),
+            "録画用モデルの変更確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        if ($choice -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+        $backup = $script:config + ".model_backup_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+        Copy-Item -LiteralPath $script:config -Destination $backup -ErrorAction Stop
+        $configData.vehicle_model = $modelPath
+        [IO.File]::WriteAllText(
+            $script:config,
+            ($configData | ConvertTo-Json -Depth 30),
+            [Text.UTF8Encoding]::new($false))
+        $status.Text = "使用モデル：" + [IO.Path]::GetFileName($modelPath) + "（録画専用設定に保存）"
+    } catch { Warn ([string]$_.Exception.Message) }
+})
+$form.Controls.Add($modelButton)
+
 $status = Make-Label "録画専用施設：home-video-demo-001。実際の駐車場の現在の空きではありません。" 24 477 744 29 9
 $form.Controls.Add($status)
 $form.Controls.Add((Make-Label "停止：判定映像の画面でQ。終了時は共有OFF。アプリでは「実験用駐車場（自宅駐車場録画用）」を選択。" 24 507 744 26 8))
