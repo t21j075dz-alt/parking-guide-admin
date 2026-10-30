@@ -205,6 +205,34 @@ class VideoReplayTests(unittest.TestCase):
             self.assertIsNone(frame)
             replay.close()
 
+
+    def test_loop_restarts_video_and_increments_cycle_without_fabricating_frames(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "clip.mp4"
+            path.write_bytes(b"test")
+            clock = [100.0]
+            cv2 = FakeCV2()
+            replay = VideoReplay(path, cv2, root=Path(directory) / "logs",
+                                 clock=lambda: clock[0], sleeper=lambda _: None,
+                                 loop=True)
+            replay.start()
+            self.assertEqual(replay.next_frame(0)[1], 1)
+            clock[0] += 3.1  # 90フレーム、30fpsの終端
+            first_of_second, next_number = replay.next_frame(1)
+            self.assertIsNotNone(first_of_second)
+            self.assertEqual(next_number, 1)
+            self.assertEqual(replay.frame_index, 0)
+            self.assertEqual(replay.cycle_number, 1)
+            clock[0] += 0.1
+            following, next_number = replay.next_frame(next_number)
+            self.assertIsNotNone(following)
+            self.assertGreater(next_number, 1)
+            replay.log_status({"space_001": "unknown"})
+            replay.close()
+            output = (replay.folder / "区画状態の変化.csv").read_text(encoding="utf-8-sig")
+            self.assertIn("周回", output)
+            self.assertIn(",2", output)
+
     def test_confirmation_does_not_skip_video(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "clip.mp4"
