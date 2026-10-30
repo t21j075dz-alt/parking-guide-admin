@@ -83,10 +83,10 @@ function Run-Experiment([bool]$share) {
     try {
         $runner = Join-Path $PSScriptRoot "video_demo_run_window.ps1"
         if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) { throw "起動ファイルがありません。" }
-        $args = '-NoProfile -ExecutionPolicy Bypass -File "' + $runner +
+        $launchArgs = '-NoProfile -ExecutionPolicy Bypass -File "' + $runner +
             '" -Video "' + $script:video + '"'
-        if ($share) { $args += " -Share" }
-        $script:running = Start-Process powershell.exe -ArgumentList $args -PassThru
+        if ($share) { $launchArgs += " -Share" }
+        $script:running = Start-Process powershell.exe -ArgumentList $launchArgs -PassThru
         $offline.Enabled = $false
         $publish.Enabled = $false
         $status.Text = "別ウィンドウで開始。映像のS=区画確認、Q=中止。共有時は管理者ログインが必要です。"
@@ -211,10 +211,10 @@ $zones.Add_Click({
     $source = $choose.FileName
     $choose.Dispose()
     $zoneRunner = Join-Path $PSScriptRoot "video_demo_zone_window.ps1"
-    $args = '-NoProfile -ExecutionPolicy Bypass -File "' + $zoneRunner +
+    $launchArgs = '-NoProfile -ExecutionPolicy Bypass -File "' + $zoneRunner +
         '" -SourceConfig "' + $source + '" -Video "' + $script:video + '"'
     try {
-        $null = Start-Process powershell.exe -ArgumentList $args -PassThru
+        $null = Start-Process powershell.exe -ArgumentList $launchArgs -PassThru
         $status.Text = "区画確認を開始。映像の区画が一致していればS、違えばQを押してください。"
     } catch { Warn ([string]$_.Exception.Message) }
 })
@@ -224,10 +224,10 @@ $calibrate = Make-Button "動画の画角で6区画を新規登録" 501 295 263 
 $calibrate.Add_Click({
     if (-not $script:video) { Warn "先に動画を選んでください。"; return }
     $runner = Join-Path $PSScriptRoot "video_demo_calibrate_window.ps1"
-    $args = '-NoProfile -ExecutionPolicy Bypass -File "' + $runner +
+    $launchArgs = '-NoProfile -ExecutionPolicy Bypass -File "' + $runner +
         '" -Video "' + $script:video + '"'
     try {
-        $null = Start-Process powershell.exe -ArgumentList $args -PassThru
+        $null = Start-Process powershell.exe -ArgumentList $launchArgs -PassThru
         $status.Text = "動画の画角で区画を登録します。4点ずつ指定し、Qで保存してください。"
     } catch { Warn ([string]$_.Exception.Message) }
 })
