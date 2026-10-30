@@ -48,7 +48,89 @@ if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) {
   throw "録画ファイルがありません: $Video"
 }
 
+# 録画用の6区画が未登録なら、リアルタイムカメラの座標を目視確認して再利用。
+# 動画の画角が異なる場合は、この動画専用に再登録。実カメラの設定は上書きしない。
 $videoSettings = Get-Content -LiteralPath $demoConfig -Raw -Encoding UTF8 | ConvertFrom-Json
+$expectedZoneIds = @("space_001", "space_002", "space_003", "space_004", "space_005", "space_006")
+function Test-VideoZones($settings) {
+  if ([string]$settings.facility_id -ne "home-video-demo-001") {
+    throw "録画専用設定の施設IDが異なります。実ライブの施設へ録画を送信しません。"
+  }
+  $areas = $settings.space_zones
+  if ($null -eq $areas) { return $false }
+  $zoneKeys = @($areas.PSObject.Properties | ForEach-Object { $_.Name })
+  if ($zoneKeys.Count -ne 6) { return $false }
+  foreach ($uid in $expectedZoneIds) {
+    if ($uid -notin $zoneKeys) { return $false }
+    $polygon = @($areas.$uid)
+    if ($polygon.Count -ne 4) { return $false }
+  }
+  return $true
+}
+
+if (-not (Test-VideoZones $videoSettings)) {
+  Write-Host ""
+  Write-Host "【駐車区画の確認】録画実演用の6区画が未登録です。"
+  Write-Host "1. リアルタイムカメラで登録済みの6区画を動画に重ねて流用"
+  Write-Host "2. この動画の画角に合わせて6区画を新しく登録"
+  Write-Host "3. 取り消す（クラウド送信しない）"
+  $zoneChoice = (Read-Host "区画の設定方法（1/2/3）").Trim()
+  if ($zoneChoice -eq "1") {
+    $sourceCandidates = @(
+      (Join-Path $PSScriptRoot "config_usb_original.json"),
+      (Join-Path $PSScriptRoot "config_laptop_original.json"),
+      (Join-Path $PSScriptRoot "config_from_laptop.json"),
+      (Join-Path $PSScriptRoot "config_from_laptop_fixed.json"),
+      "D:\config.json"
+    )
+    $sourceConfig = $null
+    foreach ($candidate in $sourceCandidates) {
+      if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+      try {
+        $previous = Get-Content -LiteralPath $candidate -Raw -Encoding UTF8 | ConvertFrom-Json
+        $previousKeys = @($previous.space_zones.PSObject.Properties | ForEach-Object { $_.Name })
+        if ($previous.facility_id -eq "home-test-001" -and
+            $previousKeys.Count -eq 6 -and
+            @($expectedZoneIds | Where-Object { $_ -notin $previousKeys }).Count -eq 0) {
+          $sourceConfig = $candidate
+          break
+        }
+      } catch {
+        Write-Host "【参考】読み取れない旧設定をスキップ: $candidate"
+      }
+    }
+    if (-not $sourceConfig) {
+      $manualPath = (Read-Host "6区画が登録済みのJSONをフルパスで入力（Enterで中止）").Trim().Trim('"')
+      if (-not $manualPath -or -not (Test-Path -LiteralPath $manualPath -PathType Leaf)) {
+        throw "移行元の6区画設定が見つかりません。区画登録をせずに終了します。"
+      }
+      $sourceConfig = $manualPath
+    }
+    Write-Host "【移行元】$sourceConfig"
+    Write-Host "【重要】動画と実カメラの位置・向き・レンズ・ズームが違えばQで中止してください。"
+    $importArgs = @((Join-Path $PSScriptRoot "reuse_live_zones_for_video.py"),
+      "--source-config", $sourceConfig, "--demo-config", $demoConfig, "--video", $Video)
+    & $python @importArgs
+    if ($LASTEXITCODE -ne 0) {
+      throw "既存区画の取り込みに失敗しました。上の説明をご確認ください。"
+    }
+  } elseif ($zoneChoice -eq "2") {
+    Write-Host "【動画専用の区画登録】映像内で四隅を4点ずつ指定します。Q=保存 / Esc=中止。"
+    & $python (Join-Path $PSScriptRoot "calibrate.py") --config $demoConfig --source $Video
+    if ($LASTEXITCODE -ne 0) {
+      throw "動画での区画登録に失敗しました。上の説明をご確認ください。"
+    }
+  } else {
+    Write-Host "【中止】区画が未登録のため、判定も共有も開始していません。"
+    return
+  }
+
+  $videoSettings = Get-Content -LiteralPath $demoConfig -Raw -Encoding UTF8 | ConvertFrom-Json
+  if (-not (Test-VideoZones $videoSettings)) {
+    Write-Host "【中止】録画用の6区画を確認できませんでした。全区画が動画に一致することを確認して設定してください。"
+    return
+  }
+}
 if (-not (Test-Path -LiteralPath ([string]$videoSettings.vehicle_model) -PathType Leaf)) {
   throw "学習モデルが見つかりません。config_video_demo.json のvehicle_modelを確認してください。"
 }
