@@ -38,7 +38,7 @@ def load_public_connection() -> tuple[str, str]:
     if not url_match or not key_match:
         raise RuntimeError("sync-config.jsから公開用接続設定を取得できません")
     url, key = url_match.group(1), key_match.group(1)
-    if not re.fullmatch(r"https://[a-z0-9-]+\\.supabase\\.co", url):
+    if not re.fullmatch(r"https://[a-z0-9-]+\.supabase\.co", url):
         raise RuntimeError("Supabase URLの形式を確認してください")
     if not key.startswith("sb_publishable_"):
         raise RuntimeError("公開用キーの形式を確認してください。秘密鍵は使用できません")
