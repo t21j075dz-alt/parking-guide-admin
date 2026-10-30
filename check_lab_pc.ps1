@@ -68,6 +68,13 @@ if ($modelsFound.Count -eq 0) {
     Report "NG" "学習済みモデル" "標準の2か所に見つかりません。別の場所に置いた場合は設定内の参照先も確認してください。"
 }
 
+$baselineModel = Join-Path $researchFolder "weights\baseline_yolo11n.pt"
+if (Test-Path -LiteralPath $baselineModel -PathType Leaf) {
+    Report "OK" "標準YOLO11n（代替モデル）" ("{0} / 以前の独自学習済みbest.ptとは異なります" -f $baselineModel)
+} else {
+    Report "参考" "標準YOLO11n（代替モデル）" "未取得"
+}
+
 Write-Host ""
 Write-Host "【4】カメラ・録画の設定ファイル"
 $configs = @(
