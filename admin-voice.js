@@ -125,9 +125,15 @@ window.ParkingAdminVoice = (() => {
     const result = await call("status", config, token);
     if (result.error) { say(result.error); return; }
     const t = result.totals || {};
-    say("保存完了 " + (t.ready || 0) + " 件／未生成 " + (t.pending || 0)
-      + " 件／生成中 " + (t.processing || 0) + " 件／再試行待ち " + (t.retry || 0)
-      + " 件／生成失敗 " + (t.failed || 0) + " 件");
+    const by = result.byType || {};
+    const facility = by.facility || {};
+    const tenant = by.tenant || {};
+    const fixed = by.other || {};
+    say("施設名 " + (facility.ready || 0) + "/" + (facility.total || 0)
+      + " 件、施設内店舗名 " + (tenant.ready || 0) + "/" + (tenant.total || 0)
+      + " 件、共通案内文 " + (fixed.ready || 0) + "/" + (fixed.total || 0)
+      + " 件を保存済み。生成待ち " + (t.pending || 0)
+      + " 件／再試行待ち " + (t.retry || 0) + " 件／失敗 " + (t.failed || 0) + " 件。");
   }
   function configure(callback) { getContext = callback; }
   async function requestBackfill() {

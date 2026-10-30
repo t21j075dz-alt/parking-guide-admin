@@ -158,16 +158,25 @@ Deno.serve(async req => {
   if (body.action === "enqueue") {
     const result = await enqueue(body.items as unknown[]);
     if ("error" in result) return response(req, result, 400);
-    // 同じ管理操作で1件だけ先行して生成。残りはCronで順次処理する。
-    try { EdgeRuntime.waitUntil(work()); } catch {}
+    // 自動生成は30秒間隔のCronで実行し、管理画面の一括登録から
+    // 同時に多数のTTS生成要求を出さない。
     return response(req, result);
   }
   if (body.action === "status") {
-    const { data, error } = await admin.from("parking_voice_jobs").select("status");
+    const { data, error } = await admin.from("parking_voice_jobs").select("status,source_type");
     if (error) return response(req, { error: "status unavailable" }, 503);
     const totals = { ready: 0, pending: 0, processing: 0, retry: 0, failed: 0 };
-    for (const row of data || []) if (row.status in totals) totals[row.status as keyof typeof totals]++;
-    return response(req, { totals, total: (data || []).length });
+    const byType: Record<string,{ready:number,total:number}> = {
+      facility:{ready:0,total:0}, tenant:{ready:0,total:0}, other:{ready:0,total:0}
+    };
+    for (const row of data || []) {
+      if (row.status in totals) totals[row.status as keyof typeof totals]++;
+      if (row.source_type in byType) {
+        byType[row.source_type].total++;
+        if (row.status === "ready") byType[row.source_type].ready++;
+      }
+    }
+    return response(req, { totals, byType, total: (data || []).length });
   }
   return response(req, { error: "unknown action" }, 400);
 });
