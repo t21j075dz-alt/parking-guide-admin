@@ -38,3 +38,12 @@ test("the catalog removes duplicate names across facilities", () => {
   ],{});
   assert.equal(items.length,1);
 });
+
+
+test("administrator pronunciation overrides written tenant name for TTS generation", () => {
+  const list=getModule().itemsForFacility({id:"target_021",name:"マルナカ中井町店"},{
+    destinations:[{id:"tenant_new",name:"ABCマーケット",nameReading:"えーびーしー まーけっと"}],
+  });
+  assert.equal(list[1].text,"えーびーしー まーけっと");
+  assert.equal(list[1].type,"tenant");
+});
