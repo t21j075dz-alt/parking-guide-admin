@@ -1,9 +1,5 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0video_demo_drop.ps1"
-if errorlevel 1 (
-  echo.
-  echo The drag-and-drop app could not start. Please check the error message.
-  pause
-)
+rem Use the same 1/2 menu and PowerShell file-path drop flow as the original demo.
+call "%~dp0録画動画でYOLO案内を実演.cmd"
