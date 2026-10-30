@@ -78,6 +78,11 @@ window.ParkingAdminVoice = (() => {
   function itemsForCatalog(facilities, layouts) {
     const all = [];
     for (const f of facilities || []) all.push(...itemsForFacility(f,layouts?.[f.id]));
+    // 3つのモードは共通レイアウトで管理するが音声名は個別に準備する。
+    for (const id of ["home-video-demo-001", "home-voice-test-001"]) {
+      const reading = window.PARKING_SPEECH_READINGS?.[id];
+      if (reading) all.push({ text: reading, type: "facility" });
+    }
     for (const [id, layout] of Object.entries(layouts || {})) {
       if (!(facilities || []).some(f => f.id === id)) all.push(...destinationNames(layout));
     }
