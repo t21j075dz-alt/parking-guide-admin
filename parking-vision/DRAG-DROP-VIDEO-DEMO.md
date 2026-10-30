@@ -11,7 +11,14 @@ git -C "$env:USERPROFILE\parking-guide-admin" pull --ff-only
 ~~~
 
 エクスプローラーで **%USERPROFILE%\parking-guide-admin\parking-vision** を開き、
-**録画YOLO_ドラッグして開始.cmd** をダブルクリックします。
+**録画YOLO_ドラッグして開始.cmd** または **録画動画でYOLO案内を実演.cmd** をダブルクリックします。
+
+これらは添付された従来の操作方法と同じで、最初に **1（PC内だけで確認）** / **2（ユーザーアプリへ共有）** を選択し、
+PowerShellの「再生するMP4等の動画をフルパスで入力」という表示に、
+エクスプローラーから動画をドラッグしてEnterを押す方式です。
+`2` を選んだ場合は、続いて管理者の共有承認・ログインが必要です。
+
+追加の専用ウィンドウを使いたい場合だけ **録画YOLO_画面で動画を選ぶ.cmd** を起動します。
 
 初回は、そのフォルダの録画専用設定 \`config_video_demo.json\` が必要です。
 存在しなければ先に \`regenerate_lab_assets.py\` で作成してください。
