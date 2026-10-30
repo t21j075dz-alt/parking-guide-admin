@@ -9,7 +9,9 @@ function getModule() {
   const window = { PARKING_SPEECH_READINGS: {
     target_021: "まるなか なかいちょうてん",
   } };
-  vm.runInNewContext(source, {window, document:{querySelector:()=>null}});
+  const context = vm.createContext({window, document:{querySelector:()=>null}});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../voice-speech-readings.js"),"utf8"), context);
+  vm.runInContext(source, context);
   return window.ParkingAdminVoice;
 }
 test("existing facility names use the configured spoken pronunciation", () => {
@@ -67,4 +69,30 @@ test("an authenticated administrator can retry failed clips without regenerating
   assert.deepEqual(actions,["retry-failed","status"]);
   await api.retryFailed({enabled:true,url:"https://example.test",publishableKey:"publishable"}, null);
   assert.deepEqual(actions,["retry-failed","status"],"unauthorized retry must not send a request");
+});
+
+
+test("registered parking space numbers are queued as reusable spoken components", () => {
+  const app=getModule();
+  const layout={objects:[
+    {objectType:"parkingSpace",spaceNumber:"006",name:"普通車 6"},
+    {objectType:"parkingSpace",spaceNumber:"007",spaceGroup:"A",spaceGroupKind:"row"},
+    {objectType:"parkingSpace",spaceNumber:"008",spaceNumberReading:"はちばん"},
+    {objectType:"building",name:"案内板"},
+  ]};
+  const audio=app.spaceNames(layout);
+  assert.deepEqual(Array.from(audio.map(x=>x.type)),["space","space","space"]);
+  assert.deepEqual(Array.from(audio.map(x=>x.text)),[
+    "ろく", "えー、れつ なな", "はちばん"
+  ]);
+  const full=app.itemsForFacility({id:"target_021",name:"マルナカ中井町店"}, layout);
+  assert.ok(full.some(x=>x.type==="space"&&x.text==="えー、れつ なな"));
+});
+
+test("catalog backfill also includes registered parking spaces in uncatalogued experimental layouts",()=>{
+  const app=getModule();
+  const list=app.itemsForCatalog([],{
+    "experimental":{objects:[{objectType:"parkingSpace",spaceNumber:"012"}]},
+  });
+  assert.deepEqual(Array.from(list.map(x=>x.text)),["じゅうに"]);
 });
