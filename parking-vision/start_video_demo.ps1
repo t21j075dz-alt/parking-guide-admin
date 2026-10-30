@@ -54,7 +54,9 @@ if (-not (Test-Path -LiteralPath ([string]$videoSettings.vehicle_model) -PathTyp
 }
 Write-Host "【映像】$Video"
 Write-Host "【AIモデル】$($videoSettings.vehicle_model)"
-$flags = @("--config", $demoConfig, "--video", $Video, "--preview")
+# 研究発表用の録画実演では、QまたはCtrl+Cで止めるまで同じ動画を繰り返す。
+$flags = @("--config", $demoConfig, "--video", $Video, "--loop-video", "--preview")
+Write-Host "【ループ】動画が終わると自動で先頭に戻ります。QキーまたはCtrl+Cで停止します。"
 if (-not [string]::IsNullOrWhiteSpace($VerifiedEmpty)) {
   $flags += @("--verified-empty", $VerifiedEmpty)
 }
