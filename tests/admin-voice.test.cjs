@@ -47,3 +47,24 @@ test("administrator pronunciation overrides written tenant name for TTS generati
   assert.equal(list[1].text,"えーびーしー まーけっと");
   assert.equal(list[1].type,"tenant");
 });
+
+
+test("an authenticated administrator can retry failed clips without regenerating successful clips", async () => {
+  const actions = [];
+  const window = { PARKING_SPEECH_READINGS: {} };
+  const document = { querySelector() { return null; } };
+  const fetch = async (_url, options) => {
+    const action = JSON.parse(options.body).action;
+    actions.push(action);
+    return { ok: true, json: async () => action === "retry-failed"
+      ? { requeued: 2 }
+      : { totals:{ ready:24,pending:2,processing:0,retry:0,failed:0 },
+        byType:{ facility:{ready:24,total:26},tenant:{ready:0,total:0},other:{ready:0,total:0} },total:26 } };
+  };
+  vm.runInNewContext(source, {window,document,fetch,AbortSignal});
+  const api=window.ParkingAdminVoice;
+  await api.retryFailed({enabled:true,url:"https://example.test",publishableKey:"publishable"}, "test-token");
+  assert.deepEqual(actions,["retry-failed","status"]);
+  await api.retryFailed({enabled:true,url:"https://example.test",publishableKey:"publishable"}, null);
+  assert.deepEqual(actions,["retry-failed","status"],"unauthorized retry must not send a request");
+});

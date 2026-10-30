@@ -38,11 +38,17 @@ window.ParkingAdminVoice = (() => {
     refresh.type = "button";
     refresh.textContent = "音声の準備状況を更新";
     refresh.id = "admin-voice-refresh";
-    row.append(requeue, refresh);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "生成失敗分を再試行";
+    retry.id = "admin-voice-retry-failed";
+    retry.hidden = true;
+    row.append(requeue, refresh, retry);
     panel.append(title, statusText, info, row);
     host.after(panel);
     requeue.addEventListener("click", () => window.ParkingAdminVoice.requestBackfill?.());
     refresh.addEventListener("click", () => window.ParkingAdminVoice.requestStatus?.());
+    retry.addEventListener("click", () => window.ParkingAdminVoice.requestRetryFailed?.());
   }
   function say(message) {
     if (!statusText) setup();
@@ -129,13 +135,35 @@ window.ParkingAdminVoice = (() => {
     const facility = by.facility || {};
     const tenant = by.tenant || {};
     const fixed = by.other || {};
+    const retry = document.querySelector("#admin-voice-retry-failed");
+    if (retry) retry.hidden = !(t.failed > 0);
     say("施設名 " + (facility.ready || 0) + "/" + (facility.total || 0)
       + " 件、施設内店舗名 " + (tenant.ready || 0) + "/" + (tenant.total || 0)
       + " 件、共通案内文 " + (fixed.ready || 0) + "/" + (fixed.total || 0)
       + " 件を保存済み。生成待ち " + (t.pending || 0)
-      + " 件／再試行待ち " + (t.retry || 0) + " 件／失敗 " + (t.failed || 0) + " 件。");
+      + " 件／再試行待ち " + (t.retry || 0) + " 件／失敗 " + (t.failed || 0) + " 件。"
+      + (result.cooldownMinutes ? " 音声サービスの制限解除まで約"
+        + result.cooldownMinutes + "分です。" : ""));
+  }
+  async function retryFailed(config, token) {
+    if (!token || !config?.enabled) {
+      say("生成失敗分を再試行するには管理者ログインが必要です。");
+      return;
+    }
+    const result = await call("retry-failed", config, token);
+    if (result.error) {
+      say("再試行の登録に失敗しました：" + result.error);
+      return;
+    }
+    say("生成失敗分 " + result.requeued + " 件を生成待ちへ戻しました。成功済み音声は再生成しません。");
+    await refresh(config, token);
   }
   function configure(callback) { getContext = callback; }
+  async function requestRetryFailed() {
+    if (!getContext) return;
+    const x = getContext();
+    return retryFailed(x.config, x.token);
+  }
   async function requestBackfill() {
     if (!getContext) return;
     const x = getContext();
@@ -147,5 +175,6 @@ window.ParkingAdminVoice = (() => {
     return refresh(x.config, x.token);
   }
   return Object.freeze({ setup, configure, requestBackfill, requestStatus,
-    queueLayout, queueCatalog, refresh, itemsForFacility, itemsForCatalog });
+    requestRetryFailed, retryFailed, queueLayout, queueCatalog, refresh,
+    itemsForFacility, itemsForCatalog });
 })();

@@ -112,10 +112,11 @@ async function work() {
       cacheControl: "31536000",
     });
     if (uploadError) throw new Error("storage-upload-failed");
-    await admin.from("parking_voice_jobs").update({
+    const { error: savedError } = await admin.from("parking_voice_jobs").update({
       status: "ready", storage_path: file, last_error: null,
       updated_at: new Date().toISOString(),
     }).eq("audio_hash", item.audio_hash);
+    if (savedError) throw new Error("database-save-failed");
     return { status: "ready" };
   } catch (error) {
     const code = String(error instanceof Error ? error.message : error).slice(0,120);
@@ -163,20 +164,42 @@ Deno.serve(async req => {
     return response(req, result);
   }
   if (body.action === "status") {
-    const { data, error } = await admin.from("parking_voice_jobs").select("status,source_type");
-    if (error) return response(req, { error: "status unavailable" }, 503);
+    // PostgRESTの行数上限で1000件を超える場合も正確に集計。
     const totals = { ready: 0, pending: 0, processing: 0, retry: 0, failed: 0 };
     const byType: Record<string,{ready:number,total:number}> = {
       facility:{ready:0,total:0}, tenant:{ready:0,total:0}, other:{ready:0,total:0}
     };
-    for (const row of data || []) {
-      if (row.status in totals) totals[row.status as keyof typeof totals]++;
-      if (row.source_type in byType) {
-        byType[row.source_type].total++;
-        if (row.status === "ready") byType[row.source_type].ready++;
+    let total = 0;
+    for (let offset = 0; offset < 100000; offset += 500) {
+      const { data, error } = await admin.from("parking_voice_jobs")
+        .select("status,source_type").order("audio_hash").range(offset,offset+499);
+      if (error) return response(req, { error: "status unavailable" }, 503);
+      for (const row of data || []) {
+        if (row.status in totals) totals[row.status as keyof typeof totals]++;
+        if (row.source_type in byType) {
+          byType[row.source_type].total++;
+          if (row.status === "ready") byType[row.source_type].ready++;
+        }
       }
+      total += (data || []).length;
+      if (!data || data.length < 500) break;
     }
-    return response(req, { totals, byType, total: (data || []).length });
+    const { data: cooldown } = await admin.from("parking_voice_worker_config")
+      .select("secret_value").eq("key","cooldown_until").maybeSingle();
+    const blockedUntil = Date.parse(cooldown?.secret_value || "");
+    return response(req, { totals, byType, total,
+      cooldownMinutes: Number.isFinite(blockedUntil) ?
+        Math.max(0,Math.ceil((blockedUntil - Date.now()) / 60000)) : 0 });
+  }
+  if (body.action === "retry-failed") {
+    // 生成成功済みMP3は削除・再生成しない。
+    // 管理者が明示的に押した場合のみ失敗8回の項目を再試行対象に戻す。
+    const { data, error } = await admin.from("parking_voice_jobs")
+      .update({ status:"pending", attempts:0, last_error:null,
+        next_attempt_at:new Date().toISOString(), updated_at:new Date().toISOString() })
+      .eq("status","failed").select("audio_hash");
+    if (error) return response(req,{error:"Could not retry failed voice clips"},503);
+    return response(req,{requeued:(data || []).length});
   }
   return response(req, { error: "unknown action" }, 400);
 });
