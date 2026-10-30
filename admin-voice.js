@@ -83,9 +83,11 @@ window.ParkingAdminVoice = (() => {
         .trim().replace(/(?:区画|列)$/u, "");
       const groupLabel = group ? group + (space.spaceGroupKind === "area" ? "区画" : "列") : "";
       const combined = [groupLabel, number].filter(Boolean).join(" ");
-      const original = space.spaceNumberReading || space.nameReading || combined;
-      const text = typeof japaneseSpaceReading === "function"
-        ? japaneseSpaceReading(original) : original;
+      const customReading = space.spaceNumberReading || space.nameReading;
+      const text = customReading
+        ? String(customReading).trim()
+        : typeof japaneseSpaceReading === "function"
+          ? japaneseSpaceReading(combined) : combined;
       const normalized = typeof normalizeJapaneseSpeech === "function"
         ? normalizeJapaneseSpeech(text) : text;
       if (normalized && normalized.trim().length <= 160)
