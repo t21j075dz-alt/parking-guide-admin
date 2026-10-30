@@ -131,7 +131,7 @@ function Check-Share {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "卒業研究：録画YOLOとユーザーアプリ連携"
-$form.ClientSize = New-Object System.Drawing.Size(790, 530)
+$form.ClientSize = New-Object System.Drawing.Size(790, 550)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = [System.Drawing.Color]::White
 $form.Font = New-Object System.Drawing.Font("Yu Gothic UI", 10)
@@ -219,6 +219,19 @@ $zones.Add_Click({
     } catch { Warn ([string]$_.Exception.Message) }
 })
 $form.Controls.Add($zones)
+
+$calibrate = Make-Button "動画の画角で6区画を新規登録" 501 295 263 41
+$calibrate.Add_Click({
+    if (-not $script:video) { Warn "先に動画を選んでください。"; return }
+    $runner = Join-Path $PSScriptRoot "video_demo_calibrate_window.ps1"
+    $args = '-NoProfile -ExecutionPolicy Bypass -File "' + $runner +
+        '" -Video "' + $script:video + '"'
+    try {
+        $null = Start-Process powershell.exe -ArgumentList $args -PassThru
+        $status.Text = "動画の画角で区画を登録します。4点ずつ指定し、Qで保存してください。"
+    } catch { Warn ([string]$_.Exception.Message) }
+})
+$form.Controls.Add($calibrate)
 
 $offline = Make-Button "PCだけで判定する" 24 365 352 54
 $offline.Add_Click({ Run-Experiment $false })
