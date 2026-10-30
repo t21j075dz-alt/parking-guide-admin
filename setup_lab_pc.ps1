@@ -1,4 +1,4 @@
-# 研究室PCに卒業研究の共通環境を準備する（Windows PowerShell）
+﻿# 研究室PCに卒業研究の共通環境を準備する（Windows PowerShell）
 # 使い方:
 # powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\setup_lab_pc.ps1"
 # 学習済みモデルが手元にある場合:
