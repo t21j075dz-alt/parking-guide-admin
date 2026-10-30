@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from pathlib import Path
@@ -57,7 +58,12 @@ def prepare_baseline() -> Path:
     print("[実行] 標準YOLO11nを取得します（初回はインターネットが必要）")
     # YOLOが必要に応じて公式配布の学習済み標準モデルを取得する。
     local = HERE / "yolo11n.pt"
-    YOLO(str(local) if local.is_file() else "yolo11n.pt")
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(HERE)
+        YOLO(str(local) if local.is_file() else "yolo11n.pt")
+    finally:
+        os.chdir(old_cwd)
     if not local.is_file():
         raise RuntimeError(
             "yolo11n.ptが取得できません。ネット接続とYOLOの出力を確認してください。"
