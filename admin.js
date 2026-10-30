@@ -2782,6 +2782,8 @@ function appendPhotoParkingMarking(node) { mapDisplay.appendPhoto(node); }
 
 /** 背景と全オブジェクトを現在の編集状態から描画する。 */
 function render() {
+  const sharedHomePanel = document.querySelector("#shared-home-parking-map");
+  if (sharedHomePanel) sharedHomePanel.hidden = state.facilityId !== "home-test-001";
   const layout = ensureLayout(state.facilityId);
   initializePhotoScale(layout);
   elements.canvas.classList.toggle("has-photo", Boolean(layout.background && GSI_PHOTO_SOURCES[layout.background.type]));
