@@ -732,6 +732,8 @@ def main():
     parser.add_argument("--preview", action="store_true", help="検知範囲と状態を表示する")
     parser.add_argument("--dry-run", action="store_true", help="クラウドに書き込まず試す")
     parser.add_argument("--video", default="", help="録画動画を実時間に合わせてYOLO判定する")
+    parser.add_argument("--loop-video", action="store_true",
+                        help="録画動画を停止操作まで繰り返し再生する（動画実演専用）")
     parser.add_argument("--demo-publish", action="store_true",
                         help="録画実演専用施設だけに判定を共有（実カメラ施設とは分離）")
     parser.add_argument("--verified-empty", default="",
@@ -744,6 +746,8 @@ def main():
     )
     require_demo_mode(config, args)
     video_mode = bool(args.video)
+    if args.loop_video and not video_mode:
+        raise ValueError("--loop-video は --video と一緒に指定してください")
     if args.verified_empty and not video_mode:
         raise ValueError("--verified-empty は録画実演用です")
     try:
@@ -755,7 +759,7 @@ def main():
     camera = None
     if video_mode:
         from video_replay import VideoReplay
-        recording = VideoReplay(args.video, cv2)
+        recording = VideoReplay(args.video, cv2, loop=args.loop_video)
         print("【入力】録画映像を再生しながらYOLO推論（実カメラは使用しません）")
         print("【重要】動画の状態は実際の駐車場の現在の空きではありません。")
     else:
@@ -837,6 +841,7 @@ def main():
             segment_seconds=int(config.get("recording_segment_seconds", 600)),
         )
     sequence = 0
+    handled_cycle_number = 0
     visual_recorder = None
     diagnostic_recorder = None
     person_diagnostic_recorder = None
@@ -877,8 +882,30 @@ def main():
         print("【原因の特定】同じフォルダの「駐車区画_判定診断.csv」に位置・停止・区画投票を記録します")
         while True:
             frame, sequence = recording.next_frame(sequence)
-            if frame is None:  # 録画動画の終端。実カメラの場合はNoneにならない。
+            if frame is None:  # ループOFFのときだけ録画の終端で終了。
                 break
+            if video_mode and recording.cycle_number != handled_cycle_number:
+                # 同じ動画の2周目を別の観測として開始する。前周の車両ID、
+                # 停止秒数、占有状態、通知の差分を絶対に引き継がない。
+                handled_cycle_number = recording.cycle_number
+                demo_machine = RecordedParkingStateMachine(zones)
+                tracks = VehicleTracker(config["facility_id"], config["camera_id"],
+                                        float(config.get("park_seconds", 5)),
+                                        lost_seconds=float(config.get("reid_window_seconds", 12)))
+                stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
+                stable_people = PersonIdStabilizer(visible_seconds=1.0)
+                night_evidence = NightVehicleEvidenceGate(
+                    lifetime_seconds=float(config.get("reid_window_seconds", 12)))
+                previous_statuses = None
+                previous_demo_phases = None
+                pending_sessions.clear()
+                last_push = 0.
+                predictor = getattr(vehicle_model, "predictor", None)
+                for tracker in getattr(predictor, "trackers", []) or []:
+                    reset = getattr(tracker, "reset", None)
+                    if callable(reset):
+                        reset()
+                print("【周回初期化】前回の追跡IDと駐車状態をリセットしました。")
             if snapshots:
                 try:
                     snapshots.publish(frame)
@@ -1046,6 +1073,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except KeyboardInterrupt:
+        print("【手動停止】録画実演を停止しました。共有設定と出力ファイルを閉じます。")
     except error.HTTPError as exc:
         sys.exit(f"クラウド認証・保存に失敗しました（HTTP {exc.code}）。ログインと権限を確認してください")
     except (ValueError, OSError, json.JSONDecodeError) as exc:
