@@ -8,7 +8,8 @@
   const STATUS_CODES = Object.freeze({ unknown: 0, available: 1, occupied: 2, blocked: 3 });
   const MAX_ROWS = 100000;
   const RECORDING_FACILITIES = Object.freeze({
-    "home-test-001": "自宅駐車場",
+    "home-test-001": "実験用駐車場（自宅駐車場リアルタイム用）",
+    "home-video-demo-001": "実験用駐車場（自宅駐車場録画用）",
     "nikko-test-001": "道の駅日光",
   });
 
