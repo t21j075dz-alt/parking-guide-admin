@@ -76,9 +76,9 @@ window.ParkingAdminVoice = (() => {
       if (!space || space.objectType !== "parkingSpace") continue;
       // ユーザーアプリの mapDisplay.spaceName と日本語読み上げ規則に合わせる。
       const numberRaw = String(space.spaceNumber
-        ?? String(space.name || "").match(/(?:普通車|軽|車椅子|EV|駐車区画)\\s+(\\d+)$/)?.[1]
+        ?? String(space.name || "").match(/(?:普通車|軽|車椅子|EV|駐車区画)\s+(\d+)$/)?.[1]
         ?? space.name ?? "").normalize("NFKC").trim();
-      const number = numberRaw.replace(/\\d+/g, digits => digits.replace(/^0+(?=\\d)/, ""));
+      const number = numberRaw.replace(/\d+/g, digits => digits.replace(/^0+(?=\d)/, ""));
       const group = String(space.spaceGroup || "").normalize("NFKC")
         .trim().replace(/(?:区画|列)$/u, "");
       const groupLabel = group ? group + (space.spaceGroupKind === "area" ? "区画" : "列") : "";
