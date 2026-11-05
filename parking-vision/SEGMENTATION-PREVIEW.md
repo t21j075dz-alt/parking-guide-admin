@@ -226,3 +226,85 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -
 
 なお、輪郭から取得した下側座標は地面の接地点の計測値ではないため、
 画像上の車体が隣接枠を大きく覆う条件では、区画を「確認中」にすることがあります。
+
+
+## 2026-11-05：車体輪郭の品質向上（高解像度モデル＋比較手順）
+
+今回の診断 `車両輪郭_比較診断(5).csv` では、1,862件すべての
+車両検出に輪郭が添付されていました。しかし **検出成功率100%は、
+人が描いた正解輪郭との一致率100%を意味しません。**
+従来の `segmentation_match_iou` は**車両の検出矩形とマスク矩形のIoU**であり、
+車体輪郭の正解IoUではありません。
+
+YOLO11の事前学習済みセグメンテーションモデルには n / s / m などがあり、
+Ultralytics は `retina_masks=True` で入力画像に合わせた高解像度マスク出力に
+対応しています。これにより小さな車両や斜めからの形状の表現改善を
+*狙えます*が、ユーザーの駐車場での精度は実験して評価します。
+
+| 品質 | モデル | 入力サイズ | 高解像度マスク | 目的 |
+| --- | --- | ---: | --- | --- |
+| Standard（従来方式） | yolo11n-seg.pt | 640 | 無 | 以前の動画との比較・速度優先 |
+| High（新しい追跡時標準） | yolo11s-seg.pt | 960 | 有 | 車体の細部と角度変化を優先 |
+| Maximum（高負荷実験） | yolo11m-seg.pt | 1280 | 有 | 高精度モデルを比較。高速動作は保証しない |
+
+`-SegmentationTracking` の `-SegmentationQuality` を指定しないと
+自動で **High** になります。一方、古い `-SegmentationPreview` 単体は
+これまでどおり Standard を維持します。
+
+### 同じ録画で比較
+
+```powershell
+cd "$env:USERPROFILE\parking-guide-admin"
+git pull --ff-only
+cd .\parking-vision
+
+# 新方式：より大きいYOLO11s + 入力960 + 高解像度マスク
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking
+
+# 対照実験：これまでのYOLO11n + 入力640 + 通常解像度マスク
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking -SegmentationQuality Standard
+
+# 任意：さらに大きいYOLO11m + 入力1280
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking -SegmentationQuality Maximum
+```
+
+必要なモデルファイルは初回ダウンロードされるため、ネット接続と空き容量が必要です。
+特にCPU上ではHigh/Maximumは録画処理に時間がかかる可能性があります。
+不安定な場合は `Standard` を使ってください。
+
+`-SegmentationModel "C:\path\to\custom-seg.pt"` と
+`-SegmentationImageSize 1024` の個別上書きも引き続き可能です。
+ただしモデルがsegmentタスクではない場合はエラーで中止します。
+輪郭改善は録画実験モードのみで行い、クラウド送信は無効です。
+
+比較CSVには `quality_preset`、`model_name`、`input_imgsz`、
+`high_resolution_masks`、`contour_vertices` を追加しました。
+**頂点数や信頼度が増えても正解輪郭に近づいた証拠ではありません。**
+154〜169秒の転回、170〜185秒の入庫、通常の横姿と正面の
+同じ場面を目視で比較してください。
+
+### 実際の駐車場でさらに正確にするための学習準備
+
+全方向を同じ精度で検出できるようにするには、
+**元動画から車体輪郭の正解ラベルを作成して追加学習・評価**します。
+すでに輪郭やYOLO枠が焼き込まれた `YOLO判定_*.mp4` は
+正解画像の元に使用しないでください。
+
+```powershell
+# 既存の研究用Python環境から実行。保存先は研究用PC内のみ。
+python .\prepare_vehicle_mask_frames.py --video "G:\研究動画\20261029_165836_579397\映像_001.mp4" --output ".\segmentation_annotation_samples_01"
+```
+
+このスクリプトは通常場面を30秒ごと、転回〜入庫の148〜190秒を
+2秒ごとに抜き出し、`annotation_manifest.csv` と未ラベルの画像を生成します。
+**自動的な正解ラベルの作成や追加学習は行いません。** 車体を
+1台ずつポリゴンで囲んでラベルを付ける必要があります。
+個人情報が映っている場合は公開範囲を管理してください。
+正解ラベル付き画像は撮影場面ごとに学習用・検証用へ分けて
+マスクIoU/境界精度を計算してください。同じ連続動画の隣接フレームを
+学習用と検証用に分けるだけでは精度を過大評価する恐れがあります。
+
+公式資料：
+- [YOLO11モデル一覧](https://docs.ultralytics.com/models/yolo11/)
+- [モデル推論の高解像度マスク](https://docs.ultralytics.com/modes/predict/)
+- [セグメンテーションモデルの学習と検証](https://docs.ultralytics.com/tasks/segment/)
