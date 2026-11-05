@@ -1,4 +1,4 @@
-# Windows PowerShell 5.1 / 道の駅日光 録画→YOLO
+﻿# Windows PowerShell 5.1 / 道の駅日光 録画→YOLO
 # 画角に映る全区画が対象。実際の現在の空きではありません。
 param(
   [string]$Video = "",
