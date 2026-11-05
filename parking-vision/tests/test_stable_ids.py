@@ -10,6 +10,83 @@ def detection(raw, x, y, name="car", appearance=None):
 
 
 class StableIdTest(unittest.TestCase):
+    def test_mask_continuity_bridges_three_second_tracker_dropout(self):
+        """One vehicle has reliable masks while YOLO raw ID is None."""
+        matcher = StableIdMatcher(max_missing=12)
+
+        def car(raw_id, move):
+            box = [400 + move, 300, 680 + move, 510]
+            return {
+                "track_id": raw_id, "name": "car",
+                "point": ((box[0] + box[2]) / 2560, box[3] / 720),
+                "bbox": box, "appearance": [1, 0, 0],
+                "confidence": .92, "segmentation_checked": True,
+                "segmentation_bbox": [v + (1 if i % 2 == 0 else -1)
+                                      for i, v in enumerate(box)],
+                "segmentation_match_iou": .96,
+                "segmentation_confidence": .92,
+            }
+        self.assertEqual(matcher.update([car(1, 0)], 0)[0]["track_id"], 1)
+        for n in range(1, 41):
+            out = matcher.update([car(None, n * 2)], round(n * .1, 2))[0]
+            self.assertEqual(out["track_id"], 1)
+            self.assertTrue(out["id_mask_bridged"])
+            self.assertIsNone(out["raw_track_id"])
+        out = matcher.update([car(1, 83)], 4.1)[0]
+        self.assertEqual(out["track_id"], 1)
+        self.assertFalse(out["id_mask_bridged"])
+        self.assertEqual(matcher.new_tracks, 1)
+
+    def test_mask_bridge_does_not_steal_id_from_visible_raw_track(self):
+        matcher = StableIdMatcher(max_missing=12)
+        owner = detection(1, .4, .7)
+        owner["segmentation_bbox"] = [20, 20, 100, 90]
+        owner["segmentation_match_iou"] = .95
+        owner["segmentation_confidence"] = .9
+        matcher.update([owner], 0)
+        no_raw = detection(None, .4, .7)
+        no_raw["segmentation_bbox"] = [20, 20, 100, 90]
+        no_raw["segmentation_match_iou"] = .95
+        no_raw["segmentation_confidence"] = .9
+        # When raw ID 1 is visible, a second overlapping detection must
+        # never claim its stable ID through the mask bridge.
+        results = matcher.update([owner, no_raw], .1)
+        self.assertEqual(results[0]["track_id"], 1)
+        self.assertFalse(results[1].get("id_mask_bridged", False))
+
+    def test_mask_bridge_does_not_merge_two_ambiguous_cars(self):
+        matcher = StableIdMatcher(max_missing=12)
+        a = detection(1, .4, .7)
+        b = detection(2, .4, .7)
+        for rec in (a, b):
+            rec["segmentation_bbox"] = [20, 20, 100, 90]
+            rec["segmentation_match_iou"] = .9
+            rec["segmentation_confidence"] = .9
+        matcher.update([a, b], 0)
+        none = detection(None, .4, .7)
+        none["segmentation_bbox"] = [20, 20, 100, 90]
+        none["segmentation_match_iou"] = .9
+        none["segmentation_confidence"] = .9
+        result = matcher.update([none], .1)[0]
+        self.assertIsNone(result["track_id"])
+
+    def test_mask_bridge_rejects_teleportation_or_missing_mask(self):
+        matcher = StableIdMatcher(max_missing=12)
+        old = detection(1, .4, .7)
+        old["segmentation_bbox"] = [20, 20, 100, 90]
+        old["segmentation_match_iou"] = .9
+        old["segmentation_confidence"] = .9
+        matcher.update([old], 0)
+        distant = detection(None, .9, .7)
+        distant["bbox"] = [700, 300, 900, 500]
+        distant["segmentation_bbox"] = [700, 300, 900, 500]
+        distant["segmentation_match_iou"] = .9
+        distant["segmentation_confidence"] = .9
+        result = matcher.update([distant], .1)[0]
+        self.assertIsNone(result["track_id"])
+        self.assertFalse(result.get("id_mask_bridged", False))
+
+
     def test_same_car_new_yolo_id_keeps_stable_number(self):
         matching = StableIdMatcher(max_missing=10)
         self.assertEqual(matching.update([detection(1, 0.40, 0.80)], 0)[0]["track_id"], 1)
