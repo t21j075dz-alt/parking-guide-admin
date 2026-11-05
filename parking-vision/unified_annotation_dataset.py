@@ -216,10 +216,23 @@ def export_dataset(train_workspace, task, output,
     return output / "dataset.yaml", stats
 
 
+def workspace_source(workspace, override=None):
+    """Find the source folder recorded at annotation time."""
+    if override:
+        return override
+    marker = Path(workspace).expanduser().resolve() / "source.json"
+    if not marker.is_file():
+        raise ValueError(f"作業フォルダにsource.jsonがありません: {marker}")
+    root = json.loads(marker.read_text(encoding="utf-8")).get("images_root")
+    if not root:
+        raise ValueError("元写真の保存先が記録されていません")
+    return root
+
+
 def export_cli(argv):
     parser = argparse.ArgumentParser(description="統合ラベルのYOLOデータセット書き出し")
     parser.add_argument("--mode", choices=TASKS, required=True)
-    parser.add_argument("--train-images", required=True)
+    parser.add_argument("--train-images", help="省略すると作業フォルダから元写真の場所を復元")
     parser.add_argument("--train-workspace", required=True)
     parser.add_argument("--val-images")
     parser.add_argument("--val-workspace")
@@ -229,16 +242,19 @@ def export_cli(argv):
     parser.add_argument("--train-only", action="store_true",
                         help="独立検証なしの試験データ。精度スコアの評価は禁止")
     args = parser.parse_args(argv)
-    if bool(args.val_images) != bool(args.val_workspace):
-        parser.error("val-images/val-workspaceは両方指定してください")
-    if bool(args.test_images) != bool(args.test_workspace):
-        parser.error("test-images/test-workspaceは両方指定してください")
+    if args.val_images and not args.val_workspace:
+        parser.error("val-imagesを指定するときはval-workspaceも必要です")
+    if args.test_images and not args.test_workspace:
+        parser.error("test-imagesを指定するときはtest-workspaceも必要です")
     try:
-        train = AnnotationWorkspace(args.train_images, args.train_workspace)
-        val = (AnnotationWorkspace(args.val_images, args.val_workspace)
-               if args.val_images else None)
-        test = (AnnotationWorkspace(args.test_images, args.test_workspace)
-                if args.test_images else None)
+        train = AnnotationWorkspace(
+            workspace_source(args.train_workspace, args.train_images), args.train_workspace)
+        val = (AnnotationWorkspace(
+            workspace_source(args.val_workspace, args.val_images), args.val_workspace)
+               if args.val_workspace else None)
+        test = (AnnotationWorkspace(
+            workspace_source(args.test_workspace, args.test_images), args.test_workspace)
+                if args.test_workspace else None)
         yaml, counts = export_dataset(
             train, args.mode, args.output, val_workspace=val, test_workspace=test,
             allow_train_only=args.train_only)
