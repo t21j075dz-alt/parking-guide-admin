@@ -229,7 +229,12 @@
     const chosen=file.files?.[0];
     if(!chosen)return;
     if(!["image/jpeg","image/png","image/webp"].includes(chosen.type)||chosen.size>12*1024*1024){
-      notify("JPEG・PNG・WebPの12MB以下の画像を選んでください。");return;
+      image.hidden=true;
+      image.removeAttribute("src");
+      projected=null;confirmed.checked=false;exported=false;
+      draw();
+      notify("JPEG・PNG・WebPの12MB以下の画像を選んでください。");
+      return;
     }
     if(fileUrl)URL.revokeObjectURL(fileUrl);
     fileUrl=URL.createObjectURL(chosen);
