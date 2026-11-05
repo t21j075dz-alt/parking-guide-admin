@@ -318,7 +318,8 @@ class SegmentationDiagnosticRecorder:
     FIELDS = ("video_seconds", "stable_track_id", "raw_track_id",
               "legacy_zone", "segmentation_zone", "segmentation_match_iou",
               "segmentation_confidence", "lower_points", "match_state",
-              "id_mask_bridged", "display_bbox_source")
+              "id_mask_bridged", "display_bbox_source",
+              "fused_zone", "fused_zone_basis", "visible_axis_degrees")
 
     def __init__(self, folder):
         self.stream = open(Path(folder) / "車両輪郭_比較診断.csv", "w",
@@ -340,9 +341,13 @@ class SegmentationDiagnosticRecorder:
                 "match_state": ("matched" if det.get("segmentation_contour")
                                 else "unmatched"),
                 "id_mask_bridged": "yes" if det.get("id_mask_bridged") else "no",
-                "display_bbox_source": ("segmentation" if
-                                        det.get("display_bbox") is not None else
-                                        "detector"),
+                "display_bbox_source": (
+                    det.get("display_bbox_source") or
+                    ("segmentation" if det.get("display_bbox") is not None
+                     else "detector")),
+                "fused_zone": det.get("fused_zone_candidate") or "",
+                "fused_zone_basis": det.get("fused_zone_basis") or "",
+                "visible_axis_degrees": det.get("visible_axis_degrees", ""),
             })
 
     def close(self):
