@@ -93,6 +93,17 @@ def draw_demo_phase_labels(view, cv2, zones, phases):
     from recorded_parking_states import DISPLAY_PHASES
     view = view.copy()
     height, width = view.shape[:2]
+    if len(zones) > 12:
+        # 13区画以上に大きな日本語札を重ねると、車や駐車枠を隠してしまう。
+        from collections import Counter
+        counts = Counter((phases or {}).values())
+        view = cv2.copyMakeBorder(view,0,34,0,0,cv2.BORDER_CONSTANT,value=(22,25,29))
+        occupied = sum(counts.get(name,0) for name in ("parking_in","stopped","exiting"))
+        line = (f"RECORDED SPACES {len(zones)} | FREE {counts.get('available',0)}"
+                f" | OCCUPIED {occupied} | CHECKING {counts.get('unknown',0)}")
+        cv2.putText(view,line,(12,view.shape[0]-10),cv2.FONT_HERSHEY_SIMPLEX,
+                    .53,(255,255,255),1,cv2.LINE_AA)
+        return view
     placements = []
     for uid, polygon in zones.items():
         phase = (phases or {}).get(uid, "unknown")
