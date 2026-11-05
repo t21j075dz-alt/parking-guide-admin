@@ -193,3 +193,43 @@ def set_demo_visibility(writer, published, facility_id=VIDEO_FACILITY):
             "録画実演の公開設定を変更できません。専用施設のDB初期設定または権限を確認してください"
         )
     print("【録画実演の共有】" + ("ON（実カメラではありません）" if published else "OFF"))
+
+
+def invalidate_nikko_outside_camera_rows(writer, monitored_uids):
+    """前の録画だけに映っていた区画を期限切れにしてから共有する。
+
+    既存の公開状態をOFFにした後、現在のカメラにない区画の行だけ
+    明示的にUNKNOWN・過去日時へ。これで短時間の録画切替でも
+    古い「空き」が新しい録画の監視対象として再表示されない。
+    """
+    import json
+    from nikko_video_config import UID_PATTERN
+    monitored = set(monitored_uids)
+    if (not monitored or
+            len(monitored) != len(list(monitored_uids)) or
+            not all(isinstance(uid, str) and UID_PATTERN.fullmatch(uid) for uid in monitored)):
+        raise ValueError("録画の監視区画IDが不正です。クラウド共有しません")
+    writer._ensure_token()
+    address=(f"{writer.url}/rest/v1/parking_live_status?"
+             f"facility_id=eq.{NIKKO_VIDEO_FACILITY}&select=space_uid&limit=10000")
+    req=request.Request(address,method="GET",headers={
+        "apikey":writer.key,
+        "Authorization":f"Bearer {writer.access_token}",
+    })
+    with request.urlopen(req,timeout=10) as response:
+        rows=json.loads(response.read() or b"[]")
+    if not isinstance(rows,list) or len(rows)>9999:
+        raise ValueError("以前の録画区画を安全に取得できません。共有しません")
+    others={row.get("space_uid") for row in rows
+            if isinstance(row,dict) and isinstance(row.get("space_uid"),str)}-monitored
+    if not all(UID_PATTERN.fullmatch(uid) for uid in others):
+        raise ValueError("以前の区画IDが不正です。録画共有しません")
+    if others:
+        writer.upsert("parking_live_status",[
+            {"facility_id":NIKKO_VIDEO_FACILITY,"space_uid":uid,
+             "status":"unknown","occupancy_phase":"unknown",
+             "source":SOURCE,"confidence":None,
+             "checked_at":"2000-01-01T00:00:00+00:00"}
+            for uid in sorted(others)],"facility_id,space_uid")
+    print(f"【録画切替】以前の画角だけにあった{len(others)}区画を未確認に更新しました。")
+    return len(others)
