@@ -383,12 +383,22 @@ def main(argv=None):
         return export_cli(argv[1:])
     parser = argparse.ArgumentParser(
         description="車両の輪郭とコーン等の障害物を同じ画面で登録（教師データ形式は別）")
-    parser.add_argument("--images", required=True, help="242枚などの元画像フォルダ")
+    parser.add_argument("--images", help="242枚などの元画像フォルダ。省略すると選択画面を開く")
     parser.add_argument("--workspace", default="annotation_workspaces/photos_242",
                         help="登録結果を保存する別フォルダ。再開時も同じ場所")
     parser.add_argument("--start-mode", choices=("vehicle", "obstacle"),
                         default="vehicle")
     args = parser.parse_args(argv)
+    if not args.images:
+        from tkinter import Tk, filedialog
+        chooser = Tk()
+        chooser.withdraw()
+        args.images = filedialog.askdirectory(
+            parent=chooser, title="車両・障害物を登録する写真フォルダを選択")
+        chooser.destroy()
+        if not args.images:
+            print("写真フォルダの選択をキャンセルしました")
+            return
     try:
         ws = AnnotationWorkspace(args.images, args.workspace)
         print(f"【写真一覧】{len(ws.photos)}枚を確認。元写真は変更しません")
