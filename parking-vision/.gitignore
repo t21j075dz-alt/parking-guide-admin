@@ -36,3 +36,8 @@ segmentation_annotation_samples*/
 vehicle_mask_sessions/
 vehicle_mask_dataset/
 vehicle_mask_training_runs/
+
+# 日光の録画設定と撮影位置は公開リポジトリに保存しない
+config_nikko_video_demo.json
+config_nikko_video_demo_backup_*.json
+config_nikko_video_demo_backup*.json
