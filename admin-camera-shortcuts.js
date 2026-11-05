@@ -60,7 +60,10 @@
     const current=typeof getCurrentLayout==="function"?getCurrentLayout():null;
     const items=Array.isArray(current?.objects)?current.objects:[];
     const num=items.filter(item=>item.objectType==="parkingSpace").length;
-    count.textContent=num===0?"駐車枠：未登録":"駐車枠："+num+"区画";
+    const en=document.documentElement.lang.toLowerCase().startsWith("en");
+    count.textContent=en
+      ? num===0?"Spaces: none":"Spaces: "+num
+      : num===0?"駐車枠：未登録":"駐車枠："+num+"区画";
     strip.dataset.hasSpaces=String(num>0);
     summary.title="この施設の管理マップに登録された駐車枠の数です。YOLOによる確認済み数ではありません。";
   }
