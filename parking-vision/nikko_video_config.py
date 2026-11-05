@@ -12,10 +12,14 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+import re
+from datetime import datetime
+import shutil
 
 FACILITY_ID = "nikko-test-001"
 CAMERA_ID = "nikko-recording-01"
-SPACE_UIDS = [f"space_{n:03d}" for n in range(1, 9)]
+MAX_VISIBLE_SPACES = 999
+UID_PATTERN = re.compile(r"space_[A-Za-z0-9_-]{1,40}\Z")
 CONFIG_NAME = "config_nikko_video_demo.json"
 SAFE_KEYS = (
     "supabase_url", "publishable_key", "vehicle_model", "obstacle_model",
@@ -34,7 +38,25 @@ def read_settings(path):
     return data
 
 
-def make_config(base):
+
+
+def visible_space_uids(space_count=0, space_uids=""):
+    """画角内の区画のみを登録。番号は管理者マップと同じにできる。"""
+    if space_count and space_uids:
+        raise ValueError("区画数と区画IDの直接指定は併用できません")
+    if space_uids:
+        ids = [x.strip() for x in space_uids.split(",")]
+    elif 1 <= space_count <= MAX_VISIBLE_SPACES:
+        ids = [f"space_{number:03d}" for number in range(1, space_count + 1)]
+    else:
+        raise ValueError("映像内の区画数を1～999で指定してください。例: --space-count 24")
+    if (not ids or len(ids) > MAX_VISIBLE_SPACES or
+            len(ids) != len(set(ids)) or
+            not all(UID_PATTERN.fullmatch(uid) for uid in ids)):
+        raise ValueError("駐車区画IDが重複、または形式が不正です")
+    return ids
+
+def make_config(base, space_uids):
     if not isinstance(base, dict):
         raise ValueError("元のYOLO設定ファイルが不正です")
     missing = [name for name in ("vehicle_model", "supabase_url", "publishable_key")
@@ -55,7 +77,7 @@ def make_config(base):
         "initially_confirmed_empty_uids": [],
         "entry_zone": [],
         "exit_zone": [],
-        "space_uids": SPACE_UIDS[:],
+        "space_uids": list(space_uids),
         "space_zones": {},
     })
     return config
@@ -73,8 +95,10 @@ def checked_config(config):
     if config.get("allow_unverified_initial_empty"):
         raise ValueError("確認していない空き状態を初期設定には使えません")
     uids = config.get("space_uids")
-    if uids != SPACE_UIDS:
-        raise ValueError("道の駅日光はspace_001～space_008の8区画を指定してください")
+    if (not isinstance(uids, list) or not 1 <= len(uids) <= MAX_VISIBLE_SPACES
+            or len(set(uids)) != len(uids)
+            or not all(isinstance(uid, str) and UID_PATTERN.fullmatch(uid) for uid in uids)):
+        raise ValueError("道の駅日光で撮影範囲に入る区画だけを1～999件登録してください")
     zones = config.get("space_zones")
     if not isinstance(zones, dict) or any(uid not in uids for uid in zones):
         raise ValueError("録画専用の区画IDに一致しない設定があります")
@@ -97,21 +121,25 @@ def video_signature(video):
 
 
 def checked_ready(config, video):
-    """校正した動画そのものであること、8区画全ての登録を確かめる。"""
+    """校正した動画そのもの・撮影範囲内の登録区画を確認。"""
     checked_config(config)
     zones = config["space_zones"]
-    if set(zones) != set(SPACE_UIDS):
-        raise ValueError("8区画すべての四隅を先に校正してください")
+    ids = config["space_uids"]
+    if set(zones) != set(ids):
+        missing = sorted(set(ids) - set(zones))
+        raise ValueError(
+            "撮影範囲内の区画をすべて校正してください。未登録: " + ", ".join(missing[:12])
+        )
     from zone_geometry import normalize_corners, audit_zones
     normalized = {}
-    for uid in SPACE_UIDS:
+    for uid in ids:
         normalized[uid] = normalize_corners(zones[uid])
     if audit_zones(normalized):
         raise ValueError("登録区画が重なっています。動画の枠を登録し直してください")
     capture = config.get("recorded_calibration") or {}
     if capture.get("signature") != video_signature(video):
         raise ValueError(
-            "この録画と区画登録時の動画が異なります。現在の動画で8区画を再設定してください"
+            "この録画と区画登録時の動画が異なります。現在の動画で撮影範囲内の区画を再設定してください"
         )
     if not (capture.get("width", 0) > 0 and capture.get("height", 0) > 0):
         raise ValueError("区画登録した動画の画像サイズが不明です。再設定してください")
@@ -132,21 +160,48 @@ def record_video_calibration(config, video, width, height):
     return config
 
 
-def ensure_file(base_path, output_path, model=""):
+def ensure_file(base_path, output_path, model="", ids=None, reset=False):
+    """現地用config.jsonに書き込まない。変更時は必ず録画設定をバックアップ。"""
     output = Path(output_path).resolve()
-    if output.is_file():
-        return checked_config(read_settings(output)), False
-    base = read_settings(base_path)
-    config = make_config(base)
-    if model:
-        from pathlib import Path
-        if not Path(model).is_file():
-            raise ValueError("指定したYOLOモデルが見つかりません: " + model)
-        config["vehicle_model"] = str(Path(model).resolve())
-    with output.open("x", encoding="utf-8") as stream:
-        json.dump(config, stream, ensure_ascii=False, indent=2)
+    base = Path(base_path).resolve()
+    if output == base:
+        raise ValueError("実カメラの元設定への上書きは禁止です")
+    if output.is_file() and not reset:
+        current = checked_config(read_settings(output))
+        if ids is not None and ids != current["space_uids"]:
+            raise ValueError(
+                "登録済みの対象区画が違います。変更する場合のみ --reset-zones を指定してください"
+            )
+        return current, False
+    if not ids:
+        raise ValueError("最初に画角内の駐車区画数を指定してください（--space-count）")
+    existing = checked_config(read_settings(output)) if output.is_file() else None
+    if existing is not None:
+        # 旧カメラ設定や登録済みの校正範囲を誤って消さない。
+        if not reset:
+            raise ValueError("既存の録画設定を上書きできません")
+        if model:
+            raise ValueError("区画変更とYOLOモデル変更を同時には行えません")
+        original = deepcopy(existing)
+        original["space_uids"] = list(ids)
+        original["space_zones"] = {}
+        original.pop("recorded_calibration", None)
+        new = original
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        backup = output.with_name(output.stem + "_backup_" + stamp + ".json")
+        shutil.copy2(output, backup)
+        print("【バックアップ】" + str(backup))
+    else:
+        new = make_config(read_settings(base), ids)
+        if model:
+            if not Path(model).is_file():
+                raise ValueError("指定したYOLOモデルが見つかりません: " + model)
+            new["vehicle_model"] = str(Path(model).resolve())
+    # テスト用の既存設定を保護し、新規はxモードで排他作成。
+    with output.open("w" if existing else "x", encoding="utf-8") as stream:
+        json.dump(new, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
-    return config, True
+    return new, True
 
 
 def main(argv=None):
@@ -155,19 +210,29 @@ def main(argv=None):
     parser.add_argument("--config", default=CONFIG_NAME, help="録画専用の出力・確認先")
     parser.add_argument("--video", default="", help="元動画のファイル名")
     parser.add_argument("--model", default="", help="新規作成時だけ独自YOLOモデルを指定")
-    parser.add_argument("--check", action="store_true", help="8区画と録画の一致を検査")
+    parser.add_argument("--space-count", type=int, default=0,
+                        help="映像に映る駐車区画数（1～999。8件固定ではありません）")
+    parser.add_argument("--space-uids", default="",
+                        help="管理マップの区画IDを指定（カンマ区切り。画角外は指定しない）")
+    parser.add_argument("--reset-zones", action="store_true",
+                        help="区画数の変更時にバックアップ後、日光録画用の校正だけ消す")
+    parser.add_argument("--check", action="store_true", help="すべての映像内区画と録画の一致を検査")
     args = parser.parse_args(argv)
     if args.check:
         if not args.video:
             parser.error("--check には --video が必要です")
         config = read_settings(args.config)
         checked_ready(config, args.video)
-        print("【一致】日光録画の8区画と動画の校正情報を確認しました。")
+        print(f"【一致】日光録画の{len(config['space_uids'])}区画と校正情報を確認しました。")
         return 0
-    config, created = ensure_file(args.base, args.config, args.model)
-    print(("【新規作成】" if created else "【既存設定を維持】") + str(Path(args.config).resolve()))
+    ids = (visible_space_uids(args.space_count, args.space_uids)
+           if args.space_count or args.space_uids else None)
+    config, created = ensure_file(args.base, args.config, args.model, ids,
+                                  reset=args.reset_zones)
+    print(("【作成・更新完了】" if created else "【既存設定を維持】") + str(Path(args.config).resolve()))
     print("【施設】道の駅日光・録画実験（実際の空きとは分離）")
-    print("【対象】8区画／自宅用config.jsonには書き込みません")
+    print(f"【判定対象】画角内の{len(config['space_uids'])}区画だけ／画角外は含みません")
+    print("【区画ID】" + ", ".join(config["space_uids"]))
     print("【モデル】" + str(config["vehicle_model"]))
     if args.model and not created:
         print("【注意】既存設定があるためモデルは変更しません。")
