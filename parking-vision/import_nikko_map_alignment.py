@@ -92,6 +92,7 @@ def verify_samples(video, zones, dimensions):
         raise ValueError("録画を開けません")
     try:
         count=max(1,int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+        fps=max(1.0,float(cap.get(cv2.CAP_PROP_FPS)))
         frames=sorted(set([0,max(0,count//2),max(0,count-1)]))
         print(f"【画角の目視確認】{len(zones)}区画／先頭・中間・末尾の映像を表示します。")
         print("各場面で、対象の区画が映っているか確認。S=正しい / Q=中止")
@@ -103,7 +104,7 @@ def verify_samples(video, zones, dimensions):
             if tuple(frame.shape[1::-1])!=tuple(dimensions):
                 raise ValueError("録画の途中で画像サイズが変わりました")
             view=overlay(frame,zones,{uid:"unknown" for uid in zones},[],[])
-            view=draw_demo_watermark(view,cv2,index)
+            view=draw_demo_watermark(view,cv2,index/fps)
             window=f"Nikko recorded video / frame {index+1}/{count} / S approve Q cancel"
             cv2.namedWindow(window,cv2.WINDOW_NORMAL)
             cv2.resizeWindow(window,1280,800)
