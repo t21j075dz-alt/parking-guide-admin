@@ -426,29 +426,50 @@
 <dialog id="camera-map-alignment-dialog" class="camera-map-alignment-dialog" aria-labelledby="alignment-title">
   <div class="alignment-heading">
     <div><h2 id="alignment-title">カメラと駐車場マップの位置合わせ</h2>
-      <p>同じ床面の場所を、左のマップ → 右のカメラ映像の順に4組クリックしてください。</p></div>
+      <p>カメラに映った駐車場と、登録済みの区画をまとめて位置合わせします。</p></div>
     <button type="button" id="alignment-close" class="secondary-button">閉じる</button>
   </div>
+  <ol class="alignment-steps" id="alignment-steps" aria-label="位置合わせの進み具合">
+    <li data-alignment-step="photo"><span class="alignment-step-number">1</span><span>写真を用意</span></li>
+    <li data-alignment-step="points"><span class="alignment-step-number">2</span><span>4か所を合わせる</span></li>
+    <li data-alignment-step="preview"><span class="alignment-step-number">3</span><span>区画を確認</span></li>
+    <li data-alignment-step="export"><span class="alignment-step-number">4</span><span>設定を保存</span></li>
+  </ol>
+  <div class="alignment-overview" aria-label="対象の位置合わせ">
+    <strong id="alignment-facility-label">施設を確認中</strong>
+    <span id="alignment-space-count">駐車枠を読み込み中</span>
+    <span id="alignment-image-info">カメラ写真なし</span>
+  </div>
   <div class="alignment-settings">
-    <label>カメラID <input id="alignment-camera-id" type="text" maxlength="100" autocomplete="off" value="home-camera-01"/></label>
+    <label>カメラID <input id="alignment-camera-id" type="text" maxlength="100" autocomplete="off" spellcheck="false" value="home-camera-01"/></label>
     <button type="button" id="alignment-use-camera">現在のカメラ写真を使用</button>
     <label class="alignment-upload">または写真を選択 <input id="alignment-file" type="file" accept="image/jpeg,image/png,image/webp"/></label>
   </div>
   <p id="alignment-message" class="alignment-message" role="status" aria-live="polite">マップと写真で同じ場所を4組指定してください。</p>
   <div class="alignment-panes">
-    <section class="alignment-pane">
-      <h3>① 管理者アプリのマップ</h3>
+    <section class="alignment-pane" id="alignment-map-pane">
+      <div class="alignment-pane-heading">
+        <h3>管理マップ <small>基準点を選択</small></h3>
+        <button type="button" id="alignment-map-zoom" class="secondary-button" aria-pressed="false">地図全体を見る</button>
+      </div>
       <svg id="alignment-map" aria-label="床面上の基準点を選ぶためのマップ" role="img" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
-      <p>区画の白線の角や道路上の目印など、離れた点を選びます。</p>
+      <p class="alignment-pane-help">4点はできるだけ離れた位置から選んでください。区画が小さければ「地図全体を見る」で表示を切り替えられます。</p>
     </section>
-    <section class="alignment-pane">
-      <h3>② 同じ位置をカメラ画像から選ぶ</h3>
+    <section class="alignment-pane" id="alignment-camera-pane">
+      <div class="alignment-pane-heading"><h3>カメラ写真 <small>同じ場所を選択</small></h3><span id="alignment-photo-ready" class="alignment-photo-status">未選択</span></div>
       <div class="alignment-image-box">
+        <div class="alignment-image-placeholder" id="alignment-image-placeholder" aria-hidden="true"><span>写真がまだありません</span><small>上からカメラ写真を読み込んでください</small></div>
         <img id="alignment-image" hidden alt="位置合わせ対象のカメラ写真"/>
         <svg id="alignment-camera-overlay" aria-label="映像上の対応点を選ぶ場所" role="img" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
       </div>
-      <p>同じ番号の点が必ず同じ床面上の位置を指すようにしてください。</p>
+      <p class="alignment-pane-help">写真では、左側で選んだ番号と同じ白線の角などをクリックしてください。</p>
     </section>
+  </div>
+  <div class="alignment-counter">
+    <div><strong id="alignment-point-count">対応点 0 / 4 組</strong><span id="alignment-next-action">マップの点1を選んでください</span></div>
+    <div class="alignment-point-markers" id="alignment-point-markers" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+    </div>
   </div>
   <div class="alignment-actions">
     <button type="button" id="alignment-undo" class="secondary-button">1組戻す</button>
@@ -458,7 +479,12 @@
   </div>
   <label class="alignment-confirm"><input type="checkbox" id="alignment-confirm-visual"/> カメラ画像に重ねたすべての区画位置が正しいことを確認しました</label>
   <p id="alignment-result" class="muted">区画位置は未確定です。既存の駐車状態は変更されません。</p>
-  <p class="muted">注意：同一平面の駐車場を固定カメラで撮影する方式です。映像に映らない区画やカメラ移設時は再設定が必要です。書き出しだけでは監視に反映しません。</p>
+  <details class="alignment-help">
+    <summary>位置合わせのコツ・注意事項</summary>
+    <p>車の屋根や壁ではなく、地面にある白線の角などを選んでください。4組は広く離れている方が正確に対応させやすくなります。</p>
+    <p>カメラの設置位置や画角を変えた場合は再確認が必要です。映らない区画や高低差のある場所は、この方式だけでは対応できません。</p>
+    <p>JSONの保存だけではYOLOの監視設定・利用者アプリに反映しません。実映像への重ね合わせ確認が必要です。</p>
+  </details>
 </dialog>
 </body>
 </html>
