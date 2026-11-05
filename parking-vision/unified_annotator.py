@@ -33,6 +33,7 @@ class UnifiedAnnotator:
         self.workspace = workspace
         self.index = workspace.next_unreviewed() or 0
         self.mode = tk.StringVar(value=start_mode)
+        self.active_mode = start_mode
         self.class_id = tk.IntVar(value=2 if start_mode == "vehicle" else 0)
         self.dirty = False
         self.pending = []
