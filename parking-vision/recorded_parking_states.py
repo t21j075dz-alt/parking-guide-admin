@@ -224,6 +224,15 @@ class RecordedParkingStateMachine:
                 old = observations.get(uid)
                 if old is None or old["confidence"] < detection["confidence"]:
                     observations[uid] = {**tracked_all[tid], "tid": tid}
+                # A *single-source* provisional candidate does not prove
+                # that another touched stall is empty. If the box says
+                # "straddling" and only the mask points to uid (or vice
+                # versa), keep neighboring zones UNKNOWN until cues agree.
+                basis = detection.get("fused_zone_basis") or ""
+                if detection.get("zone_fusion_evaluated") and (
+                        basis.startswith("mask-only") or
+                        basis.startswith("bbox-only")):
+                    ambiguous.update(set(touched) - {uid})
             else:
                 ambiguous.update(touched)
             detection["demo_zone"] = uid
