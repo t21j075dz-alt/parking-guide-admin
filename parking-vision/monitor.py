@@ -261,6 +261,36 @@ class Vehicle:
                 self.outside_since = 0.0
                 self.outside_started_at = None
 
+        if self.phase == "exiting" and not in_exit:
+            # Leaving a parking stall is not the same as leaving the car
+            # park. A continuously tracked vehicle may park again in a
+            # DIFFERENT stall before it exits the camera scene. The existing
+            # phase machine otherwise stayed EXITING for the rest of the
+            # video, even when the recorded-demo stall state was STOPPED.
+            # Require fresh, stationary evidence in a new stable stall; an
+            # uncertain location, a moving pass or the old stall cannot
+            # create a second parking event.
+            new_stall = (self.smoothed_uid is not None and
+                         self.smoothed_uid != self.space_uid)
+            if new_stall and self.stationary:
+                if self.candidate_uid != self.smoothed_uid:
+                    self.candidate_uid = self.smoothed_uid
+                    self.candidate_since = now
+                    self.candidate_started_at = utc_now()
+                elif now - self.candidate_since >= park_seconds:
+                    self.phase = "parked"
+                    self.space_uid = self.smoothed_uid
+                    self.park_anchor = point
+                    self.parked_at = self.candidate_started_at or utc_now()
+                    self.candidate_uid = None
+                    self.candidate_started_at = None
+                    self.left_space_at = None
+                    self.outside_since = 0.0
+                    self.outside_started_at = None
+            else:
+                self.candidate_uid = None
+                self.candidate_started_at = None
+
         if in_exit and self.phase in {"moving", "exiting"}:
             self.phase = "exited"
             self.exited_at = utc_now()
