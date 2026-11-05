@@ -136,5 +136,29 @@
     });
   }
 
-  return Object.freeze({homography,project,parkingCorners,generateZones,hullArea,layoutSignature});
+  /** 大きな管理マップでも区画が読めるように、全区画へ視界を寄せる。
+   * 対応座標は表示倍率に左右されず常に管理マップ全体の座標で扱う。
+   */
+  function parkingViewport(layout, marginRatio=0.18) {
+    const width=Number(layout?.canvas?.width),height=Number(layout?.canvas?.height);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0) {
+      throw new Error("マップの大きさが不正です。");
+    }
+    const whole={x:0,y:0,width,height};
+    const slots=(layout?.objects||[]).filter(item=>item?.objectType==="parkingSpace");
+    if(!slots.length)return whole;
+    const points=slots.flatMap(parkingCorners);
+    if(!points.every(([x,y])=>Number.isFinite(x)&&Number.isFinite(y)))return whole;
+    const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    const padX=Math.max(width*.016,(maxX-minX)*Math.max(0,marginRatio));
+    const padY=Math.max(height*.016,(maxY-minY)*Math.max(0,marginRatio));
+    const x=Math.max(0,minX-padX),y=Math.max(0,minY-padY);
+    const right=Math.min(width,maxX+padX),bottom=Math.min(height,maxY+padY);
+    const result={x,y,width:Math.max(1,right-x),height:Math.max(1,bottom-y)};
+    if(result.width>=width*.96&&result.height>=height*.96)return whole;
+    return result;
+  }
+
+  return Object.freeze({homography,project,parkingCorners,generateZones,hullArea,layoutSignature,parkingViewport});
 });
