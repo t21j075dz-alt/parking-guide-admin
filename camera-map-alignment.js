@@ -203,7 +203,14 @@
     projected=null;confirmed.checked=false;draw();
   });
   get("alignment-reset").addEventListener("click",reset);
-  cameraId.addEventListener("change",restore);
+  cameraId.addEventListener("change",()=>{
+    // カメラIDだけを変更して別カメラの写真を誤利用しない。
+    image.hidden=true;
+    image.removeAttribute("src");
+    file.value="";
+    restore();
+    notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
+  });
   confirmed.addEventListener("change",refresh);
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
