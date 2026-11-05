@@ -793,6 +793,8 @@ def main():
     parser.add_argument("--video", default="", help="録画動画を実時間に合わせてYOLO判定する")
     parser.add_argument("--loop-video", action="store_true",
                         help="録画動画を停止操作まで繰り返し再生する（動画実演専用）")
+    parser.add_argument("--video-process-all-frames", action="store_true",
+                        help="録画を間引かず全フレーム判定する。遅いPCでは再生速度も落ちる")
     parser.add_argument("--recording-root", default="",
                         help="録画実演の出力先フォルダ（動画再生時のみ指定可能）")
     parser.add_argument("--demo-publish", action="store_true",
@@ -817,6 +819,8 @@ def main():
         raise ValueError("--loop-video は --video と一緒に指定してください")
     if args.recording_root and not video_mode:
         raise ValueError("--recording-root は --video と一緒に指定してください")
+    if args.video_process_all_frames and not video_mode:
+        raise ValueError("--video-process-all-frames は --video と一緒に指定してください")
     if args.verified_empty and not video_mode:
         raise ValueError("--verified-empty は録画実演用です")
     try:
@@ -829,8 +833,12 @@ def main():
     if video_mode:
         from video_replay import VideoReplay
         recording = VideoReplay(args.video, cv2, loop=args.loop_video,
-                                root=args.recording_root or None)
+                                root=args.recording_root or None,
+                                process_all_frames=args.video_process_all_frames)
         print("【入力】録画映像を再生しながらYOLO推論（実カメラは使用しません）")
+        print("【速度】"+("精度優先・全コマ判定（実時間より遅くなる場合あり）"
+                        if args.video_process_all_frames else
+                        "元映像の実時間ペース・推論が遅い時はコマを間引く"))
         print("【重要】動画の状態は実際の駐車場の現在の空きではありません。")
     else:
         source = config["source"]
