@@ -32,9 +32,11 @@ class UnifiedAnnotator:
         self.tk, self.ttk, self.cv2, self.np = tk, ttk, cv2, np
         self.workspace = workspace
         self.index = workspace.next_unreviewed() or 0
-        self.mode = tk.StringVar(value=start_mode)
+        # Tkinter Variables require an existing root window. Create it first.
+        self.root = tk.Tk()
+        self.mode = tk.StringVar(master=self.root, value=start_mode)
         self.active_mode = start_mode
-        self.class_id = tk.IntVar(value=2 if start_mode == "vehicle" else 0)
+        self.class_id = tk.IntVar(master=self.root, value=2 if start_mode == "vehicle" else 0)
         self.dirty = False
         self.pending = []
         self.drag_start = None
@@ -43,7 +45,6 @@ class UnifiedAnnotator:
         self.photo = None
         self.image = None
         self.scale = 1.
-        self.root = tk.Tk()
         self.root.title("駐車場YOLO｜車両・障害物 ラベル登録")
         self.root.geometry("1270x930")
         self.root.minsize(780, 600)
@@ -52,7 +53,7 @@ class UnifiedAnnotator:
         head.pack(fill="x")
         ttk.Label(head, text="車両の輪郭・障害物を1画面で登録",
                   font=("Yu Gothic UI", 15, "bold")).pack(anchor="w")
-        self.progress = tk.StringVar()
+        self.progress = tk.StringVar(master=self.root)
         ttk.Label(head, textvariable=self.progress, font=("Yu Gothic UI", 10)).pack(anchor="w")
         mode_row = ttk.Frame(head)
         mode_row.pack(fill="x", pady=(6, 4))
@@ -65,7 +66,7 @@ class UnifiedAnnotator:
                         command=self.change_mode).pack(side="left", padx=7)
         self.classes_frame = ttk.Frame(head)
         self.classes_frame.pack(fill="x", pady=5)
-        self.hint = tk.StringVar()
+        self.hint = tk.StringVar(master=self.root)
         ttk.Label(head, textvariable=self.hint, wraplength=1220).pack(anchor="w")
 
         body = ttk.Frame(self.root)
