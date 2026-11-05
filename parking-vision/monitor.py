@@ -29,7 +29,7 @@ from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from vehicle_segmentation import (
     attach_vehicle_contours, draw_vehicle_contours, best_visible_bbox,
-    SegmentationDiagnosticRecorder,
+    tracked_segment_detections, SegmentationDiagnosticRecorder,
 )
 from person_stability import PersonIdStabilizer
 from person_diagnostics import PersonDiagnosticRecorder
@@ -744,6 +744,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="クラウドに書き込まず試す")
     parser.add_argument("--segmentation-preview", action="store_true",
                         help="車両輪郭の研究用プレビューを追加（駐車判定は変更しない）")
+    parser.add_argument("--segmentation-tracking", action="store_true",
+                        help="検出・輪郭・追跡を同じ-segモデルで行う実験モード（dry-run専用）")
     parser.add_argument("--segmentation-model", default="yolo11n-seg.pt",
                         help="輪郭抽出用のYOLO-segモデル（初回はダウンロードが必要）")
     parser.add_argument("--segmentation-imgsz", type=int, default=640,
@@ -756,6 +758,10 @@ def main():
     parser.add_argument("--verified-empty", default="",
                         help="録画の冒頭で目視確認した空き区画ID（カンマ区切り、省略可能）")
     args = parser.parse_args()
+    if args.segmentation_tracking:
+        args.segmentation_preview = True
+        if not args.dry_run:
+            raise ValueError("セグメンテーション追跡の比較実験は必ず --dry-run を付けてください（誤案内防止）")
     config = load_config(args.config)
     from video_demo_support import (
         require_demo_mode, parse_verified_empty, draw_demo_watermark,
@@ -802,7 +808,11 @@ def main():
         if getattr(segmentation_model, "task", None) != "segment":
             raise ValueError("セグメンテーションモデル（-seg.pt）を指定してください")
         print(f"【車両輪郭プレビュー】{args.segmentation_model} / {args.segmentation_imgsz}px")
-        print("【安全】輪郭は表示と比較CSVのみに使用。駐車状態・追跡ID・Supabase判定は従来方式。")
+        if args.segmentation_tracking:
+            print("【車両セグメンテーション追跡】車両検出・マスク・生IDを同じYOLO-segモデルで生成します。")
+            print("【比較実験】監視範囲の外でも匿名ID追跡を継続。区画への公開はしません。")
+        else:
+            print("【安全】輪郭は表示と比較CSVのみに使用。駐車状態・追跡ID・Supabase判定は従来方式。")
 
     writer = None
     if not args.dry_run and (not video_mode or args.demo_publish):
@@ -929,11 +939,14 @@ def main():
                 previous_demo_phases = None
                 pending_sessions.clear()
                 last_push = 0.
-                predictor = getattr(vehicle_model, "predictor", None)
-                for tracker in getattr(predictor, "trackers", []) or []:
-                    reset = getattr(tracker, "reset", None)
-                    if callable(reset):
-                        reset()
+                for model in (vehicle_model, segmentation_model):
+                    if model is None:
+                        continue
+                    predictor = getattr(model, "predictor", None)
+                    for tracker in getattr(predictor, "trackers", []) or []:
+                        reset = getattr(tracker, "reset", None)
+                        if callable(reset):
+                            reset()
                 print("【周回初期化】前回の追跡IDと駐車状態をリセットしました。")
             if snapshots:
                 try:
@@ -951,13 +964,32 @@ def main():
             if segmentation_model is not None:
                 segmentation_frame, _, _ = inference_frame(
                     frame, mode=str(config.get("night_vision_mode", "auto")))
-                segmentation_results = segmentation_model.predict(
-                    segmentation_frame, imgsz=args.segmentation_imgsz,
-                    conf=max(.25, float(config.get("confidence", .35))),
-                    verbose=False,
-                )
-                attach_vehicle_contours(vehicles, segmentation_results[0],
-                                        frame.shape, config["space_zones"], inside)
+                if args.segmentation_tracking:
+                    # The same segment model supplies raw YOLO tracking IDs,
+                    # detection boxes, classes AND instance masks. The
+                    # traditional detector remains available for blockers.
+                    segmentation_results = segmentation_model.track(
+                        segmentation_frame, persist=True,
+                        tracker=str(config.get("tracker_file", DEFAULT_TRACKER)),
+                        imgsz=args.segmentation_imgsz,
+                        conf=min(.10, float(config.get("tracking_confidence", .15))),
+                        verbose=False,
+                    )
+                    vehicles = tracked_segment_detections(
+                        segmentation_results[0], frame.shape, VEHICLE_NAMES,
+                        CLASS_ALIASES, config["space_zones"], inside,
+                    )
+                    mark_vehicle_overlap(blockers, vehicles)
+                else:
+                    segmentation_results = segmentation_model.predict(
+                        segmentation_frame, imgsz=args.segmentation_imgsz,
+                        conf=max(.25, float(config.get("confidence", .35))),
+                        verbose=False,
+                    )
+                    attach_vehicle_contours(
+                        vehicles, segmentation_results[0],
+                        frame.shape, config["space_zones"], inside,
+                    )
             now = time.monotonic()
             # Video replay uses footage timestamps for identity and motion.
             # CPU stalls do not become fake 5-second vehicle observations.
@@ -982,9 +1014,19 @@ def main():
                     monitored_raw.append(vehicle)
                 else:
                     vehicle["ignored_raw_track_id"] = vehicle.get("track_id")
-                    vehicle["track_id"] = None  # Not a managed vehicle session.
+                    if not args.segmentation_tracking:
+                        vehicle["track_id"] = None  # Not a managed vehicle session.
                     ignored.append(vehicle)
-            monitored_vehicles = stable_ids.update(monitored_raw, track_now, frame=frame)
+            if args.segmentation_tracking:
+                # Important: a turning vehicle may temporarily travel BELOW
+                # or OUTSIDE every calibrated stall. Its identity must not
+                # disappear solely because its tyres left the parking area.
+                # State/occupancy processing still uses ONLY monitored cars.
+                all_stable = stable_ids.update(vehicles, track_now, frame=frame)
+                monitored_vehicles = [v for v in all_stable if v["monitored"]]
+                ignored = [v for v in all_stable if not v["monitored"]]
+            else:
+                monitored_vehicles = stable_ids.update(monitored_raw, track_now, frame=frame)
             dark = is_low_light(frame)
             night_evidence.update(monitored_vehicles, track_now, low_light=dark)
             # Keep doubtful car boxes visible for diagnosis, but never start
