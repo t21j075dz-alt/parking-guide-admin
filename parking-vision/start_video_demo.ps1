@@ -5,8 +5,10 @@ param(
   [switch]$SegmentationPreview,
   [switch]$SegmentationTracking,
   [switch]$LegacyZoneGeometry,
-  [string]$SegmentationModel = "yolo11n-seg.pt",
-  [int]$SegmentationImageSize = 640,
+  [ValidateSet("Auto", "Standard", "High", "Maximum")]
+  [string]$SegmentationQuality = "Auto",
+  [string]$SegmentationModel = "",
+  [int]$SegmentationImageSize = 0,
   [string]$VerifiedEmpty = ""
 )
 $ErrorActionPreference = "Stop"
@@ -164,10 +166,30 @@ if ($SegmentationTracking) {
   Write-Host "【安全】クラウドへは送信せず、比較動画とCSVのみ保存します。"
 }
 if ($SegmentationPreview -or $SegmentationTracking) {
-  $flags += @("--segmentation-preview", "--segmentation-model", $SegmentationModel,
-              "--segmentation-imgsz", [string]$SegmentationImageSize)
-  Write-Host "【車両輪郭】映像にセグメンテーション輪郭を重ね、比較CSVを生成します。"
-  Write-Host "【注意】追加推論のため処理速度が低下します。駐車判定には影響しません。"
+  $effectiveQuality = $SegmentationQuality.ToLowerInvariant()
+  if ($effectiveQuality -eq "auto") {
+    $qualityLabel = if ($SegmentationTracking) { "High（新しい高精度標準）" } else { "Standard（従来と同等）" }
+  } else {
+    $qualityLabel = $SegmentationQuality
+  }
+  $flags += @("--segmentation-preview", "--segmentation-quality", $effectiveQuality)
+  if (-not [string]::IsNullOrWhiteSpace($SegmentationModel)) {
+    $flags += @("--segmentation-model", $SegmentationModel)
+  }
+  if ($SegmentationImageSize -gt 0) {
+    $flags += @("--segmentation-imgsz", [string]$SegmentationImageSize)
+  }
+  Write-Host "【車両輪郭の品質】$qualityLabel"
+  Write-Host "【車両輪郭】映像に車体マスクを重ね、比較CSVを生成します。"
+  if ($SegmentationTracking) {
+    Write-Host "【安全】輪郭の品質を変更してもクラウドへの共有は行いません。"
+  } else {
+    Write-Host "【安全】駐車判定には従来方式を使用します。"
+  }
+  if ($effectiveQuality -in @("high", "maximum") -or
+      ($effectiveQuality -eq "auto" -and $SegmentationTracking)) {
+    Write-Host "【処理負荷】新しいモデルは初回ダウンロードが必要で、解析速度が低下する場合があります。"
+  }
 }
 if ($Share) {
   Write-Host "【案内共有】録画実演専用の施設（home-video-demo-001）へ共有します。"

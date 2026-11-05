@@ -32,6 +32,7 @@ from vehicle_segmentation import (
     tracked_segment_detections, SegmentationDiagnosticRecorder,
     DisplayBoxSmoother,
 )
+from segmentation_quality import resolve_segmentation_settings, infer_segments
 from person_stability import PersonIdStabilizer
 from person_diagnostics import PersonDiagnosticRecorder
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
@@ -651,7 +652,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
 
 
 def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
-            segmentation_preview=False):
+            segmentation_preview=False, segmentation_tracking=False):
     """YOLOの認識結果を、研究発表で見返せる映像に描画する。
 
     検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
@@ -758,7 +759,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
         (12, height + 72), .45,
     )
-    footer = ("SEGMENTATION MASK: VISUAL ONLY / PARKING STATE: ORIGINAL"
+    footer = ("SEGMENTATION TRACK: MASK + BOX ZONE FUSION / DRY RUN"
+              if segmentation_tracking else
+              "SEGMENTATION MASK: VISUAL ONLY / PARKING STATE: ORIGINAL"
               if segmentation_preview else
               "ZONE = CAR BOTTOM FOOTPRINT / NO WHEEL-CIRCLE ESTIMATION")
     draw_text(footer, (12, height + 91), .40, (180, 185, 190))
@@ -779,10 +782,14 @@ def main():
                         help="検出・輪郭・追跡を同じ-segモデルで行う実験モード（dry-run専用）")
     parser.add_argument("--legacy-zone-geometry", action="store_true",
                         help="セグ追跡実験で区画位置だけ従来の矩形下端方式へ戻して比較")
-    parser.add_argument("--segmentation-model", default="yolo11n-seg.pt",
-                        help="輪郭抽出用のYOLO-segモデル（初回はダウンロードが必要）")
-    parser.add_argument("--segmentation-imgsz", type=int, default=640,
-                        help="セグメンテーションの推論入力解像度")
+    parser.add_argument("--segmentation-quality",
+                        choices=("auto", "standard", "high", "maximum"),
+                        default="auto",
+                        help="輪郭の品質: auto=追跡時high/単独表示時standard、standard=従来、high=高精度、maximum=最大")
+    parser.add_argument("--segmentation-model", default="",
+                        help="輪郭用のモデルを任意で上書き（省略時は品質設定に従う）")
+    parser.add_argument("--segmentation-imgsz", type=int, default=0,
+                        help="輪郭解析の解像度を任意で上書き（0は品質設定に従う）")
     parser.add_argument("--video", default="", help="録画動画を実時間に合わせてYOLO判定する")
     parser.add_argument("--loop-video", action="store_true",
                         help="録画動画を停止操作まで繰り返し再生する（動画実演専用）")
@@ -836,13 +843,21 @@ def main():
     obstacle_path = config.get("obstacle_model")
     obstacle_model = YOLO(obstacle_path) if obstacle_path else None
     segmentation_model = None
+    segmentation_settings = None
     if args.segmentation_preview:
-        if args.segmentation_imgsz < 256 or args.segmentation_imgsz > 1920:
-            raise ValueError("--segmentation-imgsz は256～1920にしてください")
-        segmentation_model = YOLO(args.segmentation_model)
+        segmentation_settings = resolve_segmentation_settings(
+            args.segmentation_quality, tracking=args.segmentation_tracking,
+            model=args.segmentation_model, imgsz=args.segmentation_imgsz)
+        segmentation_model = YOLO(segmentation_settings.model)
         if getattr(segmentation_model, "task", None) != "segment":
             raise ValueError("セグメンテーションモデル（-seg.pt）を指定してください")
-        print(f"【車両輪郭プレビュー】{args.segmentation_model} / {args.segmentation_imgsz}px")
+        print(f"【車両輪郭プレビュー】品質={segmentation_settings.quality} / "
+              f"モデル={segmentation_settings.model} / "
+              f"解析解像度={segmentation_settings.imgsz}px / "
+              f"高解像度マスク={'あり' if segmentation_settings.retina_masks else 'なし'}")
+        if segmentation_settings.quality in ('high', 'maximum'):
+            print("【処理負荷に注意】高精度設定はモデルのダウンロード・推論時間・メモリ消費が増えます。")
+            print("【比較】以前と同じ輪郭設定へ戻す場合は -SegmentationQuality Standard を使用してください。")
         if args.segmentation_tracking:
             print("【車両セグメンテーション追跡】車両検出・マスク・生IDを同じYOLO-segモデルで生成します。")
             print("【比較実験】監視範囲の外でも匿名ID追跡を継続。区画への公開はしません。")
@@ -929,7 +944,8 @@ def main():
         diagnostic_recorder = ParkingDiagnosticRecorder(folder)
         person_diagnostic_recorder = PersonDiagnosticRecorder(folder)
         if segmentation_model is not None:
-            segmentation_diagnostic_recorder = SegmentationDiagnosticRecorder(folder)
+            segmentation_diagnostic_recorder = SegmentationDiagnosticRecorder(
+                folder, settings=segmentation_settings)
         # 設定したカメラと区画座標の画角が一致するかを、映像取得後に必ず確認。
         # これが失敗した場合はライブ送信せず安全に録画を閉じる。
         first_frame, sequence = recording.next_frame(sequence)
@@ -1012,12 +1028,11 @@ def main():
                     # The same segment model supplies raw YOLO tracking IDs,
                     # detection boxes, classes AND instance masks. The
                     # traditional detector remains available for blockers.
-                    segmentation_results = segmentation_model.track(
-                        segmentation_frame, persist=True,
-                        tracker=str(config.get("tracker_file", DEFAULT_TRACKER)),
-                        imgsz=args.segmentation_imgsz,
-                        conf=min(.10, float(config.get("tracking_confidence", .15))),
-                        verbose=False,
+                    segmentation_results = infer_segments(
+                        segmentation_model, segmentation_frame,
+                        segmentation_settings, tracking=True,
+                        tracker_file=str(config.get("tracker_file", DEFAULT_TRACKER)),
+                        confidence=min(.10, float(config.get("tracking_confidence", .15))),
                     )
                     vehicles = tracked_segment_detections(
                         segmentation_results[0], frame.shape, VEHICLE_NAMES,
@@ -1025,10 +1040,10 @@ def main():
                     )
                     mark_vehicle_overlap(blockers, vehicles)
                 else:
-                    segmentation_results = segmentation_model.predict(
-                        segmentation_frame, imgsz=args.segmentation_imgsz,
-                        conf=max(.25, float(config.get("confidence", .35))),
-                        verbose=False,
+                    segmentation_results = infer_segments(
+                        segmentation_model, segmentation_frame,
+                        segmentation_settings,
+                        confidence=max(.25, float(config.get("confidence", .35))),
                     )
                     attach_vehicle_contours(
                         vehicles, segmentation_results[0],
@@ -1129,8 +1144,11 @@ def main():
                 segmentation_diagnostic_recorder.write(vehicles, track_now)
             annotated_frame = (draw_vehicle_contours(frame, vehicles)
                                if segmentation_model is not None else frame)
-            annotated = overlay(annotated_frame, zones, statuses, vehicles, blockers,
-                                phases, segmentation_preview=segmentation_model is not None)
+            annotated = overlay(
+                annotated_frame, zones, statuses, vehicles, blockers,
+                phases, segmentation_preview=segmentation_model is not None,
+                segmentation_tracking=args.segmentation_tracking,
+            )
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
                 annotated = draw_demo_phase_labels(
