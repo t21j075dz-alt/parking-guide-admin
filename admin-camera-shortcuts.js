@@ -13,6 +13,7 @@
     return node;
   }
   const strip=make("div","admin-camera-shortcuts");
+  strip.id="admin-camera-shortcuts";
   strip.setAttribute("aria-label","駐車場のカメラ操作");
   const summary=make("div","admin-camera-shortcuts-summary");
   const title=make("strong",null,"駐車場カメラ");
