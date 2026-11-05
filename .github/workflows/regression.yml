@@ -24,7 +24,7 @@ jobs:
         working-directory: parking-vision
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
-        run: python -m py_compile parking-vision/verify_map_alignment.py parking-vision/import_map_alignment.py parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/yolo_visual_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
+        run: python -m py_compile parking-vision/nikko_video_config.py parking-vision/import_nikko_map_alignment.py parking-vision/export_nikko_recording.py parking-vision/video_demo_support.py parking-vision/video_replay.py parking-vision/verify_map_alignment.py parking-vision/import_map_alignment.py parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/yolo_visual_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
 
   browser-ui:
     name: Camera calibration browser smoke
