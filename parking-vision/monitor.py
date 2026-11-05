@@ -27,6 +27,9 @@ from camera_profiles import capture_preferences, assert_calibrated_view, fit_pre
 from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
+from vehicle_segmentation import (
+    attach_vehicle_contours, draw_vehicle_contours, SegmentationDiagnosticRecorder,
+)
 from person_stability import PersonIdStabilizer
 from person_diagnostics import PersonDiagnosticRecorder
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
@@ -615,7 +618,8 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
     return vehicles, blockers
 
 
-def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
+def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
+            segmentation_preview=False):
     """YOLOの認識結果を、研究発表で見返せる映像に描画する。
 
     検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
@@ -718,8 +722,10 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None):
         "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
         (12, height + 72), .45,
     )
-    draw_text("ZONE = CAR BOTTOM FOOTPRINT / NO WHEEL-CIRCLE ESTIMATION",
-              (12, height + 91), .40, (180, 185, 190))
+    footer = ("SEGMENTATION MASK: VISUAL ONLY / PARKING STATE: ORIGINAL"
+              if segmentation_preview else
+              "ZONE = CAR BOTTOM FOOTPRINT / NO WHEEL-CIRCLE ESTIMATION")
+    draw_text(footer, (12, height + 91), .40, (180, 185, 190))
     # Keep the timing warning in the PowerShell log; repeated video frames
     # still carry the same YOLO ANALYSIS timestamp.
 
@@ -731,6 +737,12 @@ def main():
     parser.add_argument("--config", default="config.json", help="撮影範囲とクラウド設定")
     parser.add_argument("--preview", action="store_true", help="検知範囲と状態を表示する")
     parser.add_argument("--dry-run", action="store_true", help="クラウドに書き込まず試す")
+    parser.add_argument("--segmentation-preview", action="store_true",
+                        help="車両輪郭の研究用プレビューを追加（駐車判定は変更しない）")
+    parser.add_argument("--segmentation-model", default="yolo11n-seg.pt",
+                        help="輪郭抽出用のYOLO-segモデル（初回はダウンロードが必要）")
+    parser.add_argument("--segmentation-imgsz", type=int, default=640,
+                        help="セグメンテーションの推論入力解像度")
     parser.add_argument("--video", default="", help="録画動画を実時間に合わせてYOLO判定する")
     parser.add_argument("--loop-video", action="store_true",
                         help="録画動画を停止操作まで繰り返し再生する（動画実演専用）")
@@ -777,6 +789,15 @@ def main():
     vehicle_model = YOLO(config.get("vehicle_model", "yolo11n.pt"))
     obstacle_path = config.get("obstacle_model")
     obstacle_model = YOLO(obstacle_path) if obstacle_path else None
+    segmentation_model = None
+    if args.segmentation_preview:
+        if args.segmentation_imgsz < 256 or args.segmentation_imgsz > 1920:
+            raise ValueError("--segmentation-imgsz は256～1920にしてください")
+        segmentation_model = YOLO(args.segmentation_model)
+        if getattr(segmentation_model, "task", None) != "segment":
+            raise ValueError("セグメンテーションモデル（-seg.pt）を指定してください")
+        print(f"【車両輪郭プレビュー】{args.segmentation_model} / {args.segmentation_imgsz}px")
+        print("【安全】輪郭は表示と比較CSVのみに使用。駐車状態・追跡ID・Supabase判定は従来方式。")
 
     writer = None
     if not args.dry_run and (not video_mode or args.demo_publish):
@@ -845,11 +866,14 @@ def main():
     visual_recorder = None
     diagnostic_recorder = None
     person_diagnostic_recorder = None
+    segmentation_diagnostic_recorder = None
     demo_visible = False
     try:
         folder = recording.start()
         diagnostic_recorder = ParkingDiagnosticRecorder(folder)
         person_diagnostic_recorder = PersonDiagnosticRecorder(folder)
+        if segmentation_model is not None:
+            segmentation_diagnostic_recorder = SegmentationDiagnosticRecorder(folder)
         # 設定したカメラと区画座標の画角が一致するかを、映像取得後に必ず確認。
         # これが失敗した場合はライブ送信せず安全に録画を閉じる。
         first_frame, sequence = recording.next_frame(sequence)
@@ -919,6 +943,16 @@ def main():
                 occupancy_confidence=float(config.get("confidence", 0.35)),
                 night_vision_mode=str(config.get("night_vision_mode", "auto")),
             )
+            if segmentation_model is not None:
+                segmentation_frame, _, _ = inference_frame(
+                    frame, mode=str(config.get("night_vision_mode", "auto")))
+                segmentation_results = segmentation_model.predict(
+                    segmentation_frame, imgsz=args.segmentation_imgsz,
+                    conf=max(.25, float(config.get("confidence", .35))),
+                    verbose=False,
+                )
+                attach_vehicle_contours(vehicles, segmentation_results[0],
+                                        frame.shape, config["space_zones"], inside)
             now = time.monotonic()
             # Video replay uses footage timestamps for identity and motion.
             # CPU stalls do not become fake 5-second vehicle observations.
@@ -993,7 +1027,12 @@ def main():
                 vehicles, zones, statuses, track_now,
                 video_seconds=(track_now if video_mode else None),
             )
-            annotated = overlay(frame, zones, statuses, vehicles, blockers, phases)
+            if segmentation_diagnostic_recorder is not None:
+                segmentation_diagnostic_recorder.write(vehicles, track_now)
+            annotated_frame = (draw_vehicle_contours(frame, vehicles)
+                               if segmentation_model is not None else frame)
+            annotated = overlay(annotated_frame, zones, statuses, vehicles, blockers,
+                                phases, segmentation_preview=segmentation_model is not None)
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
                 annotated = draw_demo_phase_labels(
@@ -1055,6 +1094,8 @@ def main():
             diagnostic_recorder.close()
         if person_diagnostic_recorder is not None:
             person_diagnostic_recorder.close()
+        if segmentation_diagnostic_recorder is not None:
+            segmentation_diagnostic_recorder.close()
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         if writer and video_mode:
             try:

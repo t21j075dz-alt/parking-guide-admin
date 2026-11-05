@@ -2,6 +2,9 @@
 param(
   [string]$Video = "",
   [switch]$Share,
+  [switch]$SegmentationPreview,
+  [string]$SegmentationModel = "yolo11n-seg.pt",
+  [int]$SegmentationImageSize = 640,
   [string]$VerifiedEmpty = ""
 )
 $ErrorActionPreference = "Stop"
@@ -141,6 +144,12 @@ $flags = @("--config", $demoConfig, "--video", $Video, "--loop-video", "--previe
 Write-Host "【ループ】動画が終わると自動で先頭に戻ります。QキーまたはCtrl+Cで停止します。"
 if (-not [string]::IsNullOrWhiteSpace($VerifiedEmpty)) {
   $flags += @("--verified-empty", $VerifiedEmpty)
+}
+if ($SegmentationPreview) {
+  $flags += @("--segmentation-preview", "--segmentation-model", $SegmentationModel,
+              "--segmentation-imgsz", [string]$SegmentationImageSize)
+  Write-Host "【車両輪郭】映像にセグメンテーション輪郭を重ね、比較CSVを生成します。"
+  Write-Host "【注意】追加推論のため処理速度が低下します。駐車判定には影響しません。"
 }
 if ($Share) {
   Write-Host "【案内共有】録画実演専用の施設（home-video-demo-001）へ共有します。"
