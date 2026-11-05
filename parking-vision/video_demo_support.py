@@ -20,7 +20,7 @@ def checked_demo_facility(config):
         from nikko_video_config import checked_config
         checked_config(config)
         return facility
-    raise ValueError("録画判定は、実カメラの施設や通常の施設へ送信できません")
+    raise ValueError("録画判定は録画専用施設にのみ送信できます。実カメラ・通常施設へは送信できません")
 
 
 def require_demo_mode(config, args):
