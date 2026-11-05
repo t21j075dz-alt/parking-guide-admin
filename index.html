@@ -28,6 +28,9 @@
 <script defer src="./facility-editor.js?v=20261028-closed-rest-1"></script>
 <script defer src="./tenant-editor.js?v=20261030-pronunciation-1"></script>
 <script defer src="./camera-view.js"></script>
+<script defer src="./camera-map-alignment-core.js"></script>
+<script defer src="./camera-map-alignment.js"></script>
+<link href="./camera-map-alignment.css" rel="stylesheet"/>
 <script defer src="./admin-workspace-v2.js?v=20261028-wide-workspace-2"></script>
 </head>
 <body>
@@ -71,6 +74,12 @@
 </div>
 </section>
 <details id="camera-monitor" class="camera-card"><summary>カメラを確認</summary><h2>駐車場のカメラ写真</h2><p>取得した解像度の静止画を5秒ごとに更新します。</p><label>カメラ<select aria-label="表示するカメラ"></select></label><img hidden alt="駐車場のカメラ写真"><p role="status" aria-live="polite">現在の写真を確認できません</p><button type="button" class="secondary-button">写真を更新</button></details>
+<details class="palette-section" id="camera-map-alignment-tools">
+<summary>カメラとマップの位置合わせ</summary>
+<p class="muted">カメラ映像と管理マップで4組の点を合わせると、すべての駐車枠を角度に応じて自動配置できます。</p>
+<button type="button" id="open-camera-map-alignment" class="secondary-button">位置合わせを開始</button>
+<p class="muted">自動生成した設定は確認後にJSONで保存できます。現在のYOLO設定・利用者アプリには自動反映しません。</p>
+</details>
 <details class="palette-section"><summary>ユーザーアプリへ自動反映</summary>
 
 <p class="muted" id="cloud-sync-status">クラウド連携は未設定です。</p>
@@ -413,5 +422,42 @@
 <footer class="footer">
 <p>端末内に自動保存 · ログイン中はクラウドへ反映 · <a href="./DESIGN-SOURCES.md" target="_blank">図形・寸法の出典</a></p>
 </footer>
+
+<dialog id="camera-map-alignment-dialog" class="camera-map-alignment-dialog" aria-labelledby="alignment-title">
+  <div class="alignment-heading">
+    <div><h2 id="alignment-title">カメラと駐車場マップの位置合わせ</h2>
+      <p>同じ床面の場所を、左のマップ → 右のカメラ映像の順に4組クリックしてください。</p></div>
+    <button type="button" id="alignment-close" class="secondary-button">閉じる</button>
+  </div>
+  <div class="alignment-settings">
+    <label>カメラID <input id="alignment-camera-id" type="text" maxlength="100" autocomplete="off" value="home-camera-01"/></label>
+    <button type="button" id="alignment-use-camera">現在のカメラ写真を使用</button>
+    <label class="alignment-upload">または写真を選択 <input id="alignment-file" type="file" accept="image/jpeg,image/png,image/webp"/></label>
+  </div>
+  <p id="alignment-message" class="alignment-message" role="status" aria-live="polite">マップと写真で同じ場所を4組指定してください。</p>
+  <div class="alignment-panes">
+    <section class="alignment-pane">
+      <h3>① 管理者アプリのマップ</h3>
+      <svg id="alignment-map" aria-label="床面上の基準点を選ぶためのマップ" role="img" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+      <p>区画の白線の角や道路上の目印など、離れた点を選びます。</p>
+    </section>
+    <section class="alignment-pane">
+      <h3>② 同じ位置をカメラ画像から選ぶ</h3>
+      <div class="alignment-image-box">
+        <img id="alignment-image" hidden alt="位置合わせ対象のカメラ写真"/>
+        <svg id="alignment-camera-overlay" aria-label="映像上の対応点を選ぶ場所" role="img" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
+      </div>
+      <p>同じ番号の点が必ず同じ床面上の位置を指すようにしてください。</p>
+    </section>
+  </div>
+  <div class="alignment-actions">
+    <button type="button" id="alignment-undo" class="secondary-button">1組戻す</button>
+    <button type="button" id="alignment-reset" class="secondary-button">最初からやり直す</button>
+    <button type="button" id="alignment-project" disabled>全区画の位置を自動計算</button>
+    <button type="button" id="alignment-export" disabled>確認済み設定JSONを保存</button>
+  </div>
+  <p id="alignment-result" class="muted">区画位置は未確定です。既存の駐車状態は変更されません。</p>
+  <p class="muted">注意：同一平面の駐車場を固定カメラで撮影する方式です。映像に映らない区画やカメラ移設時は再設定が必要です。書き出しだけでは監視に反映しません。</p>
+</dialog>
 </body>
 </html>
