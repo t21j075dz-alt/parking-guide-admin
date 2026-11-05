@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {homography,project,parkingCorners,generateZones}=require("../camera-map-alignment-core.js");
+const {homography,project,parkingCorners,generateZones,layoutSignature}=require("../camera-map-alignment-core.js");
 
 const anchors=[[.1,.1],[.9,.1],[.9,.9],[.1,.9]];
 const camera=[[.16,.12],[.78,.20],[.91,.85],[.07,.88]];
@@ -45,4 +45,17 @@ test("a projected space outside the image is never exported or silently clipped"
 test("duplicate parking IDs are rejected",()=>{
   const duplicate={...layout,objects:[layout.objects[0],{...layout.objects[0]}]};
   assert.throws(()=>generateZones(duplicate,anchors,camera),/重複/);
+});
+
+test("a map edit changes the alignment review signature and reprojects new geometry",()=>{
+  const before=layoutSignature(layout);
+  const changed=JSON.parse(JSON.stringify(layout));
+  changed.objects[0].x+=30;
+  assert.notEqual(layoutSignature(changed),before);
+  assert.deepEqual(layoutSignature({...layout,objects:layout.objects.slice().reverse()}),before);
+  const first=generateZones(layout,anchors,camera).space_zones.space_001;
+  const next=generateZones(changed,anchors,camera).space_zones.space_001;
+  assert.notDeepEqual(first,next);
+  // Original map remains unchanged; the same four anchors can reproject edited slots.
+  assert.equal(layout.objects[0].x,200);
 });
