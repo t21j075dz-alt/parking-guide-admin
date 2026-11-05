@@ -3,6 +3,7 @@ param(
   [string]$Video = "",
   [switch]$Share,
   [switch]$SegmentationPreview,
+  [switch]$SegmentationTracking,
   [string]$SegmentationModel = "yolo11n-seg.pt",
   [int]$SegmentationImageSize = 640,
   [string]$VerifiedEmpty = ""
@@ -145,7 +146,14 @@ Write-Host "【ループ】動画が終わると自動で先頭に戻ります�
 if (-not [string]::IsNullOrWhiteSpace($VerifiedEmpty)) {
   $flags += @("--verified-empty", $VerifiedEmpty)
 }
-if ($SegmentationPreview) {
+if ($SegmentationTracking) {
+  if ($Share) { throw "新方式の精度確認が終わるまでは -Share と同時に実行できません。" }
+  $flags += "--segmentation-tracking"
+  Write-Host "【全方向追跡実験】1つの車両セグメンテーションモデルで検出・輪郭・追跡を行います。"
+  Write-Host "【追跡範囲】車が区画の監視範囲を一時的に外れても追跡を続けます。"
+  Write-Host "【安全】クラウドへは送信せず、比較動画とCSVのみ保存します。"
+}
+if ($SegmentationPreview -or $SegmentationTracking) {
   $flags += @("--segmentation-preview", "--segmentation-model", $SegmentationModel,
               "--segmentation-imgsz", [string]$SegmentationImageSize)
   Write-Host "【車両輪郭】映像にセグメンテーション輪郭を重ね、比較CSVを生成します。"
