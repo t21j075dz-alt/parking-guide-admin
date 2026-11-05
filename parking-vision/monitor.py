@@ -30,6 +30,7 @@ from stable_ids import StableIdMatcher
 from vehicle_segmentation import (
     attach_vehicle_contours, draw_vehicle_contours, best_visible_bbox,
     tracked_segment_detections, SegmentationDiagnosticRecorder,
+    DisplayBoxSmoother,
 )
 from person_stability import PersonIdStabilizer
 from person_diagnostics import PersonDiagnosticRecorder
@@ -746,6 +747,8 @@ def main():
                         help="車両輪郭の研究用プレビューを追加（駐車判定は変更しない）")
     parser.add_argument("--segmentation-tracking", action="store_true",
                         help="検出・輪郭・追跡を同じ-segモデルで行う実験モード（dry-run専用）")
+    parser.add_argument("--legacy-zone-geometry", action="store_true",
+                        help="セグ追跡実験で区画位置だけ従来の矩形下端方式へ戻して比較")
     parser.add_argument("--segmentation-model", default="yolo11n-seg.pt",
                         help="輪郭抽出用のYOLO-segモデル（初回はダウンロードが必要）")
     parser.add_argument("--segmentation-imgsz", type=int, default=640,
@@ -758,6 +761,8 @@ def main():
     parser.add_argument("--verified-empty", default="",
                         help="録画の冒頭で目視確認した空き区画ID（カンマ区切り、省略可能）")
     args = parser.parse_args()
+    if args.legacy_zone_geometry and not args.segmentation_tracking:
+        raise ValueError("--legacy-zone-geometry は --segmentation-tracking と併用してください")
     if args.segmentation_tracking:
         args.segmentation_preview = True
         if not args.dry_run:
@@ -847,7 +852,12 @@ def main():
     confirmed_empty = ([] if video_mode else
                        config.get("initially_confirmed_empty_uids", []))
     from recorded_parking_states import RecordedParkingStateMachine
-    demo_machine = RecordedParkingStateMachine(zones) if video_mode else None
+    geometry_mode = ("fusion" if args.segmentation_tracking
+                     and not args.legacy_zone_geometry else "legacy")
+    demo_machine = (RecordedParkingStateMachine(zones, geometry_mode=geometry_mode)
+                    if video_mode else None)
+    if video_mode and args.segmentation_tracking:
+        print(f"【区画位置の判定】{geometry_mode}（比較実験・クラウド無送信）")
     previous_demo_phases = None
     observer = SpaceObserver(
         zones,
@@ -862,6 +872,7 @@ def main():
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
     snapshots = None if video_mode else SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
+    box_smoother = DisplayBoxSmoother() if args.segmentation_tracking else None
     stable_people = PersonIdStabilizer(visible_seconds=1.0)
     night_evidence = NightVehicleEvidenceGate(
         lifetime_seconds=float(config.get("reid_window_seconds", 12)))
@@ -927,7 +938,10 @@ def main():
                 # 同じ動画の2周目を別の観測として開始する。前周の車両ID、
                 # 停止秒数、占有状態、通知の差分を絶対に引き継がない。
                 handled_cycle_number = recording.cycle_number
-                demo_machine = RecordedParkingStateMachine(zones)
+                demo_machine = RecordedParkingStateMachine(
+                    zones, geometry_mode=geometry_mode)
+                if box_smoother is not None:
+                    box_smoother = DisplayBoxSmoother()
                 tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                                         float(config.get("park_seconds", 5)),
                                         lost_seconds=float(config.get("reid_window_seconds", 12)))
@@ -1038,6 +1052,8 @@ def main():
                     box = best_visible_bbox(vehicle)
                     if box is not None and box is not vehicle.get("bbox"):
                         vehicle["display_bbox"] = box
+            if box_smoother is not None:
+                box_smoother.update(vehicles, track_now, frame.shape)
             events = tracks.update(verified_vehicles, zones,
                                    config.get("exit_zone", []), track_now)
             for event in events:
