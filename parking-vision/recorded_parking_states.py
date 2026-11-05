@@ -173,7 +173,15 @@ class StallProgress:
 class RecordedParkingStateMachine:
     """Video-only state machine. Output statuses fit existing guide API."""
 
-    def __init__(self, space_uids):
+    def __init__(self, space_uids, geometry_mode="legacy"):
+        if geometry_mode not in ("legacy", "fusion"):
+            raise ValueError("geometry_mode must be legacy or fusion")
+        self.geometry_mode = geometry_mode
+        if geometry_mode == "fusion":
+            from parking_geometry_fusion import ParkingGeometryFusion
+            self.geometry_fusion = ParkingGeometryFusion()
+        else:
+            self.geometry_fusion = None
         self.stalls = {uid: StallProgress() for uid in space_uids}
         self.tracks = {}
         self.last_clock = -1.
@@ -203,6 +211,10 @@ class RecordedParkingStateMachine:
             )
             if anchor is None:
                 continue
+            if self.geometry_fusion is not None:
+                uid, touched, basis = self.geometry_fusion.resolve(
+                    detection, uid, touched, now)
+                detection["demo_geometry_basis"] = basis
             history = self.tracks.setdefault(tid, TrackHistory())
             history.update(now, anchor)
             tracked_all[tid] = {"zone": uid, "anchor": anchor,
@@ -221,6 +233,8 @@ class RecordedParkingStateMachine:
             detection["demo_stopped"] = tracked_all[tid]["stopped"]
 
         # Prevent unbounded track accumulation over multi-hour videos.
+        if self.geometry_fusion is not None:
+            self.geometry_fusion.forget_stale(now)
         for tid in list(self.tracks):
             if now - self.tracks[tid].last_seen > 20:
                 del self.tracks[tid]

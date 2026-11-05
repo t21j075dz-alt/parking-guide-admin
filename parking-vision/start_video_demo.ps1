@@ -4,6 +4,7 @@ param(
   [switch]$Share,
   [switch]$SegmentationPreview,
   [switch]$SegmentationTracking,
+  [switch]$LegacyZoneGeometry,
   [string]$SegmentationModel = "yolo11n-seg.pt",
   [int]$SegmentationImageSize = 640,
   [string]$VerifiedEmpty = ""
@@ -146,8 +147,17 @@ Write-Host "【ループ】動画が終わると自動で先頭に戻ります�
 if (-not [string]::IsNullOrWhiteSpace($VerifiedEmpty)) {
   $flags += @("--verified-empty", $VerifiedEmpty)
 }
+if ($LegacyZoneGeometry -and -not $SegmentationTracking) {
+  throw "-LegacyZoneGeometry は -SegmentationTracking と併用してください。"
+}
 if ($SegmentationTracking) {
   if ($Share) { throw "新方式の精度確認が終わるまでは -Share と同時に実行できません。" }
+  if ($LegacyZoneGeometry) {
+    $flags += "--legacy-zone-geometry"
+    Write-Host "【比較】従来の区画位置方式で実行します。"
+  } else {
+    Write-Host "【比較】時間的に安定した車体輪郭と矩形下端の融合方式で実行します。"
+  }
   $flags += "--segmentation-tracking"
   Write-Host "【全方向追跡実験】1つの車両セグメンテーションモデルで検出・輪郭・追跡を行います。"
   Write-Host "【追跡範囲】車が区画の監視範囲を一時的に外れても追跡を続けます。"

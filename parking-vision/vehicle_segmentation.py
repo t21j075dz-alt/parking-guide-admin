@@ -113,6 +113,46 @@ def best_visible_bbox(detection, min_seg_confidence=.65):
     return mask_box
 
 
+class DisplayBoxSmoother:
+    """Smooth the DRAWN axis-aligned box, never occupancy geometry.
+
+    Abrupt actual motion, distinct detections and missing IDs remain unsmoothed.
+    Stable IDs identify separate histories; replay-loop resets are explicit.
+    """
+
+    def __init__(self, alpha=.60, max_gap=.8):
+        self.alpha = float(alpha)
+        self.max_gap = float(max_gap)
+        self.previous = {}
+
+    def update(self, detections, now, frame_shape):
+        height, width = frame_shape[:2]
+        active = set()
+        for item in detections:
+            ident = item.get("track_id")
+            incoming = item.get("display_bbox") or item.get("bbox")
+            if ident is None or not incoming or len(incoming) != 4:
+                continue
+            ident = int(ident)
+            if ident in active:
+                continue  # Do not smooth two boxes as one car.
+            active.add(ident)
+            prev = self.previous.get(ident)
+            result = list(map(float, incoming))
+            if prev is not None and 0 <= float(now)-prev[1] <= self.max_gap:
+                old = prev[0]
+                cx = (result[0]+result[2] - old[0]-old[2])/(2*max(width,1))
+                cy = (result[1]+result[3] - old[1]-old[3])/(2*max(height,1))
+                if ((cx*cx+cy*cy)**.5 <= .13
+                        and box_iou(result, old) >= .22):
+                    result = [self.alpha*v+(1-self.alpha)*u
+                              for u,v in zip(old,result)]
+            item["display_bbox"] = result
+            self.previous[ident] = (result, float(now))
+        for ident,(box,last) in list(self.previous.items()):
+            if float(now)-last > 2.0:
+                del self.previous[ident]
+
 def attach_vehicle_contours(detections, result, frame_shape, zones=None,
                             inside=None, min_iou=.30):
     """Match independent seg detections to existing tracks, one-to-one.
@@ -291,7 +331,8 @@ class SegmentationDiagnosticRecorder:
     FIELDS = ("video_seconds", "stable_track_id", "raw_track_id",
               "legacy_zone", "segmentation_zone", "segmentation_match_iou",
               "segmentation_confidence", "lower_points", "match_state",
-              "id_mask_bridged", "display_bbox_source")
+              "id_mask_bridged", "display_bbox_source",
+              "demo_geometry_basis", "demo_geometry_zone")
 
     def __init__(self, folder):
         self.stream = open(Path(folder) / "車両輪郭_比較診断.csv", "w",
@@ -313,9 +354,11 @@ class SegmentationDiagnosticRecorder:
                 "match_state": ("matched" if det.get("segmentation_contour")
                                 else "unmatched"),
                 "id_mask_bridged": "yes" if det.get("id_mask_bridged") else "no",
-                "display_bbox_source": ("segmentation" if
+                "display_bbox_source": ("smoothed" if
                                         det.get("display_bbox") is not None else
                                         "detector"),
+                "demo_geometry_basis": det.get("demo_geometry_basis") or "",
+                "demo_geometry_zone": det.get("demo_zone") or "",
             })
 
     def close(self):
