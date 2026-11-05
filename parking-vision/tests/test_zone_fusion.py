@@ -118,6 +118,18 @@ class ZoneFusionTests(unittest.TestCase):
         self.assertEqual(phases["left"], "stopped")
         self.assertEqual(states["right"], "available")
 
+    def test_adjacent_stall_remains_unknown_until_evidence_agrees(self):
+        model = RecordedParkingStateMachine(self.zones)
+        # One cue supports left, while the rectangular bottom still
+        # straddles both neighboring stalls. Never promise 'right' is free.
+        for n in range(25):
+            t=n*.1
+            det=self.at(t,observation(box=(410,400,605,710)))
+            states,phases=model.update([det],self.zones,inside,t)
+        self.assertEqual(self.fusion.pending[1].zone, "left")
+        self.assertEqual(states["right"], "unknown")
+        self.assertNotEqual(states["left"], "occupied")
+
     def test_mask_motion_point_avoids_false_motion_from_turning_box(self):
         model=RecordedParkingStateMachine({"left":LEFT})
         for t in range(0,9):
