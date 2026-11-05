@@ -193,7 +193,7 @@ class StableIdMatcher:
 
         candidates = []
         observations = []
-        mask_bridged_indices = set()
+        mask_bridge_owners = {}
         current_raw_ids = {
             int(det["track_id"]) for det in detections
             if det.get("track_id") is not None
@@ -291,7 +291,12 @@ class StableIdMatcher:
                 # This is a HIGH priority geometric continuation for a
                 # missing raw ID, not a newly invented independent identity.
                 candidates.append((9.0, index, mask_owner))
-                mask_bridged_indices.add(index)
+                mask_bridge_owners[index] = mask_owner
+                continue
+            if raw is None and record.get("segmentation_checked"):
+                # In segmentation mode, a missing raw ID with ambiguous or
+                # absent mask must NOT fall back to a weaker generic match.
+                observations[-1] = (index, record, vec)
                 continue
             # Prefer a unique existing owner of the identical raw YOLO
             # ID, even when other stale ID records remain in memory.
@@ -301,6 +306,10 @@ class StableIdMatcher:
             ]
             unique_turn_sid = exclusive_turn_match(record, vec)
             for sid, old in self.last.items():
+                if raw is None and old.raw_id in current_raw_ids:
+                    # A currently visible raw-ID owner cannot also be
+                    # assigned to a second untracked duplicate.
+                    continue
                 if len(raw_owners) == 1 and sid != raw_owners[0]:
                     # Only enforce ownership preference when that owner's
                     # position is still plausible, to avoid tracking an ID
@@ -403,7 +412,7 @@ class StableIdMatcher:
             )
             record["raw_track_id"] = raw
             record["id_reassociated"] = reassociated
-            record["id_mask_bridged"] = index in mask_bridged_indices
+            record["id_mask_bridged"] = (mask_bridge_owners.get(index) == stable)
             record["track_id"] = stable
             output.append(record)
         return output
