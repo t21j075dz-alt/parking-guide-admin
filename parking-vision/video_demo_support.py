@@ -6,23 +6,36 @@ from __future__ import annotations
 from urllib import parse, request
 
 VIDEO_FACILITY = "home-video-demo-001"
+NIKKO_VIDEO_FACILITY = "nikko-test-001"
+VIDEO_FACILITIES = frozenset((VIDEO_FACILITY, NIKKO_VIDEO_FACILITY))
 SOURCE = "recorded_video_demo"
 
 
+def checked_demo_facility(config):
+    """録画結果の共有先は自宅録画専用または日光録画専用に限定。"""
+    facility = config.get("facility_id")
+    if facility == VIDEO_FACILITY:
+        return facility
+    if facility == NIKKO_VIDEO_FACILITY:
+        from nikko_video_config import checked_config
+        checked_config(config)
+        return facility
+    raise ValueError("録画判定は録画専用施設にのみ送信できます。実カメラ・通常施設へは送信できません")
+
+
 def require_demo_mode(config, args):
-    """A replay can never claim to be a current camera at home-test-001."""
+    """録画と実カメラを厳密に分ける。日光は校正した動画以外を拒否。"""
     video = bool(args.video)
     if args.demo_publish and not video:
         raise ValueError("録画デモの共有には --video が必要です")
     if video:
-        if config.get("facility_id") != VIDEO_FACILITY:
-            raise ValueError(
-                "動画の実演には専用のconfig_video_demo.jsonを使用してください。"
-                "実際の自宅駐車場には録画の状態を送信できません"
-            )
+        checked_demo_facility(config)
         if config.get("allow_unverified_initial_empty"):
             raise ValueError("録画実演では根拠のない空き初期設定は使用できません")
-    elif config.get("facility_id") == VIDEO_FACILITY:
+        if config["facility_id"] == NIKKO_VIDEO_FACILITY:
+            from nikko_video_config import checked_ready
+            checked_ready(config, args.video)
+    elif config.get("facility_id") in VIDEO_FACILITIES:
         raise ValueError("録画実演専用の設定は実カメラで使用できません")
 
 
@@ -51,10 +64,10 @@ def verify_overlay_with_operator(frame, zones, cv2):
     view = overlay(frame, zones,
                    {uid: "unknown" for uid in zones}, [], [])
     view = draw_demo_watermark(view, cv2, 0)
-    window = "VIDEO DEMO - verify six zones (S=OK Q=cancel)"
+    window = f"RECORDED VIDEO - check {len(zones)} zones (S=OK Q=cancel)"
     cv2.namedWindow(window, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window, 1180, 780)
-    print("【目視確認】これは録画動画です。黄色・灰色の区画が実際の枠位置と一致していますか？")
+    print("【目視確認】これは過去の録画です。"+str(len(zones))+"区画の線が映像と一致しているか確認してください。")
     print("映像のウィンドウで S=一致 / Q=中止。ずれているときはSを押さないでください。")
     try:
         while True:
@@ -80,6 +93,17 @@ def draw_demo_phase_labels(view, cv2, zones, phases):
     from recorded_parking_states import DISPLAY_PHASES
     view = view.copy()
     height, width = view.shape[:2]
+    if len(zones) > 12:
+        # 13区画以上に大きな日本語札を重ねると、車や駐車枠を隠してしまう。
+        from collections import Counter
+        counts = Counter((phases or {}).values())
+        view = cv2.copyMakeBorder(view,0,34,0,0,cv2.BORDER_CONSTANT,value=(22,25,29))
+        occupied = sum(counts.get(name,0) for name in ("parking_in","stopped","exiting"))
+        line = (f"RECORDED SPACES {len(zones)} | FREE {counts.get('available',0)}"
+                f" | OCCUPIED {occupied} | CHECKING {counts.get('unknown',0)}")
+        cv2.putText(view,line,(12,view.shape[0]-10),cv2.FONT_HERSHEY_SIMPLEX,
+                    .53,(255,255,255),1,cv2.LINE_AA)
+        return view
     placements = []
     for uid, polygon in zones.items():
         phase = (phases or {}).get(uid, "unknown")
@@ -124,8 +148,7 @@ def demo_status_rows(config, statuses, timestamp, phases=None):
     """Restrict writes to video demo; keep four-status API plus per-slot phase."""
     from recorded_parking_states import VALID_PHASES, STATUS_FOR_PHASE
 
-    if config.get("facility_id") != VIDEO_FACILITY:
-        raise ValueError("実カメラ施設に録画の判定結果は送信できません")
+    facility = checked_demo_facility(config)
     phases = phases or {}
     result = []
     for uid, status in statuses.items():
@@ -133,7 +156,7 @@ def demo_status_rows(config, statuses, timestamp, phases=None):
         if phase not in VALID_PHASES or status != STATUS_FOR_PHASE[phase]:
             raise ValueError(f"{uid} の段階と空き状態が一致していません")
         result.append({
-            "facility_id": VIDEO_FACILITY,
+            "facility_id": facility,
             "space_uid": uid, "status": status,
             "occupancy_phase": phase,
             "confidence": None, "source": SOURCE,
@@ -142,16 +165,18 @@ def demo_status_rows(config, statuses, timestamp, phases=None):
     return result
 
 
-def set_demo_visibility(writer, published):
+def set_demo_visibility(writer, published, facility_id=VIDEO_FACILITY):
     """Toggle only video-demo visibility, with the signed-in user's JWT.
 
     A database row must already exist; RLS denies writes outside membership.
     Do not expose service_role or bypass RLS.
     """
+    if facility_id not in VIDEO_FACILITIES:
+        raise ValueError("録画デモ以外の公開設定は変更できません")
     writer._ensure_token()
     address = (
         f"{writer.url}/rest/v1/parking_live_visibility?"
-        f"facility_id=eq.{parse.quote(VIDEO_FACILITY)}"
+        f"facility_id=eq.{parse.quote(facility_id)}"
     )
     body = b'{"is_published":true}' if published else b'{"is_published":false}'
     req = request.Request(address, data=body, method="PATCH", headers={
@@ -163,8 +188,48 @@ def set_demo_visibility(writer, published):
     import json
     with request.urlopen(req, timeout=10) as response:
         rows = json.loads(response.read() or b"[]")
-    if len(rows) != 1 or rows[0].get("facility_id") != VIDEO_FACILITY:
+    if len(rows) != 1 or rows[0].get("facility_id") != facility_id:
         raise ValueError(
             "録画実演の公開設定を変更できません。専用施設のDB初期設定または権限を確認してください"
         )
     print("【録画実演の共有】" + ("ON（実カメラではありません）" if published else "OFF"))
+
+
+def invalidate_nikko_outside_camera_rows(writer, monitored_uids):
+    """前の録画だけに映っていた区画を期限切れにしてから共有する。
+
+    既存の公開状態をOFFにした後、現在のカメラにない区画の行だけ
+    明示的にUNKNOWN・過去日時へ。これで短時間の録画切替でも
+    古い「空き」が新しい録画の監視対象として再表示されない。
+    """
+    import json
+    from nikko_video_config import UID_PATTERN
+    monitored = set(monitored_uids)
+    if (not monitored or
+            len(monitored) != len(list(monitored_uids)) or
+            not all(isinstance(uid, str) and UID_PATTERN.fullmatch(uid) for uid in monitored)):
+        raise ValueError("録画の監視区画IDが不正です。クラウド共有しません")
+    writer._ensure_token()
+    address=(f"{writer.url}/rest/v1/parking_live_status?"
+             f"facility_id=eq.{NIKKO_VIDEO_FACILITY}&select=space_uid&limit=10000")
+    req=request.Request(address,method="GET",headers={
+        "apikey":writer.key,
+        "Authorization":f"Bearer {writer.access_token}",
+    })
+    with request.urlopen(req,timeout=10) as response:
+        rows=json.loads(response.read() or b"[]")
+    if not isinstance(rows,list) or len(rows)>9999:
+        raise ValueError("以前の録画区画を安全に取得できません。共有しません")
+    others={row.get("space_uid") for row in rows
+            if isinstance(row,dict) and isinstance(row.get("space_uid"),str)}-monitored
+    if not all(UID_PATTERN.fullmatch(uid) for uid in others):
+        raise ValueError("以前の区画IDが不正です。録画共有しません")
+    if others:
+        writer.upsert("parking_live_status",[
+            {"facility_id":NIKKO_VIDEO_FACILITY,"space_uid":uid,
+             "status":"unknown","occupancy_phase":"unknown",
+             "source":SOURCE,"confidence":None,
+             "checked_at":"2000-01-01T00:00:00+00:00"}
+            for uid in sorted(others)],"facility_id,space_uid")
+    print(f"【録画切替】以前の画角だけにあった{len(others)}区画を未確認に更新しました。")
+    return len(others)

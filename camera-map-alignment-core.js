@@ -96,23 +96,29 @@
   }
 
   /** 各区画の四隅が映像内にある場合だけ、monitor.py と互換の0～1座標を生成。 */
-  function generateZones(layout,mapPoints,imagePoints) {
+  function generateZones(layout,mapPoints,imagePoints, options={}) {
     const width=Number(layout?.canvas?.width),height=Number(layout?.canvas?.height);
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw new Error("マップの大きさが不正です。");
     const transform=homography(mapPoints,imagePoints);
     const slots=(layout?.objects||[]).filter(o=>o?.objectType==="parkingSpace");
     if(slots.length===0)throw new Error("このマップには駐車区画がありません。");
-    const zones={};
+    const zones={},excluded=[];const seen=new Set();
+    const skipOutside=options.skipOutsideFrame===true;
     for(const slot of slots){
       const uid=String(slot.uid||"");
-      if(!/^space_[A-Za-z0-9_-]+$/.test(uid)||Object.hasOwn(zones,uid)){
+      if(!/^space_[A-Za-z0-9_-]+$/.test(uid)||seen.has(uid)){
         throw new Error("区画IDが不正または重複しています: "+uid);
       }
-      const result=parkingCorners(slot).map(([x,y])=>project(transform,[x/width,y/height]));
+      seen.add(uid);
+      let result;
+      try{result=parkingCorners(slot).map(([x,y])=>project(transform,[x/width,y/height]));}
+      catch(error){if(skipOutside){excluded.push(uid);continue;}throw error;}
       if(result.some(p=>p.some(n=>n < -1e-7 || n > 1+1e-7))){
+        if(skipOutside){excluded.push(uid);continue;}
         throw new Error(uid+" が撮影範囲外です。カメラを追加するか対応点を見直してください。");
       }
       if(Math.abs(signedArea(result))<0.00001 || hullArea(result)<0.00001){
+        if(skipOutside){excluded.push(uid);continue;}
         throw new Error(uid+" が極端に小さく映ります。カメラの位置を変更してください。");
       }
       // 4頂点が適切な周回順になるかを保証。視点が床面の裏側に回る変換も拒否。
@@ -121,7 +127,8 @@
       }
       zones[uid]=result.map(p=>p.map(n=>Number(Math.max(0,Math.min(1,n)).toFixed(7))));
     }
-    return {space_uids:Object.keys(zones),space_zones:zones,transform};
+    if(!Object.keys(zones).length)throw new Error("カメラ映像に完全に入る駐車区画がありません。画角と4点を確認してください。");
+    return {space_uids:Object.keys(zones),space_zones:zones,excluded_space_uids:excluded,transform};
   }
 
   /** 位置合わせ後に区画が編集されたかを判断するための安定した配置署名。 */

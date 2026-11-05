@@ -67,7 +67,7 @@
       }
       latestTime = time;
       if (!indexByUid.has(uid)) {
-        if (spaces.length >= 100) throw new Error("区画が100件を超えています。");
+        if (spaces.length >= 999) throw new Error("録画ビューの上限は999区画です。より多い映像は分割してください。");
         indexByUid.set(uid, spaces.length);
         spaces.push(uid);
       }

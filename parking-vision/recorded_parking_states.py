@@ -177,7 +177,7 @@ class StallProgress:
 class RecordedParkingStateMachine:
     """Video-only state machine. Output statuses fit existing guide API."""
 
-    def __init__(self, space_uids, geometry_mode="legacy"):
+    def __init__(self, space_uids, geometry_mode="legacy", initially_confirmed_empty_uids=None):
         if geometry_mode not in ("legacy", "fusion"):
             raise ValueError("geometry_mode must be legacy or fusion")
         self.geometry_mode = geometry_mode
@@ -186,7 +186,14 @@ class RecordedParkingStateMachine:
             self.geometry_fusion = ParkingGeometryFusion()
         else:
             self.geometry_fusion = None
-        self.stalls = {uid: StallProgress() for uid in space_uids}
+        # None は従来自宅デモと同じ初期空き。明示的な集合なら、
+        # 未確認の区画を勝手に空きにせずunknownから始める（日光）。
+        known = None if initially_confirmed_empty_uids is None else set(initially_confirmed_empty_uids)
+        if known is not None and not known.issubset(set(space_uids)):
+            raise ValueError("初期空き確認の区画IDが録画対象にありません")
+        self.stalls = {uid: StallProgress(phase=(
+            "available" if known is None or uid in known else "unknown"))
+            for uid in space_uids}
         self.tracks = {}
         self.last_clock = -1.
         self.events = []
@@ -245,7 +252,7 @@ class RecordedParkingStateMachine:
 
         for uid, stall in self.stalls.items():
             observation = observations.get(uid)
-            if stall.phase == "available":
+            if stall.phase in ("available", "unknown"):
                 if observation is not None:
                     tid = observation["tid"]
                     reset_overlap = (stall.track_id != tid or stall.last_inside is None

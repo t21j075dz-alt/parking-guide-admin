@@ -39,7 +39,8 @@ def validate_video(path):
 class VideoReplay:
     """monitor.pyの録画入力インターフェースを実装。クラウド機能は持たない。"""
 
-    def __init__(self, filename, cv2, root=None, clock=time.monotonic, sleeper=time.sleep, loop=False):
+    def __init__(self, filename, cv2, root=None, clock=time.monotonic,
+                 sleeper=time.sleep, loop=False, process_all_frames=False):
         self.filename = validate_video(filename)
         self.cv2 = cv2
         self.clock, self.sleeper = clock, sleeper
@@ -54,6 +55,7 @@ class VideoReplay:
         self.frame_total = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.frame_index = -1
         self.loop_enabled = bool(loop)
+        self.process_all_frames = bool(process_all_frames)
         self.cycle_number = 0  # 0=1周目、1=2周目。メイン側の追跡初期化に利用。
         self._started = None
         self._first = None
@@ -116,8 +118,10 @@ class VideoReplay:
             return self._first.copy(), 1
         # Exactly one real decoded frame per new observation. CPU/GPU processing
         # overruns cannot slow the virtual playback clock indefinitely.
-        target = max(self.frame_index + 1,
-                     int((self.clock() - self._started) * self.fps))
+        # 精度優先モードは全フレームを推論。動画時計はフレーム番号を使うため、
+        # 推論が遅くなっても「5秒の停車」などを捏造せずに再現できる。
+        target = (self.frame_index + 1 if self.process_all_frames else
+                  max(self.frame_index + 1, int((self.clock() - self._started) * self.fps)))
         if self.frame_total > 0 and target >= self.frame_total:
             if self.loop_enabled:
                 return self._restart_video()

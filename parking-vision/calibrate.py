@@ -312,6 +312,11 @@ def main():
                     "source": str(source),
                     "kind": str(config.get("camera_kind", "usb")).lower(),
                 }
+            # 日光の録画専用設定は、別動画の区画座標を使い回さない。
+            # 動画の元画像サイズと軽量フィンガープリントを記録する。
+            if not live and config.get("facility_id") == "nikko-test-001":
+                from nikko_video_config import record_video_calibration
+                record_video_calibration(config, source, *raw_dimensions)
             # config.jsonはPythonが読めるUTF-8 BOMなしで保存。
             path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n",
                             encoding="utf-8")

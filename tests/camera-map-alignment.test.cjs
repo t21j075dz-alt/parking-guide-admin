@@ -85,3 +85,29 @@ test("empty or malformed maps use safe full map bounds",()=>{
     {uid:"bad",objectType:"parkingSpace",x:10,y:10,width:0,height:80}
   ]}),{x:0,y:0,width:1800,height:1200});
 });
+
+
+test("Nikko alignment keeps every visible parking slot but never reports out-of-frame spaces as free",()=>{
+  const map={facilityId:"nikko-test-001",canvas:{width:1000,height:1000},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:150,y:180,width:80,height:150,rotation:0},
+    {uid:"space_002",objectType:"parkingSpace",x:320,y:180,width:80,height:150,rotation:0},
+    {uid:"space_009",objectType:"parkingSpace",x:510,y:180,width:80,height:150,rotation:0},
+    {uid:"space_044",objectType:"parkingSpace",x:1020,y:500,width:80,height:150,rotation:0},
+  ]};
+  const actual=[[0,0],[1,0],[1,1],[0,1]];
+  const result=generateZones(map,actual,actual,{skipOutsideFrame:true});
+  assert.deepEqual(result.space_uids,["space_001","space_002","space_009"]);
+  assert.deepEqual(result.excluded_space_uids,["space_044"]);
+  assert.equal(Object.keys(result.space_zones).length,3);
+  assert.equal(Object.hasOwn(result.space_zones,"space_044"),false);
+  assert.equal(map.objects.length,4,"full facility map must stay intact");
+  assert.throws(()=>generateZones(map,actual,actual),/撮影範囲外/);
+});
+
+test("Nikko alignment refuses a camera that sees zero complete parking spaces",()=>{
+  const map={canvas:{width:1000,height:1000},objects:[
+    {uid:"space_100",objectType:"parkingSpace",x:1300,y:1100,width:60,height:110,rotation:0}
+  ]};
+  const actual=[[0,0],[1,0],[1,1],[0,1]];
+  assert.throws(()=>generateZones(map,actual,actual,{skipOutsideFrame:true}),/駐車区画がありません/);
+});
