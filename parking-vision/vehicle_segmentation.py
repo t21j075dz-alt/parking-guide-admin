@@ -331,7 +331,8 @@ class SegmentationDiagnosticRecorder:
     FIELDS = ("video_seconds", "stable_track_id", "raw_track_id",
               "legacy_zone", "segmentation_zone", "segmentation_match_iou",
               "segmentation_confidence", "lower_points", "match_state",
-              "id_mask_bridged", "display_bbox_source")
+              "id_mask_bridged", "display_bbox_source",
+              "demo_geometry_basis", "demo_geometry_zone")
 
     def __init__(self, folder):
         self.stream = open(Path(folder) / "車両輪郭_比較診断.csv", "w",
@@ -353,9 +354,11 @@ class SegmentationDiagnosticRecorder:
                 "match_state": ("matched" if det.get("segmentation_contour")
                                 else "unmatched"),
                 "id_mask_bridged": "yes" if det.get("id_mask_bridged") else "no",
-                "display_bbox_source": ("segmentation" if
+                "display_bbox_source": ("smoothed" if
                                         det.get("display_bbox") is not None else
                                         "detector"),
+                "demo_geometry_basis": det.get("demo_geometry_basis") or "",
+                "demo_geometry_zone": det.get("demo_zone") or "",
             })
 
     def close(self):
