@@ -481,8 +481,7 @@ window.ADMIN_FACILITY_CATALOG = {
   "requiresLocalCalibration": true,
   "isRecordedExperiment": true,
   "recordedCameraId": "nikko-recording-01",
-  "researchSpaceCount": 8,
-  "statusNote": "22.5秒の過去録画を使う研究施設。現在の空き情報ではありません"
+  "statusNote": "過去の録画を使う実験施設。映像に映る区画だけを判定し、現在の空き情報として扱いません"
 },
   {
     "id": "target_021",
