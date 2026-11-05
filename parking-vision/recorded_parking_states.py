@@ -201,10 +201,20 @@ class RecordedParkingStateMachine:
             uid, touched, anchor = bottom_footprint_candidate(
                 detection, zones, inside
             )
+            if detection.get("zone_fusion_evaluated") is True:
+                # Only the explicitly enabled research mode uses fused
+                # mask/box evidence; default replay remains unchanged.
+                uid = detection.get("fused_zone_candidate")
+                touched = set(detection.get("fused_zone_touched") or ())
             if anchor is None:
                 continue
             history = self.tracks.setdefault(tid, TrackHistory())
-            history.update(now, anchor)
+            # A car turning in place moves the bottom edge of its bounding
+            # rectangle even if the car does not translate on the ground.
+            # Use the image-mask area centroid for motion/stopping only
+            # when a valid mask is available; this is still image-space.
+            motion_point = detection.get("motion_point") or anchor
+            history.update(now, motion_point)
             tracked_all[tid] = {"zone": uid, "anchor": anchor,
                                 "moving": history.is_moving(now),
                                 "stopped": history.is_stopped(now),
