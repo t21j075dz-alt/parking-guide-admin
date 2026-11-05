@@ -13,10 +13,11 @@
   const cameraId=get("alignment-camera-id"), message=get("alignment-message");
   const resultLabel=get("alignment-result");
   const exportButton=get("alignment-export"), applyButton=get("alignment-project");
-  const file=get("alignment-file");
+  const file=get("alignment-file"), confirmed=get("alignment-confirm-visual");
   const NS="http://www.w3.org/2000/svg";
   const memoryKey="parkingCameraMapAlignmentsV1";
   let mapPoints=[],imagePoints=[],projected=null,currentFacility="",fileUrl=null;
+  let layoutChanged=false;
 
   function notify(text){message.textContent=text;}
   function svg(tag,attrs,text){
@@ -36,7 +37,7 @@
   function storageId(){return currentFacility+"|"+cameraId.value.trim();}
   function refresh(){
     applyButton.disabled=mapPoints.length!==4||imagePoints.length!==4;
-    exportButton.disabled=!projected;
+    exportButton.disabled=!projected||!confirmed.checked;
     resultLabel.textContent=projected
       ? projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
       : "区画位置は未確定です。既存の駐車状態は変更されません。";
@@ -100,12 +101,14 @@
     }
     refresh();
   }
-  function reset(){mapPoints=[];imagePoints=[];projected=null;draw();}
+  function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;draw();}
   function remember(){
     try{
       const all=saved();
       all[storageId()]={map_points:mapPoints,image_points:imagePoints,
-        canvas:{width:Number(layout().canvas.width),height:Number(layout().canvas.height)}};
+        canvas:{width:Number(layout().canvas.width),height:Number(layout().canvas.height)},
+        layout_signature:core.layoutSignature(layout()),
+        image_ratio:image.naturalWidth/image.naturalHeight};
       localStorage.setItem(memoryKey,JSON.stringify(all));
     }catch{notify("端末への位置合わせ保存に失敗しました。JSONを書き出して保管してください。");}
   }
@@ -115,14 +118,36 @@
       &&item.canvas?.height===Number(current.canvas.height);
     mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,4):[];
     imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,4):[];
-    projected=null;draw();
+    layoutChanged=Boolean(same&&item.layout_signature
+      &&item.layout_signature!==core.layoutSignature(current));
+    projected=null;confirmed.checked=false;draw();
     if(mapPoints.length===4&&imagePoints.length===4){
-      notify("保存された4点を読み込みました。最新の画像で位置が一致するか確認してください。");
+      notify(layoutChanged
+        ? "駐車区画の配置が前回から変わりました。保存済み4点を再利用できますが、映像上ですべての区画位置を再確認してください。"
+        : "前回の4点を読み込みました。最新のカメラ写真を読み込むと自動で区画を再計算します。");
     }
   }
   function loadPhoto(src){
     image.onload=()=>{
-      image.hidden=false;projected=null;draw();
+      image.hidden=false;projected=null;confirmed.checked=false;
+      const prior=saved()[storageId()];
+      const ratio=image.naturalWidth/image.naturalHeight;
+      if(prior?.image_ratio && Math.abs(ratio/prior.image_ratio-1)>.015){
+        reset();
+        notify("前回の画像と縦横比が異なります。画角や切り抜きが変わった可能性があるため、4点を再設定してください。");
+        return;
+      }
+      if(mapPoints.length===4&&imagePoints.length===4){
+        try{
+          projected=core.generateZones(layout(),mapPoints,imagePoints);
+          draw();
+          notify(layoutChanged
+            ? "マップ変更後の全区画を自動再計算しました。位置が合うか必ず確認し、必要なら4点を選び直してください。"
+            : "保存済みの4点から全区画を自動再計算しました。最新映像で一致を確認してください。");
+          return;
+        }catch(error){projected=null;draw();notify("自動再計算できません: "+error.message);return;}
+      }
+      draw();
       notify("画像を読み込みました。マップと映像で対応する床面の点を交互に選んでください。");
     };
     image.onerror=()=>{image.hidden=true;reset();notify("画像を読み込めませんでした。別の写真を選んでください。");};
@@ -133,7 +158,7 @@
     const current=layout();
     if(!current)return;
     cameraId.value=document.querySelector("#camera-monitor select")?.value||"home-camera-01";
-    image.hidden=true;image.removeAttribute("src");file.value="";projected=null;
+    image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
     dialog.showModal();restore();
     if(!(current.objects||[]).some(o=>o.objectType==="parkingSpace")){
       notify("先に管理マップで駐車区画を作成してください。");
@@ -164,37 +189,46 @@
   });
   map.addEventListener("click",event=>{
     if(mapPoints.length!==imagePoints.length||mapPoints.length>=4)return;
-    try{mapPoints.push(pointFromClick(event,map));projected=null;draw();}
+    try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;draw();}
     catch(error){notify(error.message);}
   });
   overlay.addEventListener("click",event=>{
     if(image.hidden||mapPoints.length!==imagePoints.length+1)return;
-    try{imagePoints.push(pointFromClick(event,overlay));projected=null;draw();}
+    try{imagePoints.push(pointFromClick(event,overlay));projected=null;confirmed.checked=false;draw();}
     catch(error){notify(error.message);}
   });
   get("alignment-undo").addEventListener("click",()=>{
     if(mapPoints.length>imagePoints.length)mapPoints.pop();
     else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
-    projected=null;draw();
+    projected=null;confirmed.checked=false;draw();
   });
   get("alignment-reset").addEventListener("click",reset);
-  cameraId.addEventListener("change",restore);
+  cameraId.addEventListener("change",()=>{
+    // カメラIDだけを変更して別カメラの写真を誤利用しない。
+    image.hidden=true;
+    image.removeAttribute("src");
+    file.value="";
+    restore();
+    notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
+  });
+  confirmed.addEventListener("change",refresh);
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
     try{
       projected=core.generateZones(layout(),mapPoints,imagePoints);
-      remember();draw();
+      confirmed.checked=false;draw();
       notify("全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
     }catch(error){projected=null;draw();notify(error.message);}
   });
   exportButton.addEventListener("click",()=>{
-    if(!projected||!layout()||image.hidden)return;
+    if(!projected||!layout()||image.hidden||!confirmed.checked)return;
     const cam=cameraId.value.trim();
     if(!/^[A-Za-z0-9_-]{1,100}$/.test(cam)){
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
     }
     try{
       const result=core.generateZones(layout(),mapPoints,imagePoints);
+      remember();layoutChanged=false;
       const payload={
         schema_version:1,facility_id:currentFacility,camera_id:cam,
         image_width:image.naturalWidth,image_height:image.naturalHeight,
