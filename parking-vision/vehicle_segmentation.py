@@ -332,9 +332,12 @@ class SegmentationDiagnosticRecorder:
               "legacy_zone", "segmentation_zone", "segmentation_match_iou",
               "segmentation_confidence", "lower_points", "match_state",
               "id_mask_bridged", "display_bbox_source",
-              "demo_geometry_basis", "demo_geometry_zone")
+              "demo_geometry_basis", "demo_geometry_zone",
+              "contour_vertices", "quality_preset", "model_name",
+              "input_imgsz", "high_resolution_masks")
 
-    def __init__(self, folder):
+    def __init__(self, folder, settings=None):
+        self.settings = settings
         self.stream = open(Path(folder) / "車両輪郭_比較診断.csv", "w",
                            encoding="utf-8-sig", newline="")
         self.writer = csv.DictWriter(self.stream, fieldnames=self.FIELDS)
@@ -359,6 +362,12 @@ class SegmentationDiagnosticRecorder:
                                         "detector"),
                 "demo_geometry_basis": det.get("demo_geometry_basis") or "",
                 "demo_geometry_zone": det.get("demo_zone") or "",
+                "contour_vertices": len(det.get("segmentation_contour") or ()),
+                "quality_preset": getattr(self.settings, "quality", ""),
+                "model_name": getattr(self.settings, "model", ""),
+                "input_imgsz": getattr(self.settings, "imgsz", ""),
+                "high_resolution_masks": ("yes" if getattr(
+                    self.settings, "retina_masks", False) else "no"),
             })
 
     def close(self):
