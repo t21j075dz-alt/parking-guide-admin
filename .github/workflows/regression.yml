@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Check JavaScript syntax
-        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js && node --check admin-voice.js && node --check voice-speech-readings.js && node --check camera-map-alignment-core.js && node --check camera-map-alignment.js
+        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js && node --check admin-voice.js && node --check voice-speech-readings.js && node --check camera-map-alignment-core.js && node --check camera-map-alignment.js && node --check admin-camera-shortcuts.js
       - name: Run admin tests
         run: node --test tests/*.test.cjs
       - name: Install dependencies for camera snapshot tests
@@ -25,6 +25,30 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
         run: python -m py_compile parking-vision/verify_map_alignment.py parking-vision/import_map_alignment.py parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/yolo_visual_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
+
+  browser-ui:
+    name: Camera calibration browser smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser test dependencies
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test desktop and mobile camera/map workflow
+        run: node tests/camera-alignment-browser.cjs
+      - name: Keep visual regression screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: camera-map-ui-smoke
+          path: |
+            /tmp/parking-camera-alignment-desktop.png
+            /tmp/parking-camera-alignment-mobile.png
+          if-no-files-found: ignore
 
   powershell-51-syntax:
     name: Windows PowerShell 5.1 syntax

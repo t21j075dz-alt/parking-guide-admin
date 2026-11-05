@@ -1,0 +1,96 @@
+/* カメラ操作への最短導線。既存キャンバスの編集/保存には触れない。 */
+.admin-camera-shortcuts{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:8px 12px;flex:0 0 auto;
+  margin:0 9px;padding:8px 11px;
+  border:1px solid var(--border,#d6d3d1);
+  border-radius:10px;
+  background:var(--panel,#fff);
+}
+.admin-camera-shortcuts-summary{
+  display:flex;align-items:center;gap:9px;min-width:0;
+  font-size:.79rem;
+}
+.admin-camera-shortcuts-summary strong{font-weight:750;white-space:nowrap;color:var(--text,#252d36)}
+.admin-camera-shortcuts-summary span{
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:20px;padding:4px 9px;
+  font-size:.73rem;line-height:1.2;
+  background:var(--panel-2,#f4f6f9);color:var(--muted,#52606d);
+  border:1px solid var(--border,#ccd4dd);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.admin-camera-shortcuts[data-has-spaces="true"] .admin-camera-shortcuts-summary span{
+  border-color:#9bc9b4;color:#19624b;
+}
+.admin-camera-shortcuts-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.admin-camera-shortcut{
+  font-size:12px;line-height:1.25;min-height:38px;
+  padding:7px 11px;border:1px solid var(--border,#cbd5e1);
+  border-radius:8px;background:var(--panel-2,#f8fafc);
+  color:var(--text,#253141);font-weight:650;cursor:pointer;
+}
+.admin-camera-shortcut.is-primary{
+  background:var(--accent,#1d4ed8);border-color:var(--accent,#1d4ed8);color:#fff;
+}
+.admin-camera-shortcut:hover:not(.is-primary){border-color:var(--accent,#1d4ed8)}
+.admin-camera-shortcut:focus-visible{outline:3px solid var(--accent,#1d4ed8);outline-offset:2px}
+@media(max-width:860px){
+  .admin-camera-shortcuts{margin:0 6px;padding:7px 8px;gap:7px}
+  .admin-camera-shortcuts-summary{width:100%}
+  .admin-camera-shortcuts-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;width:100%}
+  .admin-camera-shortcut{min-height:44px;padding:6px 5px;font-size:11px}
+}
+@media(max-width:390px){
+  .admin-camera-shortcuts-summary strong{font-size:12px}
+  .admin-camera-shortcut{font-size:10px}
+}
+
+
+/* 状態の集計と区画リスト。色だけでなく名称・件数・ラベルで区別する。 */
+#live-monitor-panel .live-monitor-stats{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;margin:10px 0 12px;padding:0;
+}
+#live-monitor-panel .live-monitor-stats>div{
+  display:flex;align-items:center;justify-content:space-between;
+  min-width:0;gap:5px;
+  padding:9px 10px;border-radius:9px;
+  border:1px solid var(--border,#ccd5de);
+  background:var(--panel-2,#f7f8fa);
+}
+#live-monitor-panel .live-monitor-stats dt{font-size:12px;font-weight:650;color:var(--text,#263440)}
+#live-monitor-panel .live-monitor-stats dd{margin:0;font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
+#live-monitor-panel [data-live-state="available"] dd{color:#168057}
+#live-monitor-panel [data-live-state="occupied"] dd{color:var(--accent,#1d4ed8)}
+#live-monitor-panel [data-live-state="blocked"] dd{color:#b35715}
+#live-monitor-panel [data-live-state="unknown"] dd{color:var(--muted,#606975)}
+#live-monitor-panel .live-monitor-list-head{
+  display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  margin:12px 0 8px;
+}
+#live-monitor-panel .live-monitor-list-head label{display:flex;align-items:center;gap:6px;font-size:12px}
+#live-monitor-panel .live-monitor-list-head select{
+  min-height:34px;min-width:104px;padding:4px 6px;
+  font-size:12px;border-radius:7px;border:1px solid var(--border,#cbd5e1);
+  color:var(--text,#263440);background:var(--panel,#fff);
+}
+#live-monitor-spaces{
+  padding:0;list-style:none;display:grid;gap:5px;
+}
+#live-monitor-spaces li{
+  display:block;margin:0;
+  padding:9px 10px;border:1px solid var(--border,#cbd5e1);
+  border-left:4px solid #8b98a7;border-radius:8px;
+  background:var(--panel,#fff);font-size:12px;line-height:1.55;
+}
+#live-monitor-spaces li[hidden]{display:none!important}
+#live-monitor-spaces li[data-live-status="available"]{border-left-color:#168057}
+#live-monitor-spaces li[data-live-status="occupied"]{border-left-color:var(--accent,#1d4ed8)}
+#live-monitor-spaces li[data-live-status="blocked"]{border-left-color:#b35715}
+#live-monitor-spaces li[data-live-status="unknown"]{border-left-color:#8b98a7}
+#live-monitor-filter-empty{font-size:12px;padding:9px 3px}
+#live-monitor-panel button:focus-visible,#live-monitor-panel select:focus-visible{
+  outline:3px solid var(--accent,#1d4ed8);outline-offset:2px
+}
