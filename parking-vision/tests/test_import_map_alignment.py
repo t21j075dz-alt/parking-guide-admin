@@ -53,7 +53,7 @@ class ImportMapAlignmentTests(unittest.TestCase):
                     checked_alignment(self.config, altered)
 
     def test_mismatched_zone_ids_are_rejected(self):
-        with self.assertRaisesRegex(ValueError, "一致しません"):
+        with self.assertRaisesRegex(ValueError, "対応していません"):
             checked_alignment(self.config, {**self.alignment, "space_uids": ["space_001"]})
 
     def test_camera_aspect_mismatch_is_rejected(self):
