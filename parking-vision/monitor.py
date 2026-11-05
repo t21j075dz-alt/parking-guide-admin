@@ -28,7 +28,8 @@ from yolo_visual_recording import YoloVisualRecorder
 from camera_snapshots import SnapshotPublisher
 from stable_ids import StableIdMatcher
 from vehicle_segmentation import (
-    attach_vehicle_contours, draw_vehicle_contours, SegmentationDiagnosticRecorder,
+    attach_vehicle_contours, draw_vehicle_contours, best_visible_bbox,
+    SegmentationDiagnosticRecorder,
 )
 from person_stability import PersonIdStabilizer
 from person_diagnostics import PersonDiagnosticRecorder
@@ -657,7 +658,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         draw_text(f"{uid}: {state}", points[0], .58, color, 2)
 
     for detection in vehicle_detections + obstacles:
-        bbox = detection.get("bbox")
+        # Correct ONLY the drawn tracking box. All state calculations retain
+        # the original YOLO detector bbox and bottom-footprint logic.
+        bbox = detection.get("display_bbox") or detection.get("bbox")
         if not bbox or len(bbox) != 4:
             continue
         x1, y1, x2, y2 = (int(v) for v in bbox)
@@ -690,6 +693,8 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
             line += " UNCERTAIN (near vehicle)"
         if phase:
             line += f" {phase.upper()}"
+        if detection.get("id_mask_bridged"):
+            line += " MASK-ID-BRIDGE"
         if not is_obstacle and detection.get("monitored") is False:
             line += " IGNORED: OUTSIDE CAMERA ZONES"
         elif not is_obstacle and detection.get("night_verified") is False:
@@ -986,6 +991,11 @@ def main():
             # a live vehicle session for them merely because YOLO says 'car'.
             verified_vehicles = [d for d in monitored_vehicles if d["night_verified"]]
             vehicles = monitored_vehicles + ignored
+            if segmentation_model is not None:
+                for vehicle in vehicles:
+                    box = best_visible_bbox(vehicle)
+                    if box is not None and box is not vehicle.get("bbox"):
+                        vehicle["display_bbox"] = box
             events = tracks.update(verified_vehicles, zones,
                                    config.get("exit_zone", []), track_now)
             for event in events:
