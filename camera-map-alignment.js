@@ -195,7 +195,7 @@
     image.onerror=()=>{image.hidden=true;reset();notify("画像を読み込めませんでした。別の写真を選んでください。");};
     image.src=src;
   }
-  open.addEventListener("click",()=>{
+  const launch=()=>{
     currentFacility=state.facilityId;
     const current=layout();
     if(!current)return;
@@ -209,7 +209,9 @@
     if(!(current.objects||[]).some(o=>o.objectType==="parkingSpace")){
       notify("先に管理マップで駐車区画を作成してください。");
     }
-  });
+  };
+  open.addEventListener("click",launch);
+  document.addEventListener("parking:open-camera-alignment",launch);
   get("alignment-close").addEventListener("click",()=>dialog.close());
   dialog.addEventListener("close",()=>{
     if(fileUrl){URL.revokeObjectURL(fileUrl);fileUrl=null;}
