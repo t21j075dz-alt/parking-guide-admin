@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {homography,project,parkingCorners,generateZones,layoutSignature}=require("../camera-map-alignment-core.js");
+const {homography,project,parkingCorners,generateZones,layoutSignature,parkingViewport}=require("../camera-map-alignment-core.js");
 
 const anchors=[[.1,.1],[.9,.1],[.9,.9],[.1,.9]];
 const camera=[[.16,.12],[.78,.20],[.91,.85],[.07,.88]];
@@ -58,4 +58,27 @@ test("a map edit changes the alignment review signature and reprojects new geome
   assert.notDeepEqual(first,next);
   // Original map remains unchanged; the same four anchors can reproject edited slots.
   assert.equal(layout.objects[0].x,200);
+});
+
+
+test("large map focuses parking slots and a full-map toggle remains possible",()=>{
+  const full={canvas:{width:1800,height:1200},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:880,y:540,width:26,height:50,rotation:0},
+    {uid:"space_002",objectType:"parkingSpace",x:916,y:540,width:26,height:50,rotation:90},
+  ]};
+  const viewport=parkingViewport(full);
+  assert.ok(viewport.width<1800 && viewport.height<1200,"slots should be visually enlarged");
+  for(const slot of full.objects)for(const [x,y] of parkingCorners(slot)){
+    assert.ok(x>=viewport.x-1e-8 && x<=viewport.x+viewport.width+1e-8);
+    assert.ok(y>=viewport.y-1e-8 && y<=viewport.y+viewport.height+1e-8);
+  }
+  // Mouse position in SVG user coordinates is divided by full canvas size, not viewport size.
+  const pixel=[900,565];
+  assert.deepEqual(pixel.map((v,i)=>v/[1800,1200][i]),[.5,565/1200]);
+});
+
+test("empty or malformed maps use safe full map bounds",()=>{
+  const whole=parkingViewport({canvas:{width:1800,height:1200},objects:[]});
+  assert.deepEqual(whole,{x:0,y:0,width:1800,height:1200});
+  assert.throws(()=>parkingViewport({canvas:{width:0,height:1200},objects:[]}),/不正/);
 });
