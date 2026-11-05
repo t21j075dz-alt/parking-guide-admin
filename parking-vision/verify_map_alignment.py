@@ -43,17 +43,16 @@ def assert_camera_frame(config, alignment, width, height):
 
 def preview_frame(frame, zones, cv2):
     """現在の実映像に監視対象の四辺形を重ねる。判定結果ではなく設定確認のみ。"""
+    import numpy as np
     height, width = frame.shape[:2]
     view = frame.copy()
     fill = frame.copy()
     for zone in zones.values():
-        import numpy as np
         points = np.array([[round(x * (width - 1)), round(y * (height - 1))]
                            for x, y in zone], dtype=np.int32)
         cv2.fillConvexPoly(fill, points, (70, 190, 80), lineType=cv2.LINE_AA)
     cv2.addWeighted(fill, .22, view, .78, 0, dst=view)
     for uid, zone in zones.items():
-        import numpy as np
         pts = np.array([[round(x * (width - 1)), round(y * (height - 1))]
                         for x, y in zone], dtype=np.int32)
         cv2.polylines(view, [pts], True, (75, 245, 100), 2, cv2.LINE_AA)
