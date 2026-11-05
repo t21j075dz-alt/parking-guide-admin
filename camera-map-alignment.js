@@ -1,0 +1,212 @@
+/* 管理マップ↔カメラ映像の初回位置合わせ。
+ * 4組の床面対応点だけを選び、区画を投影する。
+ * 確認前にクラウド・YOLO設定を変更しない。
+ */
+(() => {
+  "use strict";
+  const core=window.ParkingCameraMapAlignment;
+  const open=document.querySelector("#open-camera-map-alignment");
+  const dialog=document.querySelector("#camera-map-alignment-dialog");
+  if(!core||!open||!dialog)return;
+  const get=id=>dialog.querySelector("#"+id);
+  const map=get("alignment-map"), image=get("alignment-image"), overlay=get("alignment-camera-overlay");
+  const cameraId=get("alignment-camera-id"), message=get("alignment-message");
+  const resultLabel=get("alignment-result");
+  const exportButton=get("alignment-export"), applyButton=get("alignment-project");
+  const file=get("alignment-file");
+  const NS="http://www.w3.org/2000/svg";
+  const memoryKey="parkingCameraMapAlignmentsV1";
+  let mapPoints=[],imagePoints=[],projected=null,currentFacility="",fileUrl=null;
+
+  function notify(text){message.textContent=text;}
+  function svg(tag,attrs,text){
+    const node=document.createElementNS(NS,tag);
+    for(const [key,value] of Object.entries(attrs||{}))node.setAttribute(key,String(value));
+    if(text!==undefined)node.textContent=String(text);
+    return node;
+  }
+  function layout(){
+    if(typeof state==="undefined"||typeof getCurrentLayout!=="function")return null;
+    if(state.facilityId!==currentFacility)return null;
+    return getCurrentLayout();
+  }
+  function saved(){
+    try{return JSON.parse(localStorage.getItem(memoryKey)||"{}")||{};}catch{return {};}
+  }
+  function storageId(){return currentFacility+"|"+cameraId.value.trim();}
+  function refresh(){
+    applyButton.disabled=mapPoints.length!==4||imagePoints.length!==4;
+    exportButton.disabled=!projected;
+    resultLabel.textContent=projected
+      ? projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
+      : "区画位置は未確定です。既存の駐車状態は変更されません。";
+  }
+  function pointFromClick(event,element){
+    const matrix=element.getScreenCTM();
+    if(!matrix)throw Error("画像を表示してから点を選んでください。");
+    const pt=element.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;
+    const clicked=pt.matrixTransform(matrix.inverse()),box=element.viewBox.baseVal;
+    if(!box.width||!box.height)throw Error("画像の表示サイズが取得できません。");
+    const x=(clicked.x-box.x)/box.width,y=(clicked.y-box.y)/box.height;
+    if(x<0||x>1||y<0||y>1)throw Error("画像内の点を選んでください。");
+    return [x,y];
+  }
+  function draw(){
+    const current=layout();
+    map.replaceChildren();overlay.replaceChildren();
+    if(!current)return;
+    const width=Number(current.canvas?.width)||1,height=Number(current.canvas?.height)||1;
+    map.setAttribute("viewBox","0 0 "+width+" "+height);
+    map.append(svg("rect",{x:0,y:0,width,height,fill:"#e9eef2"}));
+    for(const item of current.objects||[]){
+      if(item.objectType!=="parkingSpace")continue;
+      try{
+        map.append(svg("polygon",{
+          points:core.parkingCorners(item).map(p=>p.join(",")).join(" "),
+          fill:"#92d9c3",stroke:"#177a61","stroke-width":Math.max(1,width/800)
+        }));
+        const centerX=Number(item.x)+Number(item.width)/2;
+        const centerY=Number(item.y)+Number(item.height)/2;
+        const title=String(item.spaceNumber||item.uid).replace(/^0+/,"")||"0";
+        map.append(svg("text",{x:centerX,y:centerY,fill:"#174b3e",
+          "text-anchor":"middle","dominant-baseline":"central","font-size":Math.max(9,width/90)},title));
+      }catch{}
+    }
+    mapPoints.forEach((p,i)=>{
+      const x=p[0]*width,y=p[1]*height;
+      map.append(svg("circle",{cx:x,cy:y,r:Math.max(3,width/160),fill:"#e07121",stroke:"white","stroke-width":Math.max(1,width/1000)}));
+      map.append(svg("text",{x:x+width/95,y:y-height/95,fill:"#a33e10","font-size":Math.max(12,width/65),"font-weight":"bold"},i+1));
+    });
+    overlay.setAttribute("viewBox","0 0 1 1");
+    if(projected)for(const [uid,polygon] of Object.entries(projected.space_zones)){
+      overlay.append(svg("polygon",{
+        points:polygon.map(p=>p.join(",")).join(" "),
+        fill:"rgba(57,196,139,0.20)",stroke:"#2de6a7","stroke-width":.003
+      }));
+      const center=polygon.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4],[0,0]);
+      overlay.append(svg("text",{x:center[0],y:center[1],fill:"#ffffff",stroke:"#203f35",
+        "stroke-width":.0003,"paint-order":"stroke","text-anchor":"middle",
+        "font-size":.018,"font-weight":"bold"},uid.replace(/^space_0*/,"")));
+    }
+    imagePoints.forEach((p,i)=>{
+      overlay.append(svg("circle",{cx:p[0],cy:p[1],r:.009,fill:"#ffbf66",stroke:"white","stroke-width":.002}));
+      overlay.append(svg("text",{x:p[0]+.012,y:p[1]-.012,fill:"#fff","font-size":.025,"font-weight":"bold"},i+1));
+    });
+    if(mapPoints.length!==4||imagePoints.length!==4){
+      const n=Math.min(mapPoints.length,imagePoints.length)+1;
+      notify(mapPoints.length>imagePoints.length
+        ? "② カメラ映像で、マップの点"+n+"と同じ床面上の位置を選んでください。"
+        : "① マップで対応点"+n+"を選んでください。離れた白線の角などを選びます。");
+    }
+    refresh();
+  }
+  function reset(){mapPoints=[];imagePoints=[];projected=null;draw();}
+  function remember(){
+    try{
+      const all=saved();
+      all[storageId()]={map_points:mapPoints,image_points:imagePoints,
+        canvas:{width:Number(layout().canvas.width),height:Number(layout().canvas.height)}};
+      localStorage.setItem(memoryKey,JSON.stringify(all));
+    }catch{notify("端末への位置合わせ保存に失敗しました。JSONを書き出して保管してください。");}
+  }
+  function restore(){
+    const item=saved()[storageId()],current=layout();
+    const same=item&&current&&item.canvas?.width===Number(current.canvas.width)
+      &&item.canvas?.height===Number(current.canvas.height);
+    mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,4):[];
+    imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,4):[];
+    projected=null;draw();
+    if(mapPoints.length===4&&imagePoints.length===4){
+      notify("保存された4点を読み込みました。最新の画像で位置が一致するか確認してください。");
+    }
+  }
+  function loadPhoto(src){
+    image.onload=()=>{
+      image.hidden=false;projected=null;draw();
+      notify("画像を読み込みました。マップと映像で対応する床面の点を交互に選んでください。");
+    };
+    image.onerror=()=>{image.hidden=true;reset();notify("画像を読み込めませんでした。別の写真を選んでください。");};
+    image.src=src;
+  }
+  open.addEventListener("click",()=>{
+    currentFacility=state.facilityId;
+    const current=layout();
+    if(!current)return;
+    cameraId.value=document.querySelector("#camera-monitor select")?.value||"home-camera-01";
+    image.hidden=true;image.removeAttribute("src");file.value="";projected=null;
+    dialog.showModal();restore();
+    if(!(current.objects||[]).some(o=>o.objectType==="parkingSpace")){
+      notify("先に管理マップで駐車区画を作成してください。");
+    }
+  });
+  get("alignment-close").addEventListener("click",()=>dialog.close());
+  dialog.addEventListener("close",()=>{
+    if(fileUrl){URL.revokeObjectURL(fileUrl);fileUrl=null;}
+    image.removeAttribute("src");image.hidden=true;
+  });
+  get("alignment-use-camera").addEventListener("click",()=>{
+    const camera=document.querySelector("#camera-monitor img");
+    if(camera?.hidden||!camera?.src){
+      notify("『カメラを確認』で写真を取得するか、画像ファイルを選択してください。");return;
+    }
+    if(fileUrl){URL.revokeObjectURL(fileUrl);fileUrl=null;}
+    loadPhoto(camera.src);
+  });
+  file.addEventListener("change",()=>{
+    const chosen=file.files?.[0];
+    if(!chosen)return;
+    if(!["image/jpeg","image/png","image/webp"].includes(chosen.type)||chosen.size>12*1024*1024){
+      notify("JPEG・PNG・WebPの12MB以下の画像を選んでください。");return;
+    }
+    if(fileUrl)URL.revokeObjectURL(fileUrl);
+    fileUrl=URL.createObjectURL(chosen);
+    loadPhoto(fileUrl);
+  });
+  map.addEventListener("click",event=>{
+    if(mapPoints.length!==imagePoints.length||mapPoints.length>=4)return;
+    try{mapPoints.push(pointFromClick(event,map));projected=null;draw();}
+    catch(error){notify(error.message);}
+  });
+  overlay.addEventListener("click",event=>{
+    if(image.hidden||mapPoints.length!==imagePoints.length+1)return;
+    try{imagePoints.push(pointFromClick(event,overlay));projected=null;draw();}
+    catch(error){notify(error.message);}
+  });
+  get("alignment-undo").addEventListener("click",()=>{
+    if(mapPoints.length>imagePoints.length)mapPoints.pop();
+    else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
+    projected=null;draw();
+  });
+  get("alignment-reset").addEventListener("click",reset);
+  cameraId.addEventListener("change",restore);
+  applyButton.addEventListener("click",()=>{
+    if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
+    try{
+      projected=core.generateZones(layout(),mapPoints,imagePoints);
+      remember();draw();
+      notify("全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
+    }catch(error){projected=null;draw();notify(error.message);}
+  });
+  exportButton.addEventListener("click",()=>{
+    if(!projected||!layout()||image.hidden)return;
+    const cam=cameraId.value.trim();
+    if(!/^[A-Za-z0-9_-]{1,100}$/.test(cam)){
+      notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
+    }
+    try{
+      const result=core.generateZones(layout(),mapPoints,imagePoints);
+      const payload={
+        schema_version:1,facility_id:currentFacility,camera_id:cam,
+        image_width:image.naturalWidth,image_height:image.naturalHeight,
+        map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
+        map_points:mapPoints,image_points:imagePoints,
+        space_uids:result.space_uids,space_zones:result.space_zones
+      };
+      const blob=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
+      const url=URL.createObjectURL(blob),link=document.createElement("a");
+      link.href=url;link.download="camera-map-alignment-"+currentFacility+"-"+cam+".json";
+      link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      notify("位置合わせJSONを出力しました。反映は実機映像での確認後に行ってください。");
+    }catch(error){notify(error.message);}
+  });
+})();
