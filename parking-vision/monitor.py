@@ -899,21 +899,23 @@ def main():
         except (TypeError, ValueError, OverflowError) as exc:
             initial_empty_deadline = 0
             print(f"【初期空車確認が無効】確認日時を解釈できません: {type(exc).__name__}")
-    if video_mode and args.verified_empty:
-        # Legacy option no longer needed: this is an isolated replay whose
-        # default is all AVAILABLE. Detecting a car changes that to UNKNOWN
-        # during the first five seconds of verification.
-        parse_verified_empty(args.verified_empty, zones)
-        print(f"【録画実演】初期{len(zones)}区画はデモ上「空き」。"
-              "車体底面を検知した区画は確定まで「確認中」とします。"
-              "-VerifiedEmpty の指定は不要です。")
+    verified_video_empty = parse_verified_empty(args.verified_empty, zones) if video_mode else []
+    nikko_replay = video_mode and config["facility_id"] == "nikko-test-001"
+    if nikko_replay:
+        print(f"【日光録画】画角内{len(zones)}区画を判定。"
+              f"冒頭で目視確認済みの空き={len(verified_video_empty)}。"
+              "それ以外は未確認から始めます。画角外は判定対象外です。")
+    elif video_mode and args.verified_empty:
+        print("【自宅録画】初期の空車確認は従来の録画用状態機械では使用しません。")
     confirmed_empty = ([] if video_mode else
                        config.get("initially_confirmed_empty_uids", []))
     from recorded_parking_states import RecordedParkingStateMachine
     geometry_mode = ("fusion" if args.segmentation_tracking
                      and not args.legacy_zone_geometry else "legacy")
-    demo_machine = (RecordedParkingStateMachine(zones, geometry_mode=geometry_mode)
-                    if video_mode else None)
+    demo_machine = (RecordedParkingStateMachine(
+        zones, geometry_mode=geometry_mode,
+        initially_confirmed_empty_uids=(verified_video_empty if nikko_replay else None))
+        if video_mode else None)
     if video_mode and args.segmentation_tracking:
         print(f"【区画位置の判定】{geometry_mode}（比較実験・クラウド無送信）")
     previous_demo_phases = None
@@ -975,8 +977,12 @@ def main():
             if not verify_overlay_with_operator(first_frame, zones, cv2):
                 print(f"【実演中止】録画と{len(zones)}区画が一致しないため共有しません。")
                 return
-            print("【録画実演の初期状態】全区画「空き」から開始します。"
-                  "車両が検出された区画は、5秒間の確定まで「確認中」に切り替わります。")
+            if nikko_replay:
+                print("【日光の初期状態】目視確認済み以外は「未確認」。"
+                      "動画の映像に基づいて車の入庫・停車・退出を追跡します。")
+            else:
+                print("【自宅録画の初期状態】全区画「空き」から開始します。"
+                      "車両が検出された区画は5秒間の確定まで「確認中」です。")
             if writer:
                 set_demo_visibility(writer, False, config["facility_id"])
                 print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
@@ -1004,7 +1010,8 @@ def main():
                 # 停止秒数、占有状態、通知の差分を絶対に引き継がない。
                 handled_cycle_number = recording.cycle_number
                 demo_machine = RecordedParkingStateMachine(
-                    zones, geometry_mode=geometry_mode)
+                    zones, geometry_mode=geometry_mode,
+                    initially_confirmed_empty_uids=(verified_video_empty if nikko_replay else None))
                 if box_smoother is not None:
                     box_smoother = DisplayBoxSmoother()
                 tracks = VehicleTracker(config["facility_id"], config["camera_id"],
@@ -1084,9 +1091,11 @@ def main():
             monitored_raw = []
             ignored = []
             for vehicle in vehicles:
-                relevant = is_monitored_vehicle(
+                relevant = (nikko_replay or is_monitored_vehicle(
                     vehicle, zones, inside, config.get("entry_zone", []),
-                    config.get("exit_zone", []))
+                    config.get("exit_zone", [])))
+                # 日光は区画外を走行中の車もIDを維持して追跡する。
+                # 満空の確定は監視区画の四辺形内だけで行う。
                 vehicle["monitored"] = relevant
                 if relevant:
                     monitored_raw.append(vehicle)
