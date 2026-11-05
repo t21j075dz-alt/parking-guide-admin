@@ -201,10 +201,20 @@ class RecordedParkingStateMachine:
             uid, touched, anchor = bottom_footprint_candidate(
                 detection, zones, inside
             )
+            if detection.get("zone_fusion_evaluated") is True:
+                # Only the explicitly enabled research mode uses fused
+                # mask/box evidence; default replay remains unchanged.
+                uid = detection.get("fused_zone_candidate")
+                touched = set(detection.get("fused_zone_touched") or ())
             if anchor is None:
                 continue
             history = self.tracks.setdefault(tid, TrackHistory())
-            history.update(now, anchor)
+            # A car turning in place moves the bottom edge of its bounding
+            # rectangle even if the car does not translate on the ground.
+            # Use the image-mask area centroid for motion/stopping only
+            # when a valid mask is available; this is still image-space.
+            motion_point = detection.get("motion_point") or anchor
+            history.update(now, motion_point)
             tracked_all[tid] = {"zone": uid, "anchor": anchor,
                                 "moving": history.is_moving(now),
                                 "stopped": history.is_stopped(now),
@@ -214,6 +224,15 @@ class RecordedParkingStateMachine:
                 old = observations.get(uid)
                 if old is None or old["confidence"] < detection["confidence"]:
                     observations[uid] = {**tracked_all[tid], "tid": tid}
+                # A *single-source* provisional candidate does not prove
+                # that another touched stall is empty. If the box says
+                # "straddling" and only the mask points to uid (or vice
+                # versa), keep neighboring zones UNKNOWN until cues agree.
+                basis = detection.get("fused_zone_basis") or ""
+                if detection.get("zone_fusion_evaluated") and (
+                        basis.startswith("mask-only") or
+                        basis.startswith("bbox-only")):
+                    ambiguous.update(set(touched) - {uid})
             else:
                 ambiguous.update(touched)
             detection["demo_zone"] = uid

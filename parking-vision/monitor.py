@@ -37,6 +37,8 @@ from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
+from zone_fusion import TemporalZoneFusion
+from tracking_presentation import TrackingPresentation
 from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -673,6 +675,10 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
                         or detection.get("night_verified") is False))
         color = ((125, 125, 125) if detection.get("near_vehicle") else (70, 80, 240)) if is_obstacle else (135, 145, 155) if unverified else (70, 255, 80)
         cv2.rectangle(view, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
+        # Diagnostic visible long axis, 180-degree symmetry (not front/rear).
+        if not is_obstacle and detection.get("visible_long_axis"):
+            a,b = detection["visible_long_axis"]
+            cv2.line(view, a, b, (255, 200, 35), 2, cv2.LINE_AA)
         ident = detection.get("track_id")
         if is_obstacle and detection.get("name") == "person":
             track_label = ("ID" + str(ident)
@@ -709,9 +715,13 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
                           f"VOTES {detection.get('zone_votes', 0)} "
                           f"STILL {int(bool(detection.get('stationary')))} "
                           f"{phase_name.upper()}")
+            if detection.get("zone_fusion_evaluated"):
+                fused = detection.get("fused_zone_candidate") or "?"
+                basis = detection.get("fused_zone_basis") or "unresolved"
+                diagnostic += f" FUSED {fused} ({basis})"
             draw_text(diagnostic, (x1, min(height - 8, y2 + 16)),
                       .43, (245, 210, 80), 1)
-            # 車体底面方式に統一。ホイール推定点は表示しない。
+            # 画像上の輪郭や長軸を接地点・車の前後方向とは扱わない。
 
     # RECではなくYOLO ANALYSIS。推論が間に合わずコマを複製しても
     # 「毎フレーム新しい判定が走った」と誤解されないように時刻を固定。
@@ -865,6 +875,8 @@ def main():
     stable_people = PersonIdStabilizer(visible_seconds=1.0)
     night_evidence = NightVehicleEvidenceGate(
         lifetime_seconds=float(config.get("reid_window_seconds", 12)))
+    zone_fuser = TemporalZoneFusion() if args.segmentation_tracking else None
+    track_presentation = TrackingPresentation() if args.segmentation_tracking else None
     last_push, last_print = 0., 0.
     previous_statuses = None
     pending_sessions = {}  # 出口通過・追跡消失など、画面から消える直前のイベントも保存する
@@ -935,6 +947,10 @@ def main():
                 stable_people = PersonIdStabilizer(visible_seconds=1.0)
                 night_evidence = NightVehicleEvidenceGate(
                     lifetime_seconds=float(config.get("reid_window_seconds", 12)))
+                if zone_fuser is not None:
+                    zone_fuser.reset()
+                if track_presentation is not None:
+                    track_presentation.reset()
                 previous_statuses = None
                 previous_demo_phases = None
                 pending_sessions.clear()
@@ -1027,13 +1043,17 @@ def main():
                 ignored = [v for v in all_stable if not v["monitored"]]
             else:
                 monitored_vehicles = stable_ids.update(monitored_raw, track_now, frame=frame)
+            if zone_fuser is not None:
+                zone_fuser.update(monitored_vehicles, zones, inside, track_now)
             dark = is_low_light(frame)
             night_evidence.update(monitored_vehicles, track_now, low_light=dark)
             # Keep doubtful car boxes visible for diagnosis, but never start
             # a live vehicle session for them merely because YOLO says 'car'.
             verified_vehicles = [d for d in monitored_vehicles if d["night_verified"]]
             vehicles = monitored_vehicles + ignored
-            if segmentation_model is not None:
+            if track_presentation is not None:
+                track_presentation.update(vehicles, track_now, frame.shape)
+            elif segmentation_model is not None:
                 for vehicle in vehicles:
                     box = best_visible_bbox(vehicle)
                     if box is not None and box is not vehicle.get("bbox"):

@@ -51,15 +51,22 @@ class ParkingDiagnosticRecorder:
                 (round(float(video_seconds), 2) if video_seconds is not None else ""),
             ])
         for vehicle in vehicles:
-            instantaneous = vehicle.get("zone_candidate") or ""
+            fused = vehicle.get("zone_fusion_evaluated") is True
+            instantaneous = (vehicle.get("fused_zone_candidate") if fused
+                             else vehicle.get("zone_candidate")) or ""
             stable = vehicle.get("zone_smoothed") or ""
             phase = vehicle.get("phase") or ""
-            basis = vehicle.get("zone_basis") or "unknown"
+            basis = (vehicle.get("fused_zone_basis") if fused
+                     else vehicle.get("zone_basis")) or "unknown"
             warnings = []
             if not instantaneous:
                 warnings.append("ZONE_UNKNOWN")
             if basis == "ambiguous-bottom":
                 warnings.append("BOTTOM_CROSSES_MULTIPLE_SPACES")
+            if vehicle.get("fused_zone_conflict"):
+                warnings.append("BOX_MASK_ZONE_CONFLICT")
+            if fused and not instantaneous:
+                warnings.append("FUSED_ZONE_UNCONFIRMED")
             if not vehicle.get("stationary"):
                 warnings.append("NOT_STATIONARY")
             if not stable:
@@ -83,7 +90,7 @@ class ParkingDiagnosticRecorder:
                 (vehicle.get("raw_track_id") if vehicle.get("raw_track_id") is not None else ""),
                 (vehicle.get("track_id") if vehicle.get("track_id") is not None else ""),
                 ("YES" if vehicle.get("id_reassociated") else ""),
-                "bottom-footprint",
+                ("temporal-mask-box" if fused else "bottom-footprint"),
                 (round(float(video_seconds), 2) if video_seconds is not None else ""),
             ])
         self.file.flush()
