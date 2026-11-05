@@ -168,9 +168,9 @@ def draw_vehicle_contours(frame, detections):
             continue
         polygon = np.array(contour, dtype=np.int32).reshape((-1, 1, 2))
         layer = canvas.copy()
-        cv2.fillPoly(layer, [polygon], (255, 175, 55))
+        cv2.fillPoly(layer, [polygon], (40, 175, 255))
         cv2.addWeighted(layer, .24, canvas, .76, 0, canvas)
-        cv2.polylines(canvas, [polygon], True, (255, 235, 20), 2, cv2.LINE_AA)
+        cv2.polylines(canvas, [polygon], True, (0, 230, 255), 2, cv2.LINE_AA)
         for x, y in detection.get("segmentation_bottom_points", []):
             cv2.circle(canvas, (min(width - 1, int(x * width)),
                                 min(height - 1, int(y * height))),
