@@ -7,7 +7,7 @@ import unittest
 from monitor import classify_spaces, inside
 from vehicle_segmentation import (
     SegmentationDiagnosticRecorder, attach_vehicle_contours, box_iou,
-    best_visible_bbox,
+    best_visible_bbox, tracked_segment_detections,
     draw_vehicle_contours, estimate_mask_zone, lower_silhouette_points,
 )
 
@@ -27,10 +27,11 @@ class FakeTensor:
 
 
 class FakeBoxes:
-    def __init__(self, boxes, classes, confidences):
+    def __init__(self, boxes, classes, confidences, ids=None):
         self.xyxy = FakeTensor(boxes)
         self.cls = FakeTensor(classes)
         self.conf = FakeTensor(confidences)
+        self.id = FakeTensor(ids) if ids is not None else None
 
 
 class FakeMasks:
@@ -39,8 +40,9 @@ class FakeMasks:
 
 
 class FakeResult:
-    def __init__(self, boxes, classes, confidences, polygons, names=None):
-        self.boxes = FakeBoxes(boxes, classes, confidences)
+    def __init__(self, boxes, classes, confidences, polygons, names=None,
+                 ids=None):
+        self.boxes = FakeBoxes(boxes, classes, confidences, ids=ids)
         self.masks = FakeMasks(polygons) if polygons is not None else None
         self.names = names or {2: "car", 3: "motorcycle"}
 
@@ -67,6 +69,40 @@ class SegmentationTests(unittest.TestCase):
         det["segmentation_confidence"] = .93
         det["segmentation_bbox"] = [200, 200, 300, 300]
         self.assertEqual(best_visible_bbox(det), [0, 0, 100, 100])
+
+    def test_segmentation_native_result_retains_raw_id_and_mask_on_turn(self):
+        result = FakeResult([[20, 20, 80, 80]], [2], [.93],
+                            [self.polygon], ids=[17])
+        detections = tracked_segment_detections(
+            result, (100, 100, 3), {"car"}, {}, self.zones, inside
+        )
+        self.assertEqual(len(detections), 1)
+        det = detections[0]
+        self.assertEqual(det["track_id"], 17)
+        self.assertEqual(det["detection_source"], "segment-track")
+        self.assertTrue(det["segmentation_contour"])
+        self.assertGreaterEqual(det["segmentation_match_iou"], .5)
+        self.assertEqual(det["point"], (.5, .8))
+        self.assertEqual(det["bbox"], [20.,20.,80.,80.])
+
+    def test_segmentation_native_keeps_mask_even_without_raw_id(self):
+        result = FakeResult([[20,20,80,80]], [2], [.90],
+                            [self.polygon], ids=None)
+        det = tracked_segment_detections(
+            result, (100,100,3), {"car"}, {}, self.zones, inside
+        )[0]
+        self.assertIsNone(det["track_id"])
+        self.assertTrue(det["segmentation_checked"])
+        self.assertEqual(det["segmentation_confidence"], .90)
+
+    def test_segmentation_native_skips_unrelated_objects_and_invalid_boxes(self):
+        result = FakeResult([[20,20,80,80], [40,40,45,45]], [3,2],
+                            [.80, .95], [self.polygon, self.polygon])
+        detections = tracked_segment_detections(
+            result, (100,100,3), {"car"}, {}, self.zones, inside
+        )
+        self.assertEqual(len(detections), 1)
+        self.assertEqual(detections[0]["name"], "car")
 
     def test_mask_matches_original_track_with_lower_silhouette(self):
         detection = {"name": "car", "bbox": [20, 20, 80, 80],
