@@ -1,0 +1,48 @@
+/* カメラ操作への最短導線。既存キャンバスの編集/保存には触れない。 */
+.admin-camera-shortcuts{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:8px 12px;flex:0 0 auto;
+  margin:0 9px;padding:8px 11px;
+  border:1px solid var(--border,#d6d3d1);
+  border-radius:10px;
+  background:var(--panel,#fff);
+}
+.admin-camera-shortcuts-summary{
+  display:flex;align-items:center;gap:9px;min-width:0;
+  font-size:.79rem;
+}
+.admin-camera-shortcuts-summary strong{font-weight:750;white-space:nowrap;color:var(--text,#252d36)}
+.admin-camera-shortcuts-summary span{
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:20px;padding:4px 9px;
+  font-size:.73rem;line-height:1.2;
+  background:var(--panel-2,#f4f6f9);color:var(--muted,#52606d);
+  border:1px solid var(--border,#ccd4dd);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.admin-camera-shortcuts[data-has-spaces="true"] .admin-camera-shortcuts-summary span{
+  border-color:#9bc9b4;color:#19624b;
+}
+.admin-camera-shortcuts-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.admin-camera-shortcut{
+  font-size:12px;line-height:1.25;min-height:38px;
+  padding:7px 11px;border:1px solid var(--border,#cbd5e1);
+  border-radius:8px;background:var(--panel-2,#f8fafc);
+  color:var(--text,#253141);font-weight:650;cursor:pointer;
+}
+.admin-camera-shortcut.is-primary{
+  background:var(--accent,#1d4ed8);border-color:var(--accent,#1d4ed8);color:#fff;
+}
+.admin-camera-shortcut:hover:not(.is-primary){border-color:var(--accent,#1d4ed8)}
+.admin-camera-shortcut:focus-visible{outline:3px solid var(--accent,#1d4ed8);outline-offset:2px}
+@media(max-width:860px){
+  .admin-camera-shortcuts{margin:0 6px;padding:7px 8px;gap:7px}
+  .admin-camera-shortcuts-summary{width:100%}
+  .admin-camera-shortcuts-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;width:100%}
+  .admin-camera-shortcut{min-height:44px;padding:6px 5px;font-size:11px}
+}
+@media(max-width:390px){
+  .admin-camera-shortcuts-summary strong{font-size:12px}
+  .admin-camera-shortcut{font-size:10px}
+}
