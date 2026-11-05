@@ -823,6 +823,7 @@ def main():
     from video_demo_support import (
         require_demo_mode, parse_verified_empty, draw_demo_watermark,
         verify_overlay_with_operator, demo_status_rows, set_demo_visibility,
+        invalidate_nikko_outside_camera_rows,
     )
     require_demo_mode(config, args)
     video_mode = bool(args.video)
@@ -1001,6 +1002,10 @@ def main():
                       "車両が検出された区画は5秒間の確定まで「確認中」です。")
             if writer:
                 set_demo_visibility(writer, False, config["facility_id"])
+                if nikko_replay:
+                    # 前回の録画にだけ映っていた区画の空き判定を失効。
+                    # 公開OFFの間に完了させ、失敗時は公開しない。
+                    invalidate_nikko_outside_camera_rows(writer, zones.keys())
                 print("【録画実演】判定データの送信後、この実験施設だけ共有をONにします。")
             # 確認画面や認証にかかった時間は動画の再生時間に含めない。
             recording.reset_clock_after_confirmation()
