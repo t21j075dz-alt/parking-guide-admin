@@ -184,6 +184,84 @@ def attach_vehicle_contours(detections, result, frame_shape, zones=None,
     return matched
 
 
+
+def tracked_segment_detections(result, frame_shape, allowed_names, class_aliases,
+                               zones=None, inside=None):
+    """Use ONE segmentation result as both detection AND tracking evidence.
+
+    There is no second-model IoU association: boxes, masks and YOLO raw track
+    IDs share their native Results indices. This avoids intermittent mismatch
+    during wide changes of vehicle orientation.
+    """
+    if result is None or getattr(result, "boxes", None) is None:
+        return []
+    height, width = frame_shape[:2]
+    if height <= 0 or width <= 0:
+        return []
+    boxes_obj = result.boxes
+    boxes = boxes_obj.xyxy.cpu().tolist()
+    classes = boxes_obj.cls.int().cpu().tolist()
+    confidences = boxes_obj.conf.cpu().tolist()
+    raw_ids = (boxes_obj.id.int().cpu().tolist()
+               if getattr(boxes_obj, "id", None) is not None
+               else [None] * len(boxes))
+    masks_obj = getattr(result, "masks", None)
+    polygons = (getattr(masks_obj, "xy", None) if masks_obj is not None
+                else None)
+    output = []
+    for index, (bbox, class_id, confidence, raw_id) in enumerate(
+            zip(boxes, classes, confidences, raw_ids)):
+        name = str(result.names[int(class_id)]).lower().strip().replace("-", "_")
+        name = class_aliases.get(name, name)
+        if name not in allowed_names:
+            continue
+        x1, y1, x2, y2 = (float(v) for v in bbox)
+        if not (0 <= x1 < x2 and 0 <= y1 < y2):
+            continue
+        x1, x2 = max(0., min(x1, width-1.)), max(0., min(x2, width-1.))
+        y1, y2 = max(0., min(y1, height-1.)), max(0., min(y2, height-1.))
+        if x2-x1 < 3 or y2-y1 < 3:
+            continue
+        box = [x1, y1, x2, y2]
+        detection = {
+            "name": name, "point": ((x1+x2)/(2*width), y2/height),
+            "bottom_points": [((x1+(x2-x1)*f)/width, y2/height)
+                              for f in (.25,.5,.75)],
+            "track_id": int(raw_id) if raw_id is not None else None,
+            "confidence": float(confidence), "bbox": box,
+            "segmentation_checked": True, "detection_source": "segment-track",
+        }
+        if polygons is not None and index < len(polygons):
+            raw_contour = polygons[index]
+            if (len(raw_contour) >= 3 and
+                    all(isfinite(float(p[0])) and isfinite(float(p[1]))
+                        for p in raw_contour)):
+                polygon = [(max(0., min(width-1., float(p[0]))),
+                            max(0., min(height-1., float(p[1]))))
+                           for p in raw_contour]
+                if len(set(polygon)) >= 3:
+                    points = lower_silhouette_points(polygon, frame_shape)
+                    if len(points) >= 5:
+                        mask_box = [min(p[0] for p in polygon),
+                                    min(p[1] for p in polygon),
+                                    max(p[0] for p in polygon),
+                                    max(p[1] for p in polygon)]
+                        candidate, touched = estimate_mask_zone(
+                            points, zones, inside)
+                        detection.update({
+                            "segmentation_contour": polygon,
+                            "segmentation_bbox": mask_box,
+                            "segmentation_bottom_points": points,
+                            "segmentation_candidate": candidate,
+                            "segmentation_touched": sorted(touched),
+                            "segmentation_confidence": float(confidence),
+                            "segmentation_match_iou": round(
+                                box_iou(box, mask_box), 4),
+                        })
+        output.append(detection)
+    return output
+
+
 def draw_vehicle_contours(frame, detections):
     """Overlay optional mask polygons on a COPY of the camera frame."""
     import cv2
