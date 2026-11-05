@@ -974,7 +974,12 @@ def main():
             assert_calibrated_view(config, first_w, first_h)
         print(f"【映像サイズ】{first_w} x {first_h}（元画像を切り抜かずに解析）")
         if video_mode:
-            if not verify_overlay_with_operator(first_frame, zones, cv2):
+            if nikko_replay:
+                # 画角が動く映像は静止カメラ用の一組の区画座標では判定できない。
+                # 先頭・中間・末尾の映像それぞれに区画を重ねて目視確認。
+                from import_nikko_map_alignment import verify_samples
+                verify_samples(args.video, zones, (first_w, first_h))
+            elif not verify_overlay_with_operator(first_frame, zones, cv2):
                 print(f"【実演中止】録画と{len(zones)}区画が一致しないため共有しません。")
                 return
             if nikko_replay:
