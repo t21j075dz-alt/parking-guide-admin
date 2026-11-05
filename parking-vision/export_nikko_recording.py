@@ -53,7 +53,7 @@ def convert_recording_log(log_path, output_path, *, duration, space_uids):
         raise FileExistsError("出力済みの録画CSVは上書きできません")
     # 「0秒=未確認」は、録画前に検出済みとは主張しないための初期表示。
     rows = [(0.0, uid, "unknown") for uid in space_uids] + entries
-    rows.extend((float(duration), uid, last_by_uid[uid]) for uid in SPACE_UIDS)
+    rows.extend((float(duration), uid, last_by_uid[uid]) for uid in space_uids)
     rows.sort(key=lambda row: row[0])
     with output.open("x", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream)
