@@ -124,5 +124,17 @@
     return {space_uids:Object.keys(zones),space_zones:zones,transform};
   }
 
-  return Object.freeze({homography,project,parkingCorners,generateZones,hullArea});
+  /** 位置合わせ後に区画が編集されたかを判断するための安定した配置署名。 */
+  function layoutSignature(layout){
+    const slots=(layout?.objects||[]).filter(item=>item?.objectType==="parkingSpace")
+      .map(item=>[String(item.uid),Number(item.x),Number(item.y),Number(item.width),
+                  Number(item.height),Number(item.rotation||0)])
+      .sort((a,b)=>a[0].localeCompare(b[0],"en"));
+    return JSON.stringify({
+      canvas:[Number(layout?.canvas?.width),Number(layout?.canvas?.height)],
+      slots
+    });
+  }
+
+  return Object.freeze({homography,project,parkingCorners,generateZones,hullArea,layoutSignature});
 });
