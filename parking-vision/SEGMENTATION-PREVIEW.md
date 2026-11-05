@@ -90,3 +90,25 @@ python -m unittest discover -s tests -p "test_vehicle_segmentation.py"
 
 参考：Ultralytics 公式の [Segment task](https://docs.ultralytics.com/tasks/segment/) と
 [YOLO11](https://docs.ultralytics.com/models/yolo11/)。
+
+
+## 2026-11-05: 転回時の枠ずれ・生ID欠落対策
+
+録画実験「YOLO判定_001(9).mp4」と「車両輪郭_比較診断.csv」の転回を診断し、既存の `-SegmentationPreview` に次を追加しました。
+
+- **表示用追跡枠の補正**：車体マスクに沿ったタイトな矩形を計算。マスク信頼度0.65以上、矩形同士の一致度0.70以上、面積比0.50～1.20、元のYOLO検出枠とのIoU0.45以上を満たす時だけ表示枠に利用。実際の駐車判定に使用する `bbox` は変更しません。
+- **生IDが欠落した車の補完**：直前0.75秒以内に見えていた同じ四輪車で、両フレームに良好な輪郭があり、マスク矩形のIoU0.50以上、かつIoU0.70未満の場合は色の一致も必要、一意に対応する時だけ安定IDを引き継ぎます。複数候補や別の可視生IDがある場合は無理につなぎません。
+- **比較CSVの追加列**：`id_mask_bridged`（マスクを根拠としたID補完）、`display_bbox_source`（表示枠が従来/輪郭のどちらか）。従来の区画候補列は継続出力。
+
+注意：この方法でも、マスク自体が間違った車に付く場合や2台の車両が重なる場合、追跡できないことがあります。確実性を優先して不明とします。**学習済みYOLOモデルの重み、元の動画、駐車区画の設定は変更しません。**
+
+既存の実行コマンドをそのまま再実行して確認します。
+
+```powershell
+cd "$env:USERPROFILE\parking-guide-admin"
+git pull --ff-only
+cd .\parking-vision
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationPreview
+```
+
+重点確認：録画154～158秒と164～169秒の `id_mask_bridged`、153～164秒の輪郭／検出枠の見た目、159～162秒の生ID16の誤検出。
