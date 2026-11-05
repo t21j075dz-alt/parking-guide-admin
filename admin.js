@@ -4380,6 +4380,14 @@ const liveMonitor = {
   spaces: document.querySelector("#live-monitor-spaces"),
   completion: document.querySelector("#live-monitor-parking-complete"),
   sessions: document.querySelector("#live-monitor-sessions"),
+  filter: document.querySelector("#live-monitor-filter"),
+  filterEmpty: document.querySelector("#live-monitor-filter-empty"),
+  counters: {
+    available: document.querySelector("#live-stat-available"),
+    occupied: document.querySelector("#live-stat-occupied"),
+    blocked: document.querySelector("#live-stat-blocked"),
+    unknown: document.querySelector("#live-stat-unknown"),
+  },
 };
 let liveMonitorLoading = false;
 let liveMonitorSequence = 0;
@@ -4388,6 +4396,22 @@ function appendLiveItem(list, message) {
   const item = document.createElement("li");
   item.textContent = message; // データベースの文字列をHTMLとして解釈しない
   list.append(item);
+  return item;
+}
+function setLiveMonitorCounters(counts) {
+  for (const [stateName, output] of Object.entries(liveMonitor.counters)) {
+    if (output) output.textContent = counts ? String(counts[stateName] ?? 0) : "—";
+  }
+}
+function applyLiveMonitorFilter() {
+  const selected = liveMonitor.filter?.value || "all";
+  const items = [...(liveMonitor.spaces?.querySelectorAll("li") || [])];
+  for (const item of items) {
+    item.hidden = selected !== "all" && item.dataset.liveStatus !== selected;
+  }
+  if (liveMonitor.filterEmpty) {
+    liveMonitor.filterEmpty.hidden = !items.length || items.some(item => !item.hidden);
+  }
 }
 function liveMonitorLanguage(ja, en) {
   return document.documentElement.lang === "en" ? en : ja;
@@ -4433,6 +4457,11 @@ async function refreshLiveMonitor() {
       "Sign in under Sync to user app to view live information.",
     );
     liveMonitor.published.disabled = true;
+    liveMonitor.published.checked = false;
+    liveMonitor.spaces?.replaceChildren();
+    liveMonitor.sessions?.replaceChildren();
+    setLiveMonitorCounters(null);
+    if (liveMonitor.filterEmpty) liveMonitor.filterEmpty.hidden = true;
     return;
   }
   liveMonitorLoading = true;
@@ -4456,17 +4485,24 @@ async function refreshLiveMonitor() {
       .filter(obj => obj.objectType === "parkingSpace");
     const now = Date.now();
     const cameraConfirmed = [];
+    const totals = {available:0,occupied:0,blocked:0,unknown:0};
     for (const object of registered) {
       const status = statusByUid.get(object.uid);
       const age = Date.parse(status?.checked_at || "");
       const current = Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
-      const label = current ? status.status : "unknown";
+      const label = current && ["available","occupied","blocked"].includes(status.status)
+        ? status.status : "unknown";
+      totals[label]++;
       if (label === "occupied") {
         cameraConfirmed.push(String(object.spaceNumber || object.name || object.uid));
       }
-      appendLiveItem(liveMonitor.spaces,
+      const row = appendLiveItem(liveMonitor.spaces,
         String(object.spaceNumber || object.name || object.uid) + "：" + liveMonitorStatus(label));
+      row.dataset.liveStatus = label;
+      row.classList.add("live-monitor-space-item");
     }
+    setLiveMonitorCounters(totals);
+    applyLiveMonitorFilter();
     if (liveMonitor.completion) {
       liveMonitor.completion.textContent = cameraConfirmed.length
         ? liveMonitorLanguage(
@@ -4515,6 +4551,11 @@ async function refreshLiveMonitor() {
       + " reported spaces | " + (visibility[0]?.is_published ? "Public" : "Private"),
     );
   } catch {
+    // 失敗前に取得した古い状態を「現在の空き」として見せない。
+    setLiveMonitorCounters(null);
+    liveMonitor.spaces?.replaceChildren();
+    liveMonitor.sessions?.replaceChildren();
+    if (liveMonitor.filterEmpty) liveMonitor.filterEmpty.hidden = true;
     liveMonitor.message.textContent = liveMonitorLanguage(
       "情報を取得できません。ログイン・閲覧権限・ネット接続をご確認ください。",
       "Cannot load status. Check sign-in, access rights and network.",
@@ -4527,6 +4568,7 @@ liveMonitor.panel?.addEventListener("toggle", () => {
   if (liveMonitor.panel.open) void refreshLiveMonitor();
 });
 liveMonitor.refresh?.addEventListener("click", () => void refreshLiveMonitor());
+liveMonitor.filter?.addEventListener("change", applyLiveMonitorFilter);
 liveMonitor.published?.addEventListener("change", async () => {
   const facilityId = state.facilityId;
   const enabled = liveMonitor.published.checked;
