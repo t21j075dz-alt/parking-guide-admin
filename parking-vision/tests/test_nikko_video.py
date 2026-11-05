@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from nikko_video_config import (
     FACILITY_ID, CAMERA_ID, visible_space_uids, make_config, checked_config,
@@ -16,7 +17,7 @@ from import_nikko_map_alignment import (
 )
 from export_nikko_recording import convert_recording_log
 from recorded_parking_states import RecordedParkingStateMachine
-from video_demo_support import require_demo_mode, demo_status_rows, SOURCE
+from video_demo_support import require_demo_mode, demo_status_rows, SOURCE, invalidate_nikko_outside_camera_rows
 
 
 def base_settings():
@@ -164,6 +165,37 @@ class NikkoDynamicSpaceTests(unittest.TestCase):
             self.assertEqual(len([item for item in data if item["動画の時刻(秒)"]=="6.000"]),21)
             self.assertEqual(data[-1]["動画の時刻(秒)"],"6.000")
             self.assertNotIn("space_999",{item["駐車枠ID"] for item in data})
+
+
+    def test_switching_recordings_expires_earlier_out_of_frame_spaces(self):
+        class FakeWriter:
+            url="https://example.supabase.co"
+            key="example-publishable"
+            access_token="example-user-jwt"
+            rows=None
+            def _ensure_token(self):pass
+            def upsert(self, table, rows, conflict):
+                self.rows=rows
+                self.table=table
+                self.conflict=conflict
+        class Reply:
+            def __enter__(self):return self
+            def __exit__(self,*args):return False
+            def read(self):
+                return b'[{"space_uid":"space_002"},{"space_uid":"space_009"},{"space_uid":"space_044"}]'
+        def fake_get(req,timeout=10):
+            self.assertEqual(req.get_method(),"GET")
+            self.assertIn("nikko-test-001",req.full_url)
+            self.assertNotIn("home-video-demo-001",req.full_url)
+            return Reply()
+        writer=FakeWriter()
+        with patch("video_demo_support.request.urlopen",fake_get):
+            changed=invalidate_nikko_outside_camera_rows(writer,["space_002","space_044"])
+        self.assertEqual(changed,1)
+        self.assertEqual(writer.table,"parking_live_status")
+        self.assertEqual(writer.rows[0]["space_uid"],"space_009")
+        self.assertEqual(writer.rows[0]["status"],"unknown")
+        self.assertTrue(writer.rows[0]["checked_at"].startswith("2000-01-01"))
 
 
 if __name__ == "__main__":
