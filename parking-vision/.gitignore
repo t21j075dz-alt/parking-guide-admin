@@ -30,3 +30,9 @@ config_camo_backup_*.json
 # 録画実演にも個人用公開キー・模型パス・研究カメラ座標が含まれる
 config_video_demo.json
 config_video_demo_backup_*.json
+
+# 輪郭追加学習：元動画と手動で作成した画像・ラベルはPC内にのみ保存
+segmentation_annotation_samples*/
+vehicle_mask_sessions/
+vehicle_mask_dataset/
+vehicle_mask_training_runs/
