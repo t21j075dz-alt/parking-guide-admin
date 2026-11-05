@@ -4461,6 +4461,8 @@ async function refreshLiveMonitor() {
     liveMonitor.spaces?.replaceChildren();
     liveMonitor.sessions?.replaceChildren();
     setLiveMonitorCounters(null);
+    if (liveMonitor.completion) liveMonitor.completion.textContent = liveMonitorLanguage(
+      "現在の駐車状態を確認できません。", "Current parking status is unavailable.");
     if (liveMonitor.filterEmpty) liveMonitor.filterEmpty.hidden = true;
     return;
   }
@@ -4555,6 +4557,10 @@ async function refreshLiveMonitor() {
     setLiveMonitorCounters(null);
     liveMonitor.spaces?.replaceChildren();
     liveMonitor.sessions?.replaceChildren();
+    liveMonitor.published.disabled = true;
+    liveMonitor.published.checked = false;
+    if (liveMonitor.completion) liveMonitor.completion.textContent = liveMonitorLanguage(
+      "現在の駐車状態を確認できません。", "Current parking status is unavailable.");
     if (liveMonitor.filterEmpty) liveMonitor.filterEmpty.hidden = true;
     liveMonitor.message.textContent = liveMonitorLanguage(
       "情報を取得できません。ログイン・閲覧権限・ネット接続をご確認ください。",
