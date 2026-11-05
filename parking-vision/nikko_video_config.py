@@ -134,8 +134,11 @@ def checked_ready(config, video):
     normalized = {}
     for uid in ids:
         normalized[uid] = normalize_corners(zones[uid])
-    if audit_zones(normalized):
+    warnings = audit_zones(normalized)
+    if any("重なって" in warning for warning in warnings):
         raise ValueError("登録区画が重なっています。動画の枠を登録し直してください")
+    for warning in warnings:
+        print("【映像内の区画に注意】" + warning)
     capture = config.get("recorded_calibration") or {}
     if capture.get("signature") != video_signature(video):
         raise ValueError(
