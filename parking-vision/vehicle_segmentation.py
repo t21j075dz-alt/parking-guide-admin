@@ -185,6 +185,29 @@ def attach_vehicle_contours(detections, result, frame_shape, zones=None,
 
 
 
+
+def polygon_area_centroid(points, frame_shape):
+    """Area centroid in image coordinates; diagnostic motion cue, NOT ground."""
+    height, width = frame_shape[:2]
+    if height <= 0 or width <= 0 or len(points) < 3:
+        return None
+    twice_area = 0.
+    x_weighted = 0.
+    y_weighted = 0.
+    for a,b in zip(points, points[1:]+points[:1]):
+        cross = a[0]*b[1]-b[0]*a[1]
+        twice_area += cross
+        x_weighted += (a[0]+b[0])*cross
+        y_weighted += (a[1]+b[1])*cross
+    if abs(twice_area) < 1e-6:
+        return None
+    x = x_weighted/(3*twice_area)
+    y = y_weighted/(3*twice_area)
+    if not isfinite(x) or not isfinite(y):
+        return None
+    return max(0.,min(1.,x/width)),max(0.,min(1.,y/height))
+
+
 def tracked_segment_detections(result, frame_shape, allowed_names, class_aliases,
                                zones=None, inside=None):
     """Use ONE segmentation result as both detection AND tracking evidence.
@@ -248,6 +271,7 @@ def tracked_segment_detections(result, frame_shape, allowed_names, class_aliases
                                     max(p[1] for p in polygon)]
                         candidate, touched = estimate_mask_zone(
                             points, zones, inside)
+                        center = polygon_area_centroid(polygon, frame_shape)
                         detection.update({
                             "segmentation_contour": polygon,
                             "segmentation_bbox": mask_box,
@@ -257,6 +281,9 @@ def tracked_segment_detections(result, frame_shape, allowed_names, class_aliases
                             "segmentation_confidence": float(confidence),
                             "segmentation_match_iou": round(
                                 box_iou(box, mask_box), 4),
+                            "motion_point": (center if center is not None
+                                             else ((x1+x2)/(2*width),
+                                                   (y1+y2)/(2*height))),
                         })
         output.append(detection)
     return output
