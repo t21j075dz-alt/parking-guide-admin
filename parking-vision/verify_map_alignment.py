@@ -47,7 +47,6 @@ def preview_frame(frame, zones, cv2):
     view = frame.copy()
     fill = frame.copy()
     for zone in zones.values():
-        points = cv2.UMat if False else None  # OpenCV以外のモジュールに依存しない
         import numpy as np
         points = np.array([[round(x * (width - 1)), round(y * (height - 1))]
                            for x, y in zone], dtype=np.int32)
@@ -70,7 +69,7 @@ def preview_frame(frame, zones, cv2):
 
 def build_receipt(config, alignment, alignment_path, frame_width, frame_height):
     assert_camera_frame(config, alignment, frame_width, frame_height)
-    checked_alignment(config, alignment)
+    checked_alignment(config, alignment, allow_new_camera_view=True)
     return {
         "schema_version": 1,
         "facility_id": config["facility_id"],
@@ -105,7 +104,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     config = read_json(args.config)
     alignment = read_json(args.alignment)
-    zones = checked_alignment(config, alignment)
+    zones = checked_alignment(config, alignment, allow_new_camera_view=True)
 
     import cv2
     from camera_profiles import capture_preferences, fit_preview_dimensions
