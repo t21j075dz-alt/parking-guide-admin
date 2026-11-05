@@ -166,3 +166,31 @@ YOLO判定線が焼き付いた **判定後の動画** は学習用の元画像�
 - https://docs.ultralytics.com/modes/track/
 - https://docs.ultralytics.com/tasks/segment/
 - https://docs.ultralytics.com/datasets/segment/
+
+## 2026-11-05: 角度差・区画誤帰属・追跡枠の揺れを低減（追加機能）
+
+`-SegmentationTracking` に、**動画実験限定の保守的な区画候補融合** を追加しました。
+
+1. 既存の矩形下端方式と、YOLO-segの車体下側輪郭が**同じ区画**を指す → 一致として採用
+2. 2方式が**別の区画**を指す → 区画を特定せず「確認中」に留める（誤占有防止）
+3. 矩形では決められず、輪郭だけが一区画を指す → 輪郭信頼度>=0.80、矩形一致>=0.80、下側輪郭点>=7、同じ匿名追跡IDで**2秒以上・5フレーム以上**一貫した場合のみ区画候補として認める
+4. 輪郭がない、他区画を指す、IDがない → 従来方式、または不明扱い
+5. **検出枠の揺れを緩和**：追跡IDごとに表示専用の矩形を平滑化。実際の駐車判定に使うYOLO検出矩形、フレームごとの生映像は変更しない
+
+これは「車体の見える輪郭」の融合であり、地面に接する正確な車体投影を求めたものではありません。高所カメラの本当の地面座標を求めるには、区画四隅に加え、カメラの設置高さ・角度等を含むキャリブレーションが必要です。隣の区画に車体上面が重なる影響を完全には解消しません。
+
+### 同じ動画で比較する方法
+
+```powershell
+cd "$env:USERPROFILE\parking-guide-admin"
+git pull --ff-only
+cd .\parking-vision
+# 新方式（セグ追跡＋時間安定性を使う区画融合）
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking
+# 対照実験（同じセグ追跡＋従来の矩形下端のみ）
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking -LegacyZoneGeometry
+```
+
+`車両輪郭_比較診断.csv` に `demo_geometry_basis` と `demo_geometry_zone` を追加しました。`agreement`、`conflict`、`mask-pending`、`mask-temporal` の違いを確認できます。`-Share` との併用は禁止され、Supabaseへの書き込みは発生しません。
+
+今回の改善の有効性は、同じ元動画を各方式で再推論し、特に170〜185秒の入庫区間、車体の大きい角度変化、駐車中の誤区画遷移を目視正解と突き合わせて評価してください。
