@@ -31,7 +31,21 @@ const {chromium}=require("playwright");
     const origin="http://127.0.0.1:"+server.address().port;
     const page=await browser.newPage({viewport:{width:1510,height:970},acceptDownloads:true});
     page.on("pageerror",error=>errors.push("desktop: "+error.message));
-    await page.route("https://**/*",route=>route.abort());
+    let simulateNetworkFailure=false;
+    await page.route("https://**/*",route=>{
+      const url=route.request().url();
+      if(simulateNetworkFailure)return route.abort();
+      if(url.includes("/rest/v1/parking_live_visibility"))
+        return route.fulfill({json:[{is_published:false}]});
+      if(url.includes("/rest/v1/parking_live_status"))
+        return route.fulfill({json:[
+          {space_uid:"space_001",status:"available",checked_at:new Date(Date.now()-1000).toISOString()},
+          {space_uid:"space_002",status:"occupied",checked_at:new Date(Date.now()-35000).toISOString()},
+        ]});
+      if(url.includes("/rest/v1/parking_vehicle_sessions"))
+        return route.fulfill({json:[]});
+      return route.abort();
+    });
     await page.goto(origin+"/parking-guide-admin/");
     const align=page.locator('#admin-camera-shortcuts [data-action="alignment"]');
     assert.equal(await align.isVisible(),true,"workspace shortcut must remain visible");
@@ -109,10 +123,24 @@ const {chromium}=require("playwright");
 
     await page.locator("#alignment-close").click();
     // Main view shortcuts open existing tool panels, not new copies.
+    await page.evaluate(()=>{state.remoteAccessToken="synthetic-local-ui-test-token";});
     await page.locator('#admin-camera-shortcuts [data-action="monitor"]').click();
     assert.equal(await page.locator("#live-monitor-panel").getAttribute("open"),"");
     assert.equal(await page.locator("#live-monitor-stats").count(),1);
     assert.equal(await page.locator("#live-monitor-filter").count(),1);
+    await page.waitForFunction(()=>document.querySelector("#live-stat-available")?.textContent==="1");
+    // A 35-second-old 'occupied' report must not be shown as current.
+    assert.equal(await page.locator("#live-stat-occupied").textContent(),"0");
+    assert.equal(await page.locator("#live-stat-unknown").textContent(),"1");
+    await page.locator("#live-monitor-filter").selectOption("unknown");
+    assert.equal(await page.locator("#live-monitor-spaces li").count(),2);
+    assert.equal(await page.locator("#live-monitor-spaces li:not([hidden])").count(),1);
+    assert.equal(await page.locator("#live-monitor-spaces li:not([hidden])").getAttribute("data-live-status"),"unknown");
+    simulateNetworkFailure=true;
+    await page.locator("#live-monitor-refresh").click();
+    await page.waitForFunction(()=>document.querySelector("#live-stat-available")?.textContent==="—");
+    assert.equal(await page.locator("#live-monitor-spaces li").count(),0);
+    assert.equal(await page.locator("#live-monitor-published").isEnabled(),false);
 
     const mobile=await browser.newPage({viewport:{width:390,height:844}});
     mobile.on("pageerror",error=>errors.push("mobile: "+error.message));
