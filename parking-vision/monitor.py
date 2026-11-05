@@ -682,12 +682,23 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         cv2.putText(view, message, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
                     scale, color, thickness, cv2.LINE_AA)
 
+    dense = len(zones) > 12
     for uid, polygon in zones.items():
         points = [(int(x * width), int(y * height)) for x, y in polygon]
         state, color = labels.get(statuses.get(uid, "unknown"), labels["unknown"])
         for first, second in zip(points, points[1:] + points[:1]):
-            cv2.line(view, first, second, color, 3, cv2.LINE_AA)
-        draw_text(f"{uid}: {state}", points[0], .58, color, 2)
+            cv2.line(view, first, second, color, 2 if dense else 3, cv2.LINE_AA)
+        if dense:
+            # 大量の区画に「space_042: OCCUPIED」と書くと映像を覆う。
+            # 区画内に読める大きさがある場合だけ短い番号を表示。
+            min_x, max_x = min(p[0] for p in points), max(p[0] for p in points)
+            min_y, max_y = min(p[1] for p in points), max(p[1] for p in points)
+            if max_x-min_x >= 26 and max_y-min_y >= 18:
+                label = uid.removeprefix("space_").lstrip("0") or "0"
+                center = ((min_x+max_x)//2-9, (min_y+max_y)//2+5)
+                draw_text(label, center, .38, color, 1)
+        else:
+            draw_text(f"{uid}: {state}", points[0], .58, color, 2)
 
     for detection in vehicle_detections + obstacles:
         # Correct ONLY the drawn tracking box. All state calculations retain
