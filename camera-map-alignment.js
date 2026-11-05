@@ -75,7 +75,9 @@
       ? "登録区画 "+(current.objects||[]).filter(item=>item.objectType==="parkingSpace").length+"件"
       : "区画なし";
     resultLabel.textContent=projected
-      ? projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
+      ? currentFacility==="nikko-test-001"
+        ? "録画の判定対象 "+projected.space_uids.length+"区画／対象外 "+projected.excluded_space_uids.length+"区画。映像内の全区画が合っているか確認してください。"
+        : projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
       : "区画位置は未確定です。既存の駐車状態は変更されません。";
   }
   function pointFromClick(event,element){
@@ -143,6 +145,10 @@
     }
     refresh();
   }
+  function generateVisibleZones(){
+    return core.generateZones(layout(),mapPoints,imagePoints,
+      {skipOutsideFrame:currentFacility==="nikko-test-001"});
+  }
   function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;exported=false;draw();}
   function remember(){
     try{
@@ -181,7 +187,7 @@
       }
       if(mapPoints.length===4&&imagePoints.length===4){
         try{
-          projected=core.generateZones(layout(),mapPoints,imagePoints);
+          projected=generateVisibleZones();
           draw();
           notify(layoutChanged
             ? "マップ変更後の全区画を自動再計算しました。位置が合うか必ず確認し、必要なら4点を選び直してください。"
@@ -199,7 +205,8 @@
     currentFacility=state.facilityId;
     const current=layout();
     if(!current)return;
-    cameraId.value=document.querySelector("#camera-monitor select")?.value||"home-camera-01";
+    cameraId.value=currentFacility==="nikko-test-001"?"nikko-recording-01"
+      : document.querySelector("#camera-monitor select")?.value||"home-camera-01";
     image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
     showWholeMap=false;exported=false;
     dialog.showModal();restore();
@@ -269,9 +276,11 @@
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
     try{
-      projected=core.generateZones(layout(),mapPoints,imagePoints);
+      projected=generateVisibleZones();
       confirmed.checked=false;exported=false;draw();
-      notify("全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
+      notify(currentFacility==="nikko-test-001"
+        ? "映像に完全に映る"+projected.space_uids.length+"区画を投影しました。画角外・極小の"+projected.excluded_space_uids.length+"区画は判定対象外です。全区画の位置を確認してください。"
+        : "全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
     }catch(error){projected=null;draw();notify(error.message);}
   });
   exportButton.addEventListener("click",()=>{
@@ -281,21 +290,24 @@
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
     }
     try{
-      const result=core.generateZones(layout(),mapPoints,imagePoints);
+      const result=generateVisibleZones();
       remember();layoutChanged=false;
       const payload={
         schema_version:1,facility_id:currentFacility,camera_id:cam,
         image_width:image.naturalWidth,image_height:image.naturalHeight,
         map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
         map_points:mapPoints,image_points:imagePoints,
-        space_uids:result.space_uids,space_zones:result.space_zones
+        space_uids:result.space_uids,space_zones:result.space_zones,
+        excluded_space_uids:result.excluded_space_uids
       };
       const blob=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
       const url=URL.createObjectURL(blob),link=document.createElement("a");
       link.href=url;link.download="camera-map-alignment-"+currentFacility+"-"+cam+".json";
       link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
       exported=true;refresh();
-      notify("位置合わせJSONを保存しました。次はPCで実カメラ映像と区画の一致を確認してください。");
+      notify(currentFacility==="nikko-test-001"
+        ? "日光録画の位置合わせJSONを保存しました。PCで元動画に重ねて確認してから取り込んでください。"
+        : "位置合わせJSONを保存しました。次はPCで実カメラ映像と区画の一致を確認してください。");
     }catch(error){notify(error.message);}
   });
 })();
