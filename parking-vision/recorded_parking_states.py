@@ -162,6 +162,10 @@ class StallProgress:
     outside_started: float | None = None
     movement_observed: bool = False
     last_change: float = 0.0
+    # Only for the optional recorded-video fusion mode:
+    # keep a tentative UNKNOWN for one second AFTER uncertainty fades,
+    # rather than showing AVAILABLE in a narrow gap between detections.
+    last_uncertain_seen: float | None = None
 
     def set_phase(self, phase, now):
         if self.phase == phase:
@@ -323,13 +327,26 @@ class RecordedParkingStateMachine:
         # visible but unconfirmed car is reported UNKNOWN until 5s.
         phases = {}
         for uid, stall in self.stalls.items():
-            # Internal "available" while a body is being assessed is exposed
-            # as UNKNOWN, so the map and DB do not contradict each other.
+            # Uncertainty must appear IMMEDIATELY: never show an unverified
+            # possibly occupied stall as available just to avoid UI flicker.
+            fresh_uncertainty = (
+                stall.last_inside is not None or uid in ambiguous
+            )
+            if stall.phase == "available" and self.geometry_fusion is not None:
+                if fresh_uncertainty:
+                    stall.last_uncertain_seen = now
+                elif (stall.last_uncertain_seen is not None and
+                      now - stall.last_uncertain_seen <= 1.0):
+                    # The actual supplied footage switched space_004:
+                    # UNKNOWN->AVAILABLE->UNKNOWN within 0.7 seconds.
+                    # Delay only UNKNOWN->AVAILABLE, never the reverse.
+                    fresh_uncertainty = True
+                else:
+                    stall.last_uncertain_seen = None
+            elif stall.phase != "available":
+                stall.last_uncertain_seen = None
             phases[uid] = (
-                "unknown"
-                if stall.phase == "available" and (
-                    stall.last_inside is not None or uid in ambiguous
-                )
+                "unknown" if stall.phase == "available" and fresh_uncertainty
                 else stall.phase
             )
         statuses = {uid: STATUS_FOR_PHASE[phase] for uid, phase in phases.items()}
