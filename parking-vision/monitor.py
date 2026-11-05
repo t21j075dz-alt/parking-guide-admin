@@ -652,7 +652,7 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
 
 
 def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
-            segmentation_preview=False):
+            segmentation_preview=False, segmentation_tracking=False):
     """YOLOの認識結果を、研究発表で見返せる映像に描画する。
 
     検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
@@ -759,7 +759,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         "SPACE: GREEN=available ORANGE=occupied RED=blocked GRAY=unknown",
         (12, height + 72), .45,
     )
-    footer = ("SEGMENTATION MASK: VISUAL ONLY / PARKING STATE: ORIGINAL"
+    footer = ("SEGMENTATION TRACK: MASK + BOX ZONE FUSION / DRY RUN"
+              if segmentation_tracking else
+              "SEGMENTATION MASK: VISUAL ONLY / PARKING STATE: ORIGINAL"
               if segmentation_preview else
               "ZONE = CAR BOTTOM FOOTPRINT / NO WHEEL-CIRCLE ESTIMATION")
     draw_text(footer, (12, height + 91), .40, (180, 185, 190))
@@ -1142,8 +1144,11 @@ def main():
                 segmentation_diagnostic_recorder.write(vehicles, track_now)
             annotated_frame = (draw_vehicle_contours(frame, vehicles)
                                if segmentation_model is not None else frame)
-            annotated = overlay(annotated_frame, zones, statuses, vehicles, blockers,
-                                phases, segmentation_preview=segmentation_model is not None)
+            annotated = overlay(
+                annotated_frame, zones, statuses, vehicles, blockers,
+                phases, segmentation_preview=segmentation_model is not None,
+                segmentation_tracking=args.segmentation_tracking,
+            )
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
                 annotated = draw_demo_phase_labels(
