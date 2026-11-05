@@ -91,6 +91,28 @@ def estimate_mask_zone(points, zones, inside):
     return candidate, touched
 
 
+def best_visible_bbox(detection, min_seg_confidence=.65):
+    """Prefer the mask-tight box ONLY for video overlay, not state decisions.
+
+    A visible mask is not a physical footprint. If it is poorly aligned or
+    too incomplete, retain the original detector box rather than jump.
+    """
+    original = detection.get("bbox")
+    mask_box = detection.get("segmentation_bbox")
+    if not original or not mask_box:
+        return original
+    if (float(detection.get("segmentation_confidence", 0)) < min_seg_confidence or
+            float(detection.get("segmentation_match_iou", 0)) < .70):
+        return original
+    original_area = max(0., original[2]-original[0]) * max(0., original[3]-original[1])
+    mask_area = max(0., mask_box[2]-mask_box[0]) * max(0., mask_box[3]-mask_box[1])
+    if original_area <= 0 or not (.50 <= mask_area / original_area <= 1.20):
+        return original
+    if box_iou(original, mask_box) < .45:
+        return original
+    return mask_box
+
+
 def attach_vehicle_contours(detections, result, frame_shape, zones=None,
                             inside=None, min_iou=.30):
     """Match independent seg detections to existing tracks, one-to-one.
@@ -98,6 +120,9 @@ def attach_vehicle_contours(detections, result, frame_shape, zones=None,
     Result is Ultralytics instance-seg Results, using masks.xy in original
     pixel coordinates. No new track IDs or parking-state changes are made.
     """
+    # Explicitly record that segmentation was attempted, even for misses.
+    for detection in detections:
+        detection["segmentation_checked"] = True
     if result is None or getattr(result, "boxes", None) is None:
         return 0
     masks = getattr(result, "masks", None)
@@ -144,6 +169,10 @@ def attach_vehicle_contours(detections, result, frame_shape, zones=None,
         zone, touched = estimate_mask_zone(points, zones, inside)
         detection = detections[det_index]
         detection["segmentation_contour"] = polygon
+        detection["segmentation_bbox"] = [
+            min(p[0] for p in polygon), min(p[1] for p in polygon),
+            max(p[0] for p in polygon), max(p[1] for p in polygon),
+        ]
         detection["segmentation_bottom_points"] = points
         detection["segmentation_candidate"] = zone
         detection["segmentation_touched"] = sorted(touched)
@@ -183,7 +212,8 @@ class SegmentationDiagnosticRecorder:
 
     FIELDS = ("video_seconds", "stable_track_id", "raw_track_id",
               "legacy_zone", "segmentation_zone", "segmentation_match_iou",
-              "segmentation_confidence", "lower_points", "match_state")
+              "segmentation_confidence", "lower_points", "match_state",
+              "id_mask_bridged", "display_bbox_source")
 
     def __init__(self, folder):
         self.stream = open(Path(folder) / "車両輪郭_比較診断.csv", "w",
@@ -204,6 +234,10 @@ class SegmentationDiagnosticRecorder:
                 "lower_points": len(det.get("segmentation_bottom_points") or []),
                 "match_state": ("matched" if det.get("segmentation_contour")
                                 else "unmatched"),
+                "id_mask_bridged": "yes" if det.get("id_mask_bridged") else "no",
+                "display_bbox_source": ("segmentation" if
+                                        det.get("display_bbox") is not None else
+                                        "detector"),
             })
 
     def close(self):
