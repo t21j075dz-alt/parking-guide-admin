@@ -103,12 +103,29 @@
 <p class="muted">管理者ログイン後に確認できます。4秒ごとに更新します。</p>
 <p class="muted" id="live-monitor-message" role="status" aria-live="polite">現在の施設の情報を確認できます。</p>
 <button id="live-monitor-refresh" type="button">状態を更新する</button>
+<dl class="live-monitor-stats" id="live-monitor-stats" aria-label="区画の現在の状況">
+  <div data-live-state="available"><dt>空き</dt><dd id="live-stat-available">—</dd></div>
+  <div data-live-state="occupied"><dt>駐車中</dt><dd id="live-stat-occupied">—</dd></div>
+  <div data-live-state="blocked"><dt>障害物</dt><dd id="live-stat-blocked">—</dd></div>
+  <div data-live-state="unknown"><dt>未確認</dt><dd id="live-stat-unknown">—</dd></div>
+</dl>
 <label class="check-row"><input id="live-monitor-published" type="checkbox" disabled/> 利用者アプリへ最新の空き状況を公開</label>
 <p class="muted">非公開でも管理者は確認できます。公開しても映像・車両ID・駐車時間は利用者へ表示しません。</p>
 <p id="live-monitor-parking-complete" role="status" aria-live="polite">カメラによる駐車の確定を待っています。</p>
 <p class="muted">ここでの「検知完了」は区画に車がいる確認です。利用者本人の車かどうかは利用者アプリ側で確認します。</p>
-<p><strong>区画の状態</strong></p>
+<div class="live-monitor-list-head"><strong>区画の状態</strong>
+  <label>表示
+    <select id="live-monitor-filter" aria-label="区画状態で絞り込む">
+      <option value="all">すべて</option>
+      <option value="available">空き</option>
+      <option value="occupied">駐車中</option>
+      <option value="blocked">障害物あり</option>
+      <option value="unknown">未確認</option>
+    </select>
+  </label>
+</div>
 <ul class="live-monitor-list" id="live-monitor-spaces"></ul>
+<p id="live-monitor-filter-empty" class="muted" hidden>該当する区画はありません。</p>
 <p><strong>最近の車両（管理者のみ）</strong></p>
 <ul class="live-monitor-list" id="live-monitor-sessions"></ul>
 </details>
