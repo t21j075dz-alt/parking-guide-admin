@@ -12,7 +12,7 @@ test('管理JSとJSONは同じ施設マスターで、福岡県100店舗のID・
   assert.equal(js.facilities.length,212);
   assert.equal(new Set(js.facilities.map(f=>f.id)).size,212);
   const nikko=js.facilities.find(f=>f.id==='nikko-test-001');
-  assert.equal(nikko.researchSpaceCount,8);
+  assert.equal(Object.hasOwn(nikko,'researchSpaceCount'),false);
   assert.equal(nikko.recordedCameraId,'nikko-recording-01');
   assert.equal(nikko.requiresLocalCalibration,true);
   assert.equal(nikko.isRecordedExperiment,true);
