@@ -147,7 +147,9 @@
     const whole={x:0,y:0,width,height};
     const slots=(layout?.objects||[]).filter(item=>item?.objectType==="parkingSpace");
     if(!slots.length)return whole;
-    const points=slots.flatMap(parkingCorners);
+    let points;
+    try {points=slots.flatMap(parkingCorners);}
+    catch {return whole;} // 不正な区画は自動計算時に警告し、画面全体は表示し続ける。
     if(!points.every(([x,y])=>Number.isFinite(x)&&Number.isFinite(y)))return whole;
     const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
     const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
