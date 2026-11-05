@@ -112,3 +112,57 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -
 ```
 
 重点確認：録画154～158秒と164～169秒の `id_mask_bridged`、153～164秒の輪郭／検出枠の見た目、159～162秒の生ID16の誤検出。
+
+
+## 2026-11-05：転回時のID欠落を根本改善する新モード
+
+**重要：旧モードの `-SegmentationPreview` と新モードは別です。**
+旧モードは「従来YOLO検出・追跡＋別モデルによる輪郭描画」だったため、
+輪郭が出ていても従来YOLOの追跡IDが空欄になる問題が残っていました。
+
+新しい `-SegmentationTracking` では **YOLO11-segを検出器・
+インスタンスマスク生成器・追跡器として一体利用** します。
+2モデルの検出枠をIoUで後付け対応付けする必要がなくなります。
+また、**追跡対象のID更新と、駐車区画への関与判定を分離** しました。
+車両が区画の少し外側を旋回していても、全画面で匿名IDを追跡します。
+駐車状態の確定は、従来どおり監視対象・時間・区画の条件が必要です。
+
+### 実行（最初は録画で比較）
+
+```powershell
+cd "$env:USERPROFILE\parking-guide-admin"
+git pull --ff-only
+cd .\parking-vision
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking
+```
+
+モデルの能力を比較する場合は（処理は重くなります）：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start_video_demo.ps1 -Video "G:\研究動画\20261029_165836_579397\映像_001.mp4" -SegmentationTracking -SegmentationModel "yolo11s-seg.pt" -SegmentationImageSize 960
+```
+
+モデルファイルが未保存なら初回はUltralyticsのダウンロードが必要です。
+こちらは **`-Share` と併用不可** で、クラウドには送信しません。
+録画の元動画と既存のカメラ設定は上書きしません。
+
+### 実験で確認する区間と判定
+
+- 最初に `車両輪郭_比較診断.csv` で `stable_track_id` の欠落数を比較
+- **154.3〜157.7秒、164.7〜168.6秒**：従来モデルでは各35件・40件の生ID欠落
+- 旋回中にID1が継続しているか、新たなID2などへの誤分裂がないか
+- 他車両・人物・植え込みを誤って同一車両に結合していないか
+- 実画像の車体輪郭が向きにかかわらず車体に沿っているか
+- 区画の占有・空きに誤判定が生じていないか
+
+このモデルだけで「全方位100%」は保証できません。
+改善が足りなければ、カメラの **前／後／横／斜め／旋回中**
+の *元動画* からバランス良く学習画像を用意し、
+車体ごとの輪郭をアノテーションしてカスタムsegモデルに再学習します。
+YOLO判定線が焼き付いた **判定後の動画** は学習用の元画像に
+しないでください。正解データがない状態で精度改善を数値保証しません。
+
+参考：
+- https://docs.ultralytics.com/modes/track/
+- https://docs.ultralytics.com/tasks/segment/
+- https://docs.ultralytics.com/datasets/segment/
