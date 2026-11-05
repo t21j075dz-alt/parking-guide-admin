@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Optional vehicle-instance segmentation for research comparisons.
+"""YOLO vehicle-instance segmentation and camera comparison diagnostics.
 
-The segmentation model NEVER sets parking occupancy or vehicle tracking IDs.
-It annotates independently tracked YOLO detections with matched visible-body
-contours and approximate lower-silhouette image points. These are not tyre
-contacts or a measured vehicle ground footprint.
+The independent preview annotates existing tracks without changing their
+IDs or parking decisions. The separate dry-run segmentation-tracking mode
+uses the same model for masks and raw tracking IDs and optionally compares
+lower-silhouette evidence for recorded-demo parking zones.
+
+Contours are visible body silhouettes, NOT tyre-ground contacts or measured
+vehicle ground footprints. Neither mode grants live database publication.
 """
 from __future__ import annotations
 
