@@ -42,3 +42,9 @@
   #alignment-map{height:220px}
   .alignment-heading{align-items:center}
 }
+
+/* 区画の自動再計算後も、人の目で一致を確認するまでJSON出力を許可しない。 */
+.alignment-confirm{display:flex;gap:9px;align-items:flex-start;margin:14px 0 7px;
+  padding:10px 12px;border:1px solid #9db4aa;background:#eaf5ef;border-radius:9px;
+  font-weight:600;line-height:1.5;color:#174b37}
+.alignment-confirm input{margin:4px 0 0;flex:none;width:17px;height:17px;accent-color:#207b59}
