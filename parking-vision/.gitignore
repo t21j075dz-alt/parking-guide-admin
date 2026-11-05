@@ -44,3 +44,7 @@ config_nikko_video_demo_backup*.json
 
 # 追加学習の障害物画像・元動画由来のメタデータはローカル限定
 obstacle_training_sessions/
+
+# 242枚の元写真の作業データと自動出力（個人情報の可能性）
+annotation_workspaces/
+reviewed_photo_datasets/
