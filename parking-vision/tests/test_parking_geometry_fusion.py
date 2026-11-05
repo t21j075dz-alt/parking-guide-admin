@@ -59,6 +59,110 @@ class GeometryFusionTests(unittest.TestCase):
             self.assertIsNone(uid)
             self.assertEqual(basis, "mask-uncertain")
 
+    def test_confidence_dips_pause_but_do_not_erase_mask_history(self):
+        fusion = ParkingGeometryFusion()
+        sequence = [
+            (0.0, .85), (.2, .84), (.4, .81), (.6, .75),
+            (.8, .83), (1.0, .82), (1.2, .74), (1.4, .79),
+            (1.6, .86),
+        ]
+        states = []
+        for seconds, confidence in sequence:
+            states.append(fusion.resolve(
+                mask_car(conf=confidence), None, {"a"}, seconds))
+        self.assertEqual(states[3][2], "mask-weak-hold")
+        self.assertIsNone(states[3][0])  # weak frame cannot confirm
+        self.assertEqual(states[-1][0], "a")
+        self.assertEqual(states[-1][2], "mask-temporal")
+
+    def test_agreement_does_not_discard_mask_history(self):
+        fusion = ParkingGeometryFusion()
+        for t in (0., .2, .4):
+            fusion.resolve(mask_car(), None, {"a"}, t)
+        self.assertEqual(
+            fusion.resolve(mask_car(), "a", {"a"}, .6)[2], "agreement")
+        for t in (.8, 1., 1.2, 1.4, 1.6):
+            found = fusion.resolve(mask_car(), None, {"a"}, t)
+        self.assertEqual(found[0], "a")
+        self.assertEqual(found[2], "mask-temporal")
+
+    def test_low_confidence_can_never_start_or_finish_confirmation(self):
+        fusion = ParkingGeometryFusion()
+        for i in range(25):
+            zone, _, basis = fusion.resolve(
+                mask_car(conf=.65), None, {"a"}, .1*i)
+            self.assertIsNone(zone)
+            self.assertEqual(basis, "mask-uncertain")
+        self.assertIsNone(
+            fusion.resolve(mask_car(), None, {"a"}, 2.5)[0])
+
+    def test_single_stale_positive_does_not_confirm_after_gap(self):
+        fusion = ParkingGeometryFusion()
+        fusion.resolve(mask_car(), None, {"a"}, 0.)
+        for t in (1., 1.2, 1.4, 1.6):
+            zone, _, status = fusion.resolve(mask_car(), None, {"a"}, t)
+        self.assertIsNone(zone)
+        self.assertEqual(status, "mask-pending")
+
+    def test_duplicate_timestamp_does_not_add_positive_frames(self):
+        fusion = ParkingGeometryFusion()
+        for _ in range(30):
+            fusion.resolve(mask_car(), None, {"a"}, 0.)
+        out = fusion.resolve(mask_car(), None, {"a"}, 1.6)
+        self.assertIsNone(out[0])
+
+    def test_conflicting_zone_clears_prior_positive_evidence(self):
+        fusion = ParkingGeometryFusion()
+        for t in (0., .2, .4, .6, .8, 1., 1.2):
+            fusion.resolve(mask_car(), None, {"a"}, t)
+        out = fusion.resolve(mask_car(uid="b"), "a", {"a", "b"}, 1.4)
+        self.assertIsNone(out[0])
+        self.assertEqual(out[2], "conflict")
+        for t in (1.6, 1.8, 2.0):
+            result = fusion.resolve(mask_car(), None, {"a"}, t)
+            self.assertIsNone(result[0])
+            self.assertEqual(result[2], "mask-pending")
+
+    def test_ambiguous_adjacent_space_does_not_flicker_available(self):
+        zones = {"a": [[.1,.3],[.49,.3],[.49,.9],[.1,.9]],
+                 "b": [[.51,.3],[.9,.3],[.9,.9],[.51,.9]]}
+        fusion_demo = RecordedParkingStateMachine(zones, geometry_mode="fusion")
+
+        def uncertain_car():
+            return {
+                "track_id": 1, "name": "car",
+                "bbox": [300, 400, 700, 700],
+                "image_size": (1000,1000),
+                "confidence": .94,
+                "monitored": True, "night_verified": True,
+                **mask_car(uid="a"),
+            }
+
+        states, _ = fusion_demo.update([uncertain_car()], zones, inside, 0.)
+        self.assertEqual(states["b"], "unknown")
+        for t in (.3, .6):
+            states, _ = fusion_demo.update([], zones, inside, t)
+            self.assertEqual(states["b"], "unknown")
+        states, _ = fusion_demo.update([uncertain_car()], zones, inside, .7)
+        self.assertEqual(states["b"], "unknown")
+        for t in (1.0, 1.5):
+            states, _ = fusion_demo.update([], zones, inside, t)
+            self.assertEqual(states["b"], "unknown")
+        states, _ = fusion_demo.update([], zones, inside, 1.8)
+        self.assertEqual(states["b"], "available")
+
+    def test_unknown_is_immediate_and_legacy_mode_unchanged(self):
+        zones = {"a": [[.1,.3],[.49,.3],[.49,.9],[.1,.9]],
+                 "b": [[.51,.3],[.9,.3],[.9,.9],[.51,.9]]}
+        legacy = RecordedParkingStateMachine(zones, geometry_mode="legacy")
+        bbox = {"track_id":1,"bbox":[300,400,700,700],
+                "image_size":(1000,1000),"confidence":.95,
+                "monitored":True,"night_verified":True}
+        states,_ = legacy.update([bbox], zones, inside, 0.)
+        self.assertEqual(states["b"], "unknown")
+        states,_ = legacy.update([], zones, inside, .3)
+        self.assertEqual(states["b"], "available")
+
     def test_without_mask_preserves_legacy(self):
         fusion = ParkingGeometryFusion()
         result = fusion.resolve({"track_id": 1}, "a", {"a"}, 0)
