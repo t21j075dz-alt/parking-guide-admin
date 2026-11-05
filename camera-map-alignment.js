@@ -14,10 +14,15 @@
   const resultLabel=get("alignment-result");
   const exportButton=get("alignment-export"), applyButton=get("alignment-project");
   const file=get("alignment-file"), confirmed=get("alignment-confirm-visual");
+  const zoom=get("alignment-map-zoom"),steps=[...get("alignment-steps").children];
+  const pointCount=get("alignment-point-count"),nextAction=get("alignment-next-action");
+  const facilityLabel=get("alignment-facility-label"),spaceCount=get("alignment-space-count");
+  const photoInfo=get("alignment-image-info"),photoReady=get("alignment-photo-ready");
+  const placeholder=get("alignment-image-placeholder"),markers=[...get("alignment-point-markers").children];
   const NS="http://www.w3.org/2000/svg";
   const memoryKey="parkingCameraMapAlignmentsV1";
   let mapPoints=[],imagePoints=[],projected=null,currentFacility="",fileUrl=null;
-  let layoutChanged=false;
+  let layoutChanged=false, showWholeMap=false, exported=false;
 
   function notify(text){message.textContent=text;}
   function svg(tag,attrs,text){
@@ -36,8 +41,39 @@
   }
   function storageId(){return currentFacility+"|"+cameraId.value.trim();}
   function refresh(){
-    applyButton.disabled=mapPoints.length!==4||imagePoints.length!==4;
-    exportButton.disabled=!projected||!confirmed.checked;
+    const hasPhoto=!image.hidden&&image.naturalWidth>0;
+    const paired=Math.min(mapPoints.length,imagePoints.length);
+    const completed=mapPoints.length===4&&imagePoints.length===4;
+    applyButton.disabled=!hasPhoto||!completed;
+    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto;
+    confirmed.disabled=!projected||!hasPhoto;
+    pointCount.textContent="対応点 "+paired+" / 4 組";
+    nextAction.textContent=!hasPhoto?"先にカメラ写真を読み込んでください"
+      : projected
+        ? confirmed.checked ? "確認済みです。設定JSONを保存できます" : "緑の枠がすべて正しいか確認してください"
+        : completed ? "4組そろいました。自動計算に進んでください"
+        : mapPoints.length>imagePoints.length ? "右の写真で同じ場所の点"+(paired+1)+"を選択"
+        : "左のマップで点"+(paired+1)+"を選択";
+    markers.forEach((node,index)=>{
+      node.classList.toggle("is-complete",index<paired);
+      node.classList.toggle("is-current",index===paired&&paired<4);
+    });
+    const active=!hasPhoto?0:!completed?1:!projected?2:!confirmed.checked?2:3;
+    steps.forEach((node,index)=>{
+      node.classList.toggle("is-current",index===active);
+      node.classList.toggle("is-complete",index<active||(index===3&&exported));
+      if(index===active)node.setAttribute("aria-current","step");
+      else node.removeAttribute("aria-current");
+    });
+    photoInfo.textContent=hasPhoto
+      ? "写真 "+image.naturalWidth+" × "+image.naturalHeight+" px" : "カメラ写真なし";
+    photoReady.textContent=hasPhoto?"写真を表示中":"未選択";
+    photoReady.dataset.ready=String(hasPhoto);
+    placeholder.hidden=hasPhoto;
+    const current=layout();
+    spaceCount.textContent=current
+      ? "登録区画 "+(current.objects||[]).filter(item=>item.objectType==="parkingSpace").length+"件"
+      : "区画なし";
     resultLabel.textContent=projected
       ? projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
       : "区画位置は未確定です。既存の駐車状態は変更されません。";
@@ -48,7 +84,10 @@
     const pt=element.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;
     const clicked=pt.matrixTransform(matrix.inverse()),box=element.viewBox.baseVal;
     if(!box.width||!box.height)throw Error("画像の表示サイズが取得できません。");
-    const x=(clicked.x-box.x)/box.width,y=(clicked.y-box.y)/box.height;
+    // 描画倍率に関係なくマップの論理キャンバス全体へ正規化する。
+    const current=layout();
+    const x=element===map?clicked.x/Number(current?.canvas?.width):clicked.x;
+    const y=element===map?clicked.y/Number(current?.canvas?.height):clicked.y;
     if(x<0||x>1||y<0||y>1)throw Error("画像内の点を選んでください。");
     return [x,y];
   }
@@ -57,7 +96,10 @@
     map.replaceChildren();overlay.replaceChildren();
     if(!current)return;
     const width=Number(current.canvas?.width)||1,height=Number(current.canvas?.height)||1;
-    map.setAttribute("viewBox","0 0 "+width+" "+height);
+    const viewport=showWholeMap?{x:0,y:0,width,height}:core.parkingViewport(current);
+    map.setAttribute("viewBox",[viewport.x,viewport.y,viewport.width,viewport.height].join(" "));
+    zoom.textContent=showWholeMap?"区画を大きく表示":"地図全体を見る";
+    zoom.setAttribute("aria-pressed",String(showWholeMap));
     map.append(svg("rect",{x:0,y:0,width,height,fill:"#e9eef2"}));
     for(const item of current.objects||[]){
       if(item.objectType!=="parkingSpace")continue;
@@ -101,7 +143,7 @@
     }
     refresh();
   }
-  function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;draw();}
+  function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;exported=false;draw();}
   function remember(){
     try{
       const all=saved();
@@ -120,7 +162,7 @@
     imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,4):[];
     layoutChanged=Boolean(same&&item.layout_signature
       &&item.layout_signature!==core.layoutSignature(current));
-    projected=null;confirmed.checked=false;draw();
+    projected=null;confirmed.checked=false;exported=false;draw();
     if(mapPoints.length===4&&imagePoints.length===4){
       notify(layoutChanged
         ? "駐車区画の配置が前回から変わりました。保存済み4点を再利用できますが、映像上ですべての区画位置を再確認してください。"
@@ -129,7 +171,7 @@
   }
   function loadPhoto(src){
     image.onload=()=>{
-      image.hidden=false;projected=null;confirmed.checked=false;
+      image.hidden=false;projected=null;confirmed.checked=false;exported=false;
       const prior=saved()[storageId()];
       const ratio=image.naturalWidth/image.naturalHeight;
       if(prior?.image_ratio && Math.abs(ratio/prior.image_ratio-1)>.015){
@@ -159,7 +201,11 @@
     if(!current)return;
     cameraId.value=document.querySelector("#camera-monitor select")?.value||"home-camera-01";
     image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
+    showWholeMap=false;exported=false;
     dialog.showModal();restore();
+    facilityLabel.textContent=document.querySelector("#facility-select")?.selectedOptions?.[0]?.textContent
+      ||currentFacility;
+    refresh();
     if(!(current.objects||[]).some(o=>o.objectType==="parkingSpace")){
       notify("先に管理マップで駐車区画を作成してください。");
     }
@@ -189,25 +235,26 @@
   });
   map.addEventListener("click",event=>{
     if(mapPoints.length!==imagePoints.length||mapPoints.length>=4)return;
-    try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;draw();}
+    try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;exported=false;draw();}
     catch(error){notify(error.message);}
   });
   overlay.addEventListener("click",event=>{
     if(image.hidden||mapPoints.length!==imagePoints.length+1)return;
-    try{imagePoints.push(pointFromClick(event,overlay));projected=null;confirmed.checked=false;draw();}
+    try{imagePoints.push(pointFromClick(event,overlay));projected=null;confirmed.checked=false;exported=false;draw();}
     catch(error){notify(error.message);}
   });
   get("alignment-undo").addEventListener("click",()=>{
     if(mapPoints.length>imagePoints.length)mapPoints.pop();
     else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
-    projected=null;confirmed.checked=false;draw();
+    projected=null;confirmed.checked=false;exported=false;draw();
   });
   get("alignment-reset").addEventListener("click",reset);
+  zoom.addEventListener("click",()=>{showWholeMap=!showWholeMap;draw();});
   cameraId.addEventListener("change",()=>{
     // カメラIDだけを変更して別カメラの写真を誤利用しない。
     image.hidden=true;
     image.removeAttribute("src");
-    file.value="";
+    file.value="";exported=false;
     restore();
     notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
   });
@@ -216,7 +263,7 @@
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
     try{
       projected=core.generateZones(layout(),mapPoints,imagePoints);
-      confirmed.checked=false;draw();
+      confirmed.checked=false;exported=false;draw();
       notify("全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
     }catch(error){projected=null;draw();notify(error.message);}
   });
@@ -240,7 +287,8 @@
       const url=URL.createObjectURL(blob),link=document.createElement("a");
       link.href=url;link.download="camera-map-alignment-"+currentFacility+"-"+cam+".json";
       link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      notify("位置合わせJSONを出力しました。反映は実機映像での確認後に行ってください。");
+      exported=true;refresh();
+      notify("位置合わせJSONを保存しました。次はPCで実カメラ映像と区画の一致を確認してください。");
     }catch(error){notify(error.message);}
   });
 })();
