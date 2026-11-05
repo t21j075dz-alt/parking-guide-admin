@@ -1248,7 +1248,7 @@ def main():
         recording.close()  # 停止・通信断時にも動画とCSVを確定する。
         if writer and video_mode:
             try:
-                set_demo_visibility(writer, False)
+                set_demo_visibility(writer, False, config["facility_id"])
             except (error.URLError, error.HTTPError, OSError, ValueError) as exc:
                 print(f"【重要】録画実演の共有OFFに失敗しました。"
                       f"20秒で古い状態は無効になりますが管理者が公開設定を確認してください: {exc}")
