@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
+from vehicle_mask_dataset import sha256_file
 
 
 def sampling_seconds(duration, interval=30., focus_start=148.,
@@ -68,6 +69,8 @@ def main():
         capture.release()
         raise SystemExit("出力フォルダに既存ファイルがあります。上書きせず、新しいフォルダを指定してください")
     out.mkdir(parents=True, exist_ok=True)
+    print("【動画の出所確認】学習・検証への重複混入を防ぐため、元動画の識別値を計算します")
+    video_sha256 = sha256_file(video)
     manifest = []
     for sec in timestamps:
         # Target frame index is preferable for deterministic extraction and
@@ -82,12 +85,13 @@ def main():
         if not cv2.imwrite(str(output_file), frame, [
                 int(cv2.IMWRITE_JPEG_QUALITY), 96]):
             continue
-        manifest.append((f"{sec:.3f}", str(frame_no), filename))
+        manifest.append((f"{sec:.3f}", str(frame_no), filename, video_sha256))
     capture.release()
     with (out / "annotation_manifest.csv").open(
             "w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream)
-        writer.writerow(("video_seconds", "frame_index", "image"))
+        writer.writerow(("video_seconds", "frame_index", "image",
+                         "source_video_sha256"))
         writer.writerows(manifest)
     print(f"【画像の抽出】{len(manifest)}枚 / 保存先: {out}")
     print("【重要】これは未ラベル画像です。車体輪郭を人が囲ってアノテーションしてから学習してください。")
