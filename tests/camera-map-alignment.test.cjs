@@ -81,4 +81,7 @@ test("empty or malformed maps use safe full map bounds",()=>{
   const whole=parkingViewport({canvas:{width:1800,height:1200},objects:[]});
   assert.deepEqual(whole,{x:0,y:0,width:1800,height:1200});
   assert.throws(()=>parkingViewport({canvas:{width:0,height:1200},objects:[]}),/不正/);
+  assert.deepEqual(parkingViewport({canvas:{width:1800,height:1200},objects:[
+    {uid:"bad",objectType:"parkingSpace",x:10,y:10,width:0,height:80}
+  ]}),{x:0,y:0,width:1800,height:1200});
 });
