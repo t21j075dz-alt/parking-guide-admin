@@ -7,6 +7,7 @@ import unittest
 from monitor import classify_spaces, inside
 from vehicle_segmentation import (
     SegmentationDiagnosticRecorder, attach_vehicle_contours, box_iou,
+    best_visible_bbox,
     draw_vehicle_contours, estimate_mask_zone, lower_silhouette_points,
 )
 
@@ -54,6 +55,18 @@ class SegmentationTests(unittest.TestCase):
                         (25, 75), (20, 60)]
         self.result = FakeResult([[20, 20, 80, 80]], [2], [.91],
                                  [self.polygon])
+
+    def test_visible_mask_box_replaces_loose_detector_box_only_when_trusted(self):
+        det = {"bbox": [0, 0, 100, 100],
+               "segmentation_bbox": [10, 10, 90, 90],
+               "segmentation_confidence": .93, "segmentation_match_iou": .9}
+        self.assertEqual(best_visible_bbox(det), [10, 10, 90, 90])
+        self.assertEqual(det["bbox"], [0, 0, 100, 100])
+        det["segmentation_confidence"] = .20
+        self.assertEqual(best_visible_bbox(det), [0, 0, 100, 100])
+        det["segmentation_confidence"] = .93
+        det["segmentation_bbox"] = [200, 200, 300, 300]
+        self.assertEqual(best_visible_bbox(det), [0, 0, 100, 100])
 
     def test_mask_matches_original_track_with_lower_silhouette(self):
         detection = {"name": "car", "bbox": [20, 20, 80, 80],

@@ -74,6 +74,8 @@ class Remembered:
     bbox: list | None = None
     # 最後の2回の観測に基づく画面上の移動速度（正規化座標/秒）
     velocity: tuple = (0.0, 0.0)
+    # High-confidence instance-mask box, for brief raw-ID dropouts.
+    segmentation_bbox: list | None = None
 
 
 class StableIdMatcher:
@@ -191,6 +193,46 @@ class StableIdMatcher:
 
         candidates = []
         observations = []
+        mask_bridge_owners = {}
+        current_raw_ids = {
+            int(det["track_id"]) for det in detections
+            if det.get("track_id") is not None
+        }
+
+        def unique_mask_bridge(record, vector):
+            """Bridge a short missing YOLO ID using consecutive mask geometry.
+
+            Never join two cars just because their boxes overlap. We require
+            a validated instance mask on both observations, same vehicle group,
+            a short real timestamp gap, and ONE unique plausible prior car.
+            Existing raw IDs visible in this same frame take precedence.
+            """
+            if record.get("track_id") is not None:
+                return None
+            if (not record.get("segmentation_bbox") or
+                    float(record.get("segmentation_match_iou") or 0) < .72 or
+                    float(record.get("segmentation_confidence") or 0) < .65):
+                return None
+            plausible = []
+            for sid, old in self.last.items():
+                gap = float(now) - old.seen
+                if (old.group != vehicle_group(record["name"]) or
+                        old.group != "four_wheel" or
+                        old.raw_id in current_raw_ids or
+                        not old.segmentation_bbox or
+                        not (0 <= gap <= .75)):
+                    continue
+                overlap = box_iou(record["segmentation_bbox"], old.segmentation_bbox)
+                if overlap < .50:
+                    continue
+                color = similarity(vector, old.appearance)
+                # Different roof/side visibility makes HSV volatile during a
+                # U-turn. Accept very strong mask IoU without a color match;
+                # for weaker geometry, require a second appearance cue.
+                if overlap < .70 and (color is None or color < .55):
+                    continue
+                plausible.append(sid)
+            return plausible[0] if len(plausible) == 1 else None
         # Relaxed long-distance ReID is permissible only for an actual
         # single-car scene; prevent mixing adjacent occupied stalls.
         # Count all identities still inside the actual retention window.
@@ -244,6 +286,18 @@ class StableIdMatcher:
             vec = (appearance_vector(frame, record)
                    if frame is not None else record.get("appearance"))
             observations.append((index, record, vec))
+            mask_owner = unique_mask_bridge(record, vec)
+            if mask_owner is not None:
+                # This is a HIGH priority geometric continuation for a
+                # missing raw ID, not a newly invented independent identity.
+                candidates.append((9.0, index, mask_owner))
+                mask_bridge_owners[index] = mask_owner
+                continue
+            if raw is None and record.get("segmentation_checked"):
+                # In segmentation mode, a missing raw ID with ambiguous or
+                # absent mask must NOT fall back to a weaker generic match.
+                observations[-1] = (index, record, vec)
+                continue
             # Prefer a unique existing owner of the identical raw YOLO
             # ID, even when other stale ID records remain in memory.
             raw_owners = [
@@ -252,6 +306,10 @@ class StableIdMatcher:
             ]
             unique_turn_sid = exclusive_turn_match(record, vec)
             for sid, old in self.last.items():
+                if raw is None and old.raw_id in current_raw_ids:
+                    # A currently visible raw-ID owner cannot also be
+                    # assigned to a second untracked duplicate.
+                    continue
                 if len(raw_owners) == 1 and sid != raw_owners[0]:
                     # Only enforce ownership preference when that owner's
                     # position is still plausible, to avoid tracking an ID
@@ -350,9 +408,11 @@ class StableIdMatcher:
                 vec if vec is not None else (prev.appearance if prev else None),
                 record.get("bbox") or (prev.bbox if prev else None),
                 velocity,
+                record.get("segmentation_bbox"),
             )
             record["raw_track_id"] = raw
             record["id_reassociated"] = reassociated
+            record["id_mask_bridged"] = (mask_bridge_owners.get(index) == stable)
             record["track_id"] = stable
             output.append(record)
         return output
