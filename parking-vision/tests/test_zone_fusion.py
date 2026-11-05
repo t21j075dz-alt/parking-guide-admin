@@ -116,7 +116,9 @@ class ZoneFusionTests(unittest.TestCase):
             if t < 5.0:
                 self.assertNotEqual(states["left"], "occupied")
         self.assertEqual(phases["left"], "stopped")
-        self.assertEqual(states["right"], "available")
+        # A mask-only estimate cannot prove the neighboring stall is empty
+        # while the bounding-box footprint still touches both stalls.
+        self.assertEqual(states["right"], "unknown")
 
     def test_adjacent_stall_remains_unknown_until_evidence_agrees(self):
         model = RecordedParkingStateMachine(self.zones)
