@@ -326,6 +326,10 @@ class UnifiedAnnotator:
                 self.mode.set(old_mode)
                 return
         self.active_mode = new_mode
+        if new_mode != old_mode:
+            # Numeric class IDs are reused between independent tasks.
+            # Reset to the first visible class to avoid accidental mislabels.
+            self.class_id.set(next(iter(self.classes())))
         self.build_classes()
         if self.image is not None:
             self.read_current()
@@ -412,7 +416,7 @@ def main(argv=None):
     if argv and argv[0] == "export":
         return export_cli(argv[1:])
     parser = argparse.ArgumentParser(
-        description="車両の輪郭とコーン等の障害物を同じ画面で登録（教師データ形式は別）")
+        description="車両輪郭・障害物・駐車枠の路面標示を一画面で登録")
     parser.add_argument("--images", help="242枚などの元画像フォルダ。省略すると選択画面を開く")
     parser.add_argument("--workspace", default="annotation_workspaces/photos_242",
                         help="登録結果を保存する別フォルダ。再開時も同じ場所")
@@ -424,7 +428,7 @@ def main(argv=None):
         chooser = Tk()
         chooser.withdraw()
         args.images = filedialog.askdirectory(
-            parent=chooser, title="車両・障害物を登録する写真フォルダを選択")
+            parent=chooser, title="車両・障害物・駐車場構造を登録する写真フォルダを選択")
         chooser.destroy()
         if not args.images:
             print("写真フォルダの選択をキャンセルしました")
@@ -432,7 +436,7 @@ def main(argv=None):
     try:
         ws = AnnotationWorkspace(args.images, args.workspace)
         print(f"【写真一覧】{len(ws.photos)}枚を確認。元写真は変更しません")
-        print("【安全】車体は輪郭ポリゴン／障害物は四角枠。正解形式は別に保存")
+        print("【安全】車体・駐車場構造は輪郭ポリゴン／障害物は四角枠。タスク別に保存")
         print("【再開】保存済み画像は保持され、未登録画像から続けます")
         UnifiedAnnotator(ws, start_mode=args.start_mode)
     except (OSError, ValueError) as exc:
