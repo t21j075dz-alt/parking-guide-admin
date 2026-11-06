@@ -18,11 +18,17 @@ from pathlib import Path
 from label_obstacles import CLASS_KEYS as OBSTACLE_NAMES, decode_yolo_line, yolo_line
 from vehicle_mask_dataset import COCO_NAMES, validate_label, sha256_file
 
-TASKS = ("vehicle", "obstacle")
+TASKS = ("vehicle", "obstacle", "layout")
 EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 VEHICLE_CLASSES = {2: "乗用車・ミニバン", 3: "二輪車", 5: "バス", 7: "トラック"}
 OBSTACLE_CLASSES = dict(enumerate(("カラーコーン", "ショッピングカート",
                                     "バリケード", "車止め・ポール", "その他の障害物")))
+# Ground markings are segmentation polygons, NOT the vehicle or obstacle labels.
+# A visible area only: never invent hidden bay borders behind parked vehicles.
+LAYOUT_NAMES = ("parking_space", "parking_line", "drive_aisle",
+                "pedestrian_crossing", "direction_arrow")
+LAYOUT_CLASSES = dict(enumerate(("駐車枠の見える床面", "白線・区画線",
+                                 "車両通路の見える路面", "横断歩道", "進行方向の矢印")))
 
 
 def validate_obstacles(text, context="obstacle"):
@@ -38,11 +44,59 @@ def validate_obstacles(text, context="obstacle"):
     return count
 
 
+def validate_layout(text, context="layout"):
+    # Separate from COCO80 vehicle IDs, requiring at least three polygon vertices.
+    from vehicle_mask_dataset import polygon_area
+    count = 0
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        parts = line.split()
+        if len(parts) < 7 or len(parts) % 2 != 1:
+            raise ValueError(f"{context}:{number}: 区画・路面は3点以上の輪郭で指定")
+        try:
+            category = int(parts[0])
+            coords = [float(v) for v in parts[1:]]
+        except ValueError as exc:
+            raise ValueError(f"{context}:{number}: 数値が不正です") from exc
+        if category not in LAYOUT_CLASSES or not all(
+                math.isfinite(v) and 0 <= v <= 1 for v in coords):
+            raise ValueError(f"{context}:{number}: 種類・座標が不正です")
+        if polygon_area(coords) < 1e-6:
+            raise ValueError(f"{context}:{number}: 輪郭の面積が小さすぎます")
+        count += 1
+    return count
+
+
+def layout_polygon_to_yolo(class_id, points, width, height):
+    if class_id not in LAYOUT_CLASSES or width <= 0 or height <= 0 or len(points) < 3:
+        raise ValueError("路面の輪郭は3点以上で指定してください")
+    coordinates = []
+    for x, y in points:
+        if not (0 <= x < width and 0 <= y < height):
+            raise ValueError("画像の外には点を置けません")
+        coordinates.extend([x / width, y / height])
+    line = str(class_id) + " " + " ".join(f"{v:.6f}" for v in coordinates)
+    validate_layout(line)
+    return line
+
+
+def layout_to_polygon(line, width, height):
+    validate_layout(line)
+    fields = line.split()
+    return int(fields[0]), [
+        (min(width - 1, round(float(fields[i]) * width)),
+         min(height - 1, round(float(fields[i + 1]) * height)))
+        for i in range(1, len(fields), 2)]
+
+
 def validate_task_label(task, text, context="label"):
     if task == "vehicle":
         return validate_label(text, context)
     if task == "obstacle":
         return validate_obstacles(text, context)
+    if task == "layout":
+        return validate_layout(text, context)
     raise ValueError(f"未対応の種類: {task}")
 
 
@@ -198,7 +252,8 @@ def export_dataset(train_workspace, task, output,
         writer = csv.writer(stream)
         writer.writerow(("split", "relative_original", "dataset_image", "sha256"))
         writer.writerows(rows)
-    names = COCO_NAMES if task == "vehicle" else OBSTACLE_NAMES
+    names = (COCO_NAMES if task == "vehicle" else
+             OBSTACLE_NAMES if task == "obstacle" else LAYOUT_NAMES)
     yaml_lines = ["# Verified human labels; session-separated splits",
                   "path: " + json.dumps(output.as_posix(), ensure_ascii=False),
                   "train: images/train",
