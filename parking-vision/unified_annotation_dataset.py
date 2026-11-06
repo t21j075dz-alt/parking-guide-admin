@@ -182,10 +182,12 @@ class AnnotationWorkspace:
 
 def export_dataset(train_workspace, task, output,
                    val_workspace=None, test_workspace=None,
-                   allow_train_only=False):
+                   allow_train_only=False, reviewed_only=False):
     """Export only explicitly reviewed images. Never split one session randomly."""
     if task not in TASKS:
         raise ValueError(f"未知の種類: {task}")
+    if reviewed_only and (task != "layout" or val_workspace or test_workspace or not allow_train_only):
+        raise ValueError("部分書き出しは路面レイアウトの試験データ（--train-only）専用です")
     if not val_workspace and not allow_train_only:
         raise ValueError("独立した検証写真が必要です。試験のみなら--train-onlyを指定")
     if test_workspace and not val_workspace:
@@ -212,10 +214,15 @@ def export_dataset(train_workspace, task, output,
     # Validate everything BEFORE writing any output.
     manifest = {}
     seen_hashes = {}
+    skipped = {}
     for split, ws in groups.items():
         records = []
+        skipped[split] = 0
         for p in ws.photos:
             text, reviewed = ws.read(p, task)
+            if not reviewed and reviewed_only:
+                skipped[split] += 1
+                continue
             if not reviewed:
                 raise ValueError(
                     f"{split}: 未確認画像があります（{p['relative']}）。全対象を登録、"
@@ -266,6 +273,7 @@ def export_dataset(train_workspace, task, output,
     (output / "dataset_summary.json").write_text(json.dumps(
         {"task": task, "splits": stats, "independent_validation": bool(val_workspace),
          "training_only": not bool(val_workspace),
+         "skipped_unreviewed": skipped,
          "warning": "train-only datasets do not support accuracy claims"},
         ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output / "dataset.yaml", stats
@@ -296,6 +304,8 @@ def export_cli(argv):
     parser.add_argument("--output", required=True)
     parser.add_argument("--train-only", action="store_true",
                         help="独立検証なしの試験データ。精度スコアの評価は禁止")
+    parser.add_argument("--only-reviewed", action="store_true",
+                        help="路面レイアウトに限り、人が確認・保存した画像だけで試験書き出し")
     args = parser.parse_args(argv)
     if args.val_images and not args.val_workspace:
         parser.error("val-imagesを指定するときはval-workspaceも必要です")
@@ -312,7 +322,7 @@ def export_cli(argv):
                 if args.test_workspace else None)
         yaml, counts = export_dataset(
             train, args.mode, args.output, val_workspace=val, test_workspace=test,
-            allow_train_only=args.train_only)
+            allow_train_only=args.train_only, reviewed_only=args.only_reviewed)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
     print("【出力完了】", yaml)
