@@ -34,8 +34,8 @@ class LayoutAnnotationTests(unittest.TestCase):
         self.assertEqual(len(points), 4)
         with self.assertRaises(ValueError):
             validate_layout("0 .5 .5 .3 .3")  # box instead of polygon
-        with self.assertRaises(ValueError):
-            validate_layout(VEHICLE)  # class 2 is legal for layout but meaning differs
+        # COCO car class 2 numerically overlaps a layout class, so label paths
+        # are task-separated; numeric equality does not authorize importing it.
         with self.assertRaises(ValueError):
             validate_layout("9 0.1 0.1 0.9 0.1 0.9 0.9")
         with self.assertRaises(ValueError):
@@ -54,7 +54,7 @@ class LayoutAnnotationTests(unittest.TestCase):
             self.assertEqual(ws.progress()["layout"], 1)
             self.assertEqual(before, [(ws.read(p, "vehicle")[0], ws.read(p, "obstacle")[0])
                                       for p in ws.photos])
-            self.assertEqual(ws.next_unreviewed(), 0 if False else 1)  # next unreviewed layout frame
+            self.assertEqual(ws.next_unreviewed(), 1)  # next unreviewed layout frame
 
     def test_only_reviewed_layout_export_does_not_invent_negatives(self):
         with TemporaryDirectory() as d:
