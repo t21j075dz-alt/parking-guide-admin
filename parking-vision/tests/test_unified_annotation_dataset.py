@@ -32,7 +32,7 @@ class UnifiedDatasetTests(unittest.TestCase):
             ws.save(photo, "obstacle", "")
             self.assertTrue(ws.is_reviewed(photo, "vehicle"))
             self.assertTrue(ws.is_reviewed(photo, "obstacle"))
-            self.assertEqual(ws.progress(), {"vehicle": 1, "obstacle": 1})
+            self.assertEqual(ws.progress(), {"vehicle": 1, "obstacle": 1, "layout": 0})
             self.assertNotEqual(ws.label_path(photo, "vehicle"),
                                 ws.label_path(photo, "obstacle"))
             self.assertEqual(ws.read(photo, "vehicle")[0], VEHICLE)
