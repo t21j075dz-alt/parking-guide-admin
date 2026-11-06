@@ -16,7 +16,8 @@ from pathlib import Path
 from annotate_vehicle_masks import polygon_to_yolo, yolo_to_polygon
 from label_obstacles import decode_yolo_line, yolo_line
 from unified_annotation_dataset import (
-    AnnotationWorkspace, OBSTACLE_CLASSES, VEHICLE_CLASSES, export_cli,
+    AnnotationWorkspace, OBSTACLE_CLASSES, VEHICLE_CLASSES, LAYOUT_CLASSES,
+    layout_polygon_to_yolo, layout_to_polygon, export_cli,
 )
 
 MAX_PREVIEW = (1180, 760)
@@ -31,7 +32,10 @@ class UnifiedAnnotator:
 
         self.tk, self.ttk, self.cv2, self.np = tk, ttk, cv2, np
         self.workspace = workspace
-        self.index = workspace.next_unreviewed() or 0
+        # Resume the selected task instead of jumping to another task's missing label.
+        self.index = next(
+            (i for i, p in enumerate(workspace.photos)
+             if not workspace.is_reviewed(p, start_mode)), 0)
         # Tkinter Variables require an existing root window. Create it first.
         self.root = tk.Tk()
         self.mode = tk.StringVar(master=self.root, value=start_mode)
@@ -51,7 +55,7 @@ class UnifiedAnnotator:
 
         head = ttk.Frame(self.root, padding=(10, 8))
         head.pack(fill="x")
-        ttk.Label(head, text="車両の輪郭・障害物を1画面で登録",
+        ttk.Label(head, text="車両・障害物・駐車場の構造を1画面で登録",
                   font=("Yu Gothic UI", 15, "bold")).pack(anchor="w")
         self.progress = tk.StringVar(master=self.root)
         ttk.Label(head, textvariable=self.progress, font=("Yu Gothic UI", 10)).pack(anchor="w")
@@ -63,6 +67,9 @@ class UnifiedAnnotator:
                         command=self.change_mode).pack(side="left", padx=7)
         ttk.Radiobutton(mode_row, text="コーン・障害物（ドラッグ）",
                         variable=self.mode, value="obstacle",
+                        command=self.change_mode).pack(side="left", padx=7)
+        ttk.Radiobutton(mode_row, text="区画・白線・路面（輪郭をクリック）",
+                        variable=self.mode, value="layout",
                         command=self.change_mode).pack(side="left", padx=7)
         self.classes_frame = ttk.Frame(head)
         self.classes_frame.pack(fill="x", pady=5)
@@ -108,7 +115,8 @@ class UnifiedAnnotator:
         self.root.mainloop()
 
     def classes(self):
-        return VEHICLE_CLASSES if self.mode.get() == "vehicle" else OBSTACLE_CLASSES
+        return (VEHICLE_CLASSES if self.mode.get() == "vehicle" else
+                OBSTACLE_CLASSES if self.mode.get() == "obstacle" else LAYOUT_CLASSES)
 
     def build_classes(self):
         for child in self.classes_frame.winfo_children():
@@ -125,6 +133,8 @@ class UnifiedAnnotator:
             "車両：輪郭に沿って左クリック → Enterで1台確定。車が複数なら全台を登録。"
             if self.mode.get() == "vehicle" else
             "障害物：種類を選び、対象をドラッグで四角く囲みます。複数個登録できます。"
+            if self.mode.get() == "obstacle" else
+            "区画・路面：見える部分のみ点で囲みEnterで確定。隠れた区画や線は推測しないでください。"
         )
 
     def numeric_shortcut(self, event):
@@ -166,8 +176,11 @@ class UnifiedAnnotator:
                     self.objects = [yolo_to_polygon(line, self.width, self.height)
                                     for line in content.splitlines() if line.strip()]
                     # NOT marked reviewed until person explicitly presses Save.
-        else:
+        elif self.mode.get() == "obstacle":
             self.objects = [decode_yolo_line(line)
+                            for line in text.splitlines() if line.strip()]
+        else:
+            self.objects = [layout_to_polygon(line, self.width, self.height)
                             for line in text.splitlines() if line.strip()]
         self.pending = []
         self.drag_start = None
@@ -184,6 +197,7 @@ class UnifiedAnnotator:
             f"{self.index + 1} / {len(self.workspace.photos)}枚　"
             f"車両登録済 {counts['vehicle']}枚　"
             f"障害物登録済 {counts['obstacle']}枚　"
+            f"路面登録済 {counts['layout']}枚　"
             f"現在：{p['relative']}　{state}（{len(self.objects)}件）")
 
     def refresh_photo(self):
@@ -202,14 +216,15 @@ class UnifiedAnnotator:
         c = self.canvas
         c.delete("all")
         c.create_image(0, 0, image=self.photo, anchor="nw")
-        if self.mode.get() == "vehicle":
+        if self.mode.get() in ("vehicle", "layout"):
+            class_names = (VEHICLE_CLASSES if self.mode.get() == "vehicle" else LAYOUT_CLASSES)
             for cls, points in self.objects:
                 xy = [coord * self.scale for point in points for coord in point]
                 if len(xy) >= 6:
                     c.create_polygon(*xy, outline="#ffd166",
                                      fill="", width=3)
                     c.create_text(xy[0] + 3, xy[1] - 3,
-                                  text=VEHICLE_CLASSES[cls], anchor="sw",
+                                  text=class_names[cls], anchor="sw",
                                   fill="white", font=("Yu Gothic UI", 10, "bold"))
             pts = [v * self.scale for point in self.pending for v in point]
             if len(pts) >= 4:
@@ -238,7 +253,7 @@ class UnifiedAnnotator:
 
     def on_mouse_down(self, event):
         point = self.point(event)
-        if self.mode.get() == "vehicle":
+        if self.mode.get() in ("vehicle", "layout"):
             self.pending.append(point)
             self.dirty = True
             self.draw()
@@ -267,14 +282,15 @@ class UnifiedAnnotator:
         self.draw()
 
     def finish_polygon(self):
-        if self.mode.get() != "vehicle":
+        if self.mode.get() not in ("vehicle", "layout"):
             return
         from tkinter import messagebox
         if not self.pending:
             return
         try:
-            polygon_to_yolo(self.class_id.get(), self.pending,
-                            self.width, self.height)
+            convert = (polygon_to_yolo if self.mode.get() == "vehicle"
+                       else layout_polygon_to_yolo)
+            convert(self.class_id.get(), self.pending, self.width, self.height)
         except ValueError as exc:
             messagebox.showerror("輪郭を確認", str(exc))
             return
@@ -290,7 +306,7 @@ class UnifiedAnnotator:
         self.draw()
 
     def undo(self):
-        if self.mode.get() == "vehicle" and self.pending:
+        if self.mode.get() in ("vehicle", "layout") and self.pending:
             self.pending.pop()
         elif self.objects:
             self.objects.pop()
@@ -332,8 +348,10 @@ class UnifiedAnnotator:
                     "対象なしを確認", "本当にこの画像に対象が一つもありませんか？"
                     "対象外の種類を確認した場合だけ空ラベルで保存します。"):
                 return
-        if self.mode.get() == "vehicle":
-            lines = [polygon_to_yolo(cls, pts, self.width, self.height)
+        if self.mode.get() in ("vehicle", "layout"):
+            convert = (polygon_to_yolo if self.mode.get() == "vehicle"
+                       else layout_polygon_to_yolo)
+            lines = [convert(cls, pts, self.width, self.height)
                      for cls, pts in self.objects]
         else:
             lines = [yolo_line(cls, rect) for cls, rect in self.objects]
@@ -341,19 +359,29 @@ class UnifiedAnnotator:
         self.workspace.save(photo, self.mode.get(),
                             "\n".join(lines) + ("\n" if lines else ""))
         self.dirty = False
-        other = "obstacle" if self.mode.get() == "vehicle" else "vehicle"
-        if not self.workspace.is_reviewed(photo, other):
+        # Only the current photo may be auto-advanced; never mark other tasks reviewed.
+        other = next((task for task in ("vehicle", "obstacle", "layout")
+                      if not self.workspace.is_reviewed(photo, task)), None)
+        if other:
             self.mode.set(other)
             self.change_mode()
         else:
             next_index = self.workspace.next_unreviewed(self.index + 1)
             if next_index is None:
                 messagebox.showinfo("登録完了",
-                                    "すべての写真を両方の種類で確認しました。"
+                                    "すべての写真を3種類で確認しました。"
                                     "別撮影の検証データも用意してから学習してください。")
                 self.refresh_status()
             else:
                 self.index = next_index
+                # Start each new photo at its first unreviewed task.
+                next_photo = self.workspace.photos[self.index]
+                target_mode = next((task for task in ("vehicle", "obstacle", "layout")
+                                    if not self.workspace.is_reviewed(next_photo, task)), None)
+                if target_mode:
+                    self.mode.set(target_mode)
+                    self.active_mode = target_mode
+                    self.build_classes()
                 self.load()
 
     def move(self, delta):
@@ -388,7 +416,7 @@ def main(argv=None):
     parser.add_argument("--images", help="242枚などの元画像フォルダ。省略すると選択画面を開く")
     parser.add_argument("--workspace", default="annotation_workspaces/photos_242",
                         help="登録結果を保存する別フォルダ。再開時も同じ場所")
-    parser.add_argument("--start-mode", choices=("vehicle", "obstacle"),
+    parser.add_argument("--start-mode", choices=("vehicle", "obstacle", "layout"),
                         default="vehicle")
     args = parser.parse_args(argv)
     if not args.images:
