@@ -55,6 +55,31 @@ $researchPython = "$env:USERPROFILE\parking-yolo-home\.venv-gpu\Scripts\python.e
 & $researchPython .\training_gap_report.py
 ~~~
 
+
+## 3本を1コマンドで順番に学習する場合（おすすめ）
+
+手作業で1～3の学習コマンドを繰り返す必要はありません。
+実行前の確認のみ（GPU学習は始まらない）：
+
+~~~powershell
+& $researchPython .\auto_train_all.py
+~~~
+
+車体輪郭のlighting学習、障害物のparking学習、
+車体輪郭から検出枠への自動変換とvehicle_detectのparking学習を
+すべて順番に実行する：
+
+~~~powershell
+& $researchPython .\auto_train_all.py --run --epochs 40 --imgsz 960 --batch 2
+~~~
+
+最初に登録済みの241枚分の2つのデータセットを検証します。
+CUDA対応GPUが使えない場合は安全のため停止します。
+CPU実行を明示的に許可する場合のみ --allow-cpu を指定します。
+学習結果は3つの異なる名前の実験フォルダへ保存されます。
+すでに同名で学習済みの場合、新しい実験名に変えるか個別コマンドを使ってください。
+稼働中のモデルへは自動反映しません。
+
 ## 安全対策
 
 - 3モデルの学習は同時実行せず、上から順番に実行する。
