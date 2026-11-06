@@ -20,7 +20,7 @@ def prepare_options(dataset, task, *, epochs=40, imgsz=960, batch=2,
     if not meta.is_file():
         raise ValueError("統合ラベルから作ったdataset_summary.jsonが必要です")
     details = json.loads(meta.read_text(encoding="utf-8"))
-    if details.get("task") != task or task not in ("vehicle", "obstacle"):
+    if details.get("task") != task or task not in ("vehicle", "obstacle", "layout"):
         raise ValueError("データセットと学習対象が一致しません")
     if not (1 <= epochs <= 500 and 320 <= imgsz <= 1536 and 1 <= batch <= 32):
         raise ValueError("epochs/imgsz/batchは許可範囲内で指定してください")
@@ -52,7 +52,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="手動で確認した242枚等を使い、車体輪郭と障害物を別々に追加学習")
     parser.add_argument("--data", required=True)
-    parser.add_argument("--task", choices=["vehicle", "obstacle"], required=True)
+    parser.add_argument("--task", choices=["vehicle", "obstacle", "layout"], required=True)
     parser.add_argument("--model", help="segはyolo11s-seg.pt、障害物はyolo11n.ptなど")
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--imgsz", type=int, default=960)
@@ -70,12 +70,13 @@ def main():
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
     model_path = args.model or ("yolo11s-seg.pt" if args.task == "vehicle"
+                                else "yolo11n-seg.pt" if args.task == "layout"
                                 else "yolo11n.pt")
-    if args.task == "vehicle":
+    if args.task in ("vehicle", "layout"):
         opts.update({"mosaic": 0.25, "mixup": 0., "copy_paste": 0.})
     from ultralytics import YOLO
     model = YOLO(model_path)
-    expected = "segment" if args.task == "vehicle" else "detect"
+    expected = "segment" if args.task in ("vehicle", "layout") else "detect"
     if model.task != expected:
         parser.error(f"{args.task}には{expected}タスクの重みが必要です")
     if args.device == "auto":
