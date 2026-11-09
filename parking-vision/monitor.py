@@ -272,9 +272,12 @@ class Vehicle:
             # Require fresh, stationary evidence in a new stable stall; an
             # uncertain location, a moving pass or the old stall cannot
             # create a second parking event.
-            new_stall = (self.smoothed_uid is not None and
-                         self.smoothed_uid != self.space_uid)
-            if new_stall and self.stationary:
+            # A car may abort an exit and stop again in the SAME stall,
+            # or park in a different one. EXITING already requires positive
+            # evidence of leaving the old position. Require fresh stable zone
+            # votes, stationary observations, and park_seconds again for both.
+            reparked_stall = self.smoothed_uid is not None
+            if reparked_stall and self.stationary:
                 if self.candidate_uid != self.smoothed_uid:
                     self.candidate_uid = self.smoothed_uid
                     self.candidate_since = now
