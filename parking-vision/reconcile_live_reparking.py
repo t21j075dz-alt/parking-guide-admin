@@ -11,6 +11,13 @@ from recorded_parking_states import RecordedParkingStateMachine
 from reconcile_video_reparking import reconcile_confirmed_video_reparking
 
 
+def should_enable_live_reparking(*, video_mode, dry_run, config):
+    """Live dry-run gets the trial by default; production requires boolean True."""
+    return not video_mode and (
+        bool(dry_run) or config.get("live_reparking_sync_enabled") is True
+    )
+
+
 class LiveReparkingEvidence:
     """Accumulate image-time, per-vehicle evidence, without sharing any state with video replay.
 
