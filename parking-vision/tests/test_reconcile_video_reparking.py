@@ -7,8 +7,8 @@ vehicle's displayed/session phase, not the stall's occupancy decision.
 import unittest
 from types import SimpleNamespace
 
-from monitor import Vehicle
-from recorded_parking_states import StallProgress
+from monitor import Vehicle, VehicleTracker, inside
+from recorded_parking_states import StallProgress, RecordedParkingStateMachine
 from reconcile_video_reparking import reconcile_confirmed_video_reparking
 
 
@@ -63,6 +63,47 @@ class ReconcileRecordedReparkingTests(unittest.TestCase):
         self.assertEqual(car.phase, "parked")
         self.assertEqual(car.space_uid, "space_003")
         self.assertEqual(car.session_id, original_session_id)
+
+    def test_real_recorded_stall_machine_fills_missing_monitor_zone(self):
+        # Reproduce the November 9 failure mechanism: a continuously tracked
+        # car is physically inside stall 1, but the live zone_candidate is None.
+        zones = {"space_001": [[0., .2], [.45, .2], [.45, .8], [0., .8]],
+                 "space_002": [[.55, .2], [1., .2], [1., .8], [.55, .8]]}
+        tracker = VehicleTracker("facility-01", "camera-01", park_seconds=5)
+        car = Vehicle("camera-01", "facility-01", 1, phase="exiting",
+                      space_uid="space_002", park_anchor=(.7, .48))
+        tracker.vehicles[1] = car
+        machine = RecordedParkingStateMachine(zones)
+        events_seen = []
+        for t in range(8):
+            d = {
+                "track_id": 1, "confidence": .96, "monitored": True,
+                "night_verified": True, "zone_candidate": None,
+                "point": (.20, .48), "bbox": (100, 100, 300, 500),
+                "image_size": (1000, 1000)
+            }
+            tracker.update([d], zones, [], float(t))
+            statuses, demo_phases = machine.update([d], zones, inside, float(t))
+            updates = reconcile_confirmed_video_reparking(
+                tracker, machine, [d], float(t))
+            events_seen.extend(updates)
+            if t < 5:
+                self.assertNotEqual(car.phase, "parked")
+            if t >= 5:
+                self.assertEqual(statuses["space_001"], "occupied")
+                self.assertEqual(demo_phases["space_001"], "stopped")
+                self.assertEqual(car.phase, "parked")
+        self.assertEqual(len(events_seen), 1)
+        self.assertEqual(events_seen[0]["space_uid"], "space_001")
+
+    def test_moving_second_car_prevents_unjustified_repark(self):
+        car, tracker, recorded = scenario()
+        another = detection(2, "space_001", stopped=False)
+        another["point"] = (.3, .72)
+        events = reconcile_confirmed_video_reparking(
+            tracker, recorded, [detection(1, "space_001"), another], 495.6)
+        self.assertEqual(events, [])
+        self.assertEqual(car.phase, "exiting")
 
     def test_same_stall_return_allowed_only_after_stopped(self):
         car, tracker, recorded = scenario(previous="space_001")
