@@ -81,67 +81,104 @@ def verify_overlay_with_operator(frame, zones, cv2):
         cv2.destroyWindow(window)
 
 
-def draw_demo_phase_labels(view, cv2, zones, phases):
-    """Show intuitive Japanese labels in recorded-demo frames.
+def demo_badge_grid(width, count):
+    """Compute a non-overlapping grid reserved BELOW the actual camera frame.
 
-    OpenCV's default font cannot draw Japanese. Windows fonts + Pillow
-    are preferred; a readable English fallback remains for other OSes.
+    In the previous recording, six labels were drawn over the vehicles and
+    each other. They now live in a separate strip, with a maximum of six
+    short labels per row. This is display-only; no geometry or status changes.
+    """
+    if width < 180 or count < 0:
+        raise ValueError("映像の横幅または区画数が不正です")
+    columns = max(1, min(6, width // 185))
+    rows = (count + columns - 1) // columns
+    return columns, rows, width // columns
+
+
+def draw_demo_phase_labels(view, cv2, zones, phases):
+    """Show recorded-video space phases in a separate, legible footer.
+
+    Never cover the camera view with black Japanese status rectangles. Actual
+    status computation, timestamp, video timing and images stay unchanged.
     """
     from pathlib import Path
-    import numpy as np
-
     from recorded_parking_states import DISPLAY_PHASES
-    view = view.copy()
+
     height, width = view.shape[:2]
+    phases = phases or {}
     if len(zones) > 12:
-        # 13区画以上に大きな日本語札を重ねると、車や駐車枠を隠してしまう。
         from collections import Counter
-        counts = Counter((phases or {}).values())
-        view = cv2.copyMakeBorder(view,0,34,0,0,cv2.BORDER_CONSTANT,value=(22,25,29))
-        occupied = sum(counts.get(name,0) for name in ("parking_in","stopped","exiting"))
-        line = (f"RECORDED SPACES {len(zones)} | FREE {counts.get('available',0)}"
-                f" | OCCUPIED {occupied} | CHECKING {counts.get('unknown',0)}")
-        cv2.putText(view,line,(12,view.shape[0]-10),cv2.FONT_HERSHEY_SIMPLEX,
-                    .53,(255,255,255),1,cv2.LINE_AA)
+        counts = Counter(phases.values())
+        view = cv2.copyMakeBorder(view, 0, 34, 0, 0,
+                                  cv2.BORDER_CONSTANT, value=(22, 25, 29))
+        occupied = sum(counts.get(p, 0) for p in ("parking_in", "stopped", "exiting"))
+        line = (f"RECORDED SPACES {len(zones)} | FREE {counts.get('available', 0)}"
+                f" | OCCUPIED {occupied} | CHECKING {counts.get('unknown', 0)}")
+        cv2.putText(view, line, (12, view.shape[0]-10),
+                    cv2.FONT_HERSHEY_SIMPLEX, .53, (255, 255, 255), 1, cv2.LINE_AA)
         return view
-    placements = []
-    for uid, polygon in zones.items():
-        phase = (phases or {}).get(uid, "unknown")
-        x, y = polygon[0]
-        px = max(8, min(width - 265, int(width * x)))
-        py = max(46, min(height - 33, int(height * y) + 49))
-        placements.append((uid, phase, px, py))
+
+    columns, rows, cell_width = demo_badge_grid(width, len(zones))
+    line_height = 44
+    # Existing text diagnostics already live in a 98px footer; append our own
+    # strip so they are not covered either.
+    footer = cv2.copyMakeBorder(
+        view, 0, max(1, rows) * line_height + 8, 0, 0,
+        cv2.BORDER_CONSTANT, value=(22, 25, 29)
+    )
+    from recorded_parking_states import VALID_PHASES
+    colors = {
+        "available": (65, 116, 58),
+        "parking_in": (32, 85, 135),
+        "stopped": (25, 93, 137),
+        "exiting": (42, 105, 132),
+        "unknown": (75, 75, 75),
+    }
+    badges = []
+    for index, (uid, _) in enumerate(zones.items()):
+        phase = phases.get(uid, "unknown")
+        if phase not in VALID_PHASES:
+            phase = "unknown"
+        column, row = index % columns, index // columns
+        x1 = column * cell_width + 4
+        x2 = min(width - 4, (column + 1) * cell_width - 4)
+        y1 = height + row * line_height + 5
+        y2 = y1 + 35
+        cv2.rectangle(footer, (x1, y1), (x2, y2), colors[phase], -1)
+        cv2.rectangle(footer, (x1, y1), (x2, y2),
+                      (160, 170, 175), 1)
+        number = str(uid).removeprefix("space_").lstrip("0") or "0"
+        badges.append((uid, phase, number, x1, y1))
+
+    # Display Japanese where an installed Windows font is available.
     try:
         from PIL import Image, ImageDraw, ImageFont
-
+        import numpy as np
         fonts = [Path(r"C:\Windows\Fonts\meiryo.ttc"),
                  Path(r"C:\Windows\Fonts\YuGothM.ttc"),
                  Path(r"C:\Windows\Fonts\msgothic.ttc")]
         font_path = next((p for p in fonts if p.is_file()), None)
         if font_path is None:
             raise OSError("Japanese font unavailable")
-        font = ImageFont.truetype(str(font_path), 21)
-        canvas = Image.fromarray(cv2.cvtColor(view, cv2.COLOR_BGR2RGB))
-        painter = ImageDraw.Draw(canvas)
-        for uid, phase, px, py in placements:
-            label = f"{uid}: {DISPLAY_PHASES.get(phase, '確認中')}"
-            area = painter.textbbox((px+5, py+2), label, font=font)
-            painter.rectangle((px, py, min(width-1, area[2]+9),
-                               min(height-1, area[3]+6)), fill=(22, 30, 42))
-            painter.text((px+5, py+2), label, font=font, fill=(255, 255, 255))
-        return cv2.cvtColor(np.asarray(canvas), cv2.COLOR_RGB2BGR)
+        font = ImageFont.truetype(str(font_path), 19)
+        picture = Image.fromarray(cv2.cvtColor(footer, cv2.COLOR_BGR2RGB))
+        painter = ImageDraw.Draw(picture)
+        for uid, phase, number, x1, y1 in badges:
+            label = f"{number}番：{DISPLAY_PHASES.get(phase, '確認中')}"
+            painter.text((x1 + 9, y1 + 4), label, font=font, fill=(255, 255, 255))
+        return cv2.cvtColor(np.asarray(picture), cv2.COLOR_RGB2BGR)
     except (ImportError, OSError, ValueError):
         english = {
-            "available": "FREE", "parking_in": "PARKING IN",
-            "stopped": "STOPPED", "exiting": "EXITING", "unknown": "CHECKING"
+            "available": "FREE", "parking_in": "PARKING",
+            "stopped": "STOPPED", "exiting": "EXITING", "unknown": "CHECK"
         }
-        for uid, phase, px, py in placements:
-            label = f"{uid}: {english.get(phase, 'CHECKING')}"
-            cv2.rectangle(view, (px, py-24), (min(width-1, px+260), py+8),
-                          (22, 30, 42), -1)
-            cv2.putText(view, label, (px+5, py), cv2.FONT_HERSHEY_SIMPLEX,
-                        .57, (255, 255, 255), 2, cv2.LINE_AA)
-        return view
+        for uid, phase, number, x1, y1 in badges:
+            cv2.putText(
+                footer, f"{number}: {english.get(phase, 'CHECK')}",
+                (x1+8, y1+25), cv2.FONT_HERSHEY_SIMPLEX, .53,
+                (255, 255, 255), 1, cv2.LINE_AA,
+            )
+        return footer
 
 
 def demo_status_rows(config, statuses, timestamp, phases=None):
