@@ -39,6 +39,7 @@ from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
+from reconcile_video_reparking import reconcile_confirmed_video_reparking
 from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -1169,6 +1170,17 @@ def main():
                 statuses, demo_phases = demo_machine.update(
                     monitored_vehicles, zones, inside, video_seconds
                 )
+                # The recorded stall state machine can positively confirm that
+                # the SAME stable-ID car has stopped in another (or its old)
+                # stall. Its geometry may succeed even when the live monitor's
+                # zone_candidate stays None, leaving the vehicle stuck EXITING.
+                # Only synchronize a fresh, verified STOPPED observation;
+                # NEVER infer parking from an OCCUPIED status alone.
+                reparking_events = reconcile_confirmed_video_reparking(
+                    tracks, demo_machine, verified_vehicles, video_seconds
+                )
+                for event in reparking_events:
+                    pending_sessions[event["session_id"]] = event
                 changed = (statuses != previous_statuses
                            or demo_phases != previous_demo_phases)
                 if changed:
