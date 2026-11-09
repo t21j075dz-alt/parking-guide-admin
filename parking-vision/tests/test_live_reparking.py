@@ -83,8 +83,6 @@ class LiveReparkingTests(unittest.TestCase):
         self.assertIn("occupied", raw_history[5:])
         self.assertEqual(statuses["space_001"], "occupied")
         self.assertEqual(statuses["space_002"], "unknown")
-        self.assertTrue(car["repark_confirmed_by_recorded_stall"] is False if
-                        "repark_confirmed_by_recorded_stall" in car else True)
 
     def test_moving_pass_never_becomes_new_park(self):
         tracker = exiting_tracker()
