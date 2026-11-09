@@ -140,6 +140,9 @@ def load_config(path: str) -> dict:
         raise ValueError("occupied_hold_seconds は0以上にしてください")
     if float(content.get("reid_window_seconds", 12)) <= 0:
         raise ValueError("reid_window_seconds は0より大きくしてください")
+    if ("live_reparking_sync_enabled" in content
+            and not isinstance(content["live_reparking_sync_enabled"], bool)):
+        raise ValueError("live_reparking_sync_enabled は true / false で設定してください")
     return content
 
 
