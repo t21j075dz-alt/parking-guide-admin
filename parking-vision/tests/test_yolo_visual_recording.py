@@ -150,5 +150,44 @@ class AnnotatedRecordingTest(unittest.TestCase):
         self.assertIn("YOLO ANALYSIS AT", written)
 
 
+    def test_video_compact_labels_and_unverified_car_id_are_not_misleading(self):
+        fake_cv2 = Cv2Stub()
+        zones = {
+            f"space_{n:03d}": [[.05*n,.5],[.05*n+.1,.5],
+                               [.05*n+.1,.7],[.05*n,.7]]
+            for n in range(1,7)
+        }
+        dubious = {
+            "name": "car", "track_id": 2, "confidence": .62,
+            "point": (.1, .75), "bbox": [10, 200, 160, 390],
+            "monitored": False, "night_verified": False
+        }
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
+            overlay(Frame(1280,720), zones,
+                    {uid:"available" for uid in zones}, [dubious], [],
+                    {2:"exiting"}, compact_zone_labels=True)
+        messages = " ".join(fake_cv2.texts)
+        self.assertIn("ID:UNVERIFIED", messages)
+        self.assertNotIn("ID2 0.62 EXITING", messages)
+        self.assertNotIn("space_001: AVAILABLE", messages)
+        self.assertIn("1", fake_cv2.texts)
+
+    def test_confirmed_stall_is_displayed_when_zone_votes_are_missing(self):
+        fake_cv2 = Cv2Stub()
+        car = {
+            "name": "car", "track_id": 1, "confidence": .96,
+            "point": (.3, .6), "bbox": [20, 150, 320, 380],
+            "monitored": True, "night_verified": True,
+            "zone_candidate": None, "zone_smoothed": None,
+            "confirmed_parked_space": "space_001",
+            "stationary": True, "zone_basis": "no-bottom-contact",
+        }
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
+            overlay(Frame(640,480),
+                    {"space_001": [[.1,.4],[.5,.4],[.5,.9],[.1,.9]]},
+                    {"space_001":"occupied"}, [car], [], {1:"parked"})
+        self.assertTrue(any("ZONE space_001" in t for t in fake_cv2.texts))
+
+
 if __name__ == "__main__":
     unittest.main()
