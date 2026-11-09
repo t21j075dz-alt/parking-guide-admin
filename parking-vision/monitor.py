@@ -40,7 +40,7 @@ from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
 from reconcile_video_reparking import reconcile_confirmed_video_reparking
-from reconcile_live_reparking import LiveReparkingEvidence
+from reconcile_live_reparking import LiveReparkingEvidence, should_enable_live_reparking
 from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -935,9 +935,8 @@ def main():
         if video_mode else None)
     # A production live guide must opt in explicitly after site verification.
     # Dry-run always exercises the conservative re-parking path for inspection.
-    live_reparking_enabled = (
-        not video_mode and
-        (args.dry_run or bool(config.get("live_reparking_sync_enabled", False)))
+    live_reparking_enabled = should_enable_live_reparking(
+        video_mode=video_mode, dry_run=args.dry_run, config=config
     )
     live_reparking = LiveReparkingEvidence(zones) if live_reparking_enabled else None
     if not video_mode:
