@@ -40,6 +40,7 @@ from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
 from reconcile_video_reparking import reconcile_confirmed_video_reparking
+from reconcile_live_reparking import LiveReparkingEvidence
 from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -932,6 +933,19 @@ def main():
         zones, geometry_mode=geometry_mode,
         initially_confirmed_empty_uids=(verified_video_empty if nikko_replay else None))
         if video_mode else None)
+    # A production live guide must opt in explicitly after site verification.
+    # Dry-run always exercises the conservative re-parking path for inspection.
+    live_reparking_enabled = (
+        not video_mode and
+        (args.dry_run or bool(config.get("live_reparking_sync_enabled", False)))
+    )
+    live_reparking = LiveReparkingEvidence(zones) if live_reparking_enabled else None
+    if not video_mode:
+        print("【リアルタイム再駐車補正】" +
+              ("有効：録画専用の時間的停車根拠をリアルタイム映像で再計算"
+               if live_reparking_enabled else
+               "本番では未有効：config.json のlive_reparking_sync_enabledで有効化"))
+        print("【安全】空き区画の確定は従来どおりSpaceObserverが行います。")
     if video_mode and args.segmentation_tracking:
         print(f"【区画位置の判定】{geometry_mode}（比較実験・クラウド無送信）")
     previous_demo_phases = None
@@ -1154,6 +1168,12 @@ def main():
                 box_smoother.update(vehicles, track_now, frame.shape)
             events = tracks.update(verified_vehicles, zones,
                                    config.get("exit_zone", []), track_now)
+            if live_reparking is not None:
+                # Same positive STOPPED/track-ID reconciliation as recorded
+                # footage, but this auxiliary machine NEVER supplies live
+                # availability or departure events to SpaceObserver.
+                events.extend(live_reparking.update(
+                    tracks, monitored_vehicles, zones, inside, track_now))
             for event in events:
                 pending_sessions[event["session_id"]] = event
             # 区画占有だけには信頼度が低い検出を使わない
