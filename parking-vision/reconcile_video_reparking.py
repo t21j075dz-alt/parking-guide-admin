@@ -41,8 +41,17 @@ def reconcile_confirmed_video_reparking(tracker, recorded_machine, detections, n
         eligible.append((int(tid), uid, detection))
 
     # Duplicated IDs or two cars in one space are ambiguous. Do not guess.
+    # Count ALL verified current occupants, including cars still in motion:
+    # another moving car in the same polygon must not be silently ignored.
     ids = Counter(tid for tid, _, _ in eligible)
-    zones = Counter(uid for _, uid, _ in eligible)
+    zones = Counter(
+        d.get("demo_zone") for d in detections
+        if d.get("track_id") is not None
+        and d.get("demo_zone")
+        and d.get("monitored") is True
+        and d.get("night_verified") is True
+        and float(d.get("confidence", 0)) >= MIN_CONFIRMATION_CONFIDENCE
+    )
     events = []
     for tid, uid, detection in eligible:
         if ids[tid] != 1 or zones[uid] != 1:
