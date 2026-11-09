@@ -9,6 +9,7 @@ stricter than "any occupied stall implies a parked vehicle".
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime, timezone
 
 MIN_CONFIRMATION_CONFIDENCE = 0.35
 
@@ -60,11 +61,10 @@ def reconcile_confirmed_video_reparking(tracker, recorded_machine, detections, n
         # The recorded machine already required >=5 seconds of continuous
         # image-derived zone association and evidence that this vehicle stopped.
         # Reuse that proof instead of demanding unavailable monitor zone votes.
-        from monitor import utc_now
         entry.phase = "parked"
         entry.space_uid = uid
         entry.park_anchor = detection["point"]
-        entry.parked_at = utc_now()
+        entry.parked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         entry.candidate_uid = None
         entry.candidate_since = 0.0
         entry.candidate_started_at = None
