@@ -18,6 +18,7 @@ class ParkingDiagnosticRecorder:
         "瞬間区画", "安定区画", "区画票数", "判定根拠",
         "車両検出枠", "監視対象", "夜間車両確認", "確認理由", "近接区画", "区画状態の一覧", "注意事項",
         "YOLO生ID", "安定車両ID", "ID引継ぎ", "使用した区画根拠", "録画経過秒",
+        "確定駐車区画", "駐車区画確定の根拠",
     )
 
     def __init__(self, folder, interval_seconds=2.0):
@@ -34,8 +35,11 @@ class ParkingDiagnosticRecorder:
         # so the only frame with id_reassociated=True was previously skipped.
         # Always retain that event without increasing the routine sampling
         # rate or writing camera imagery to the CSV.
-        handoff = any(vehicle.get("id_reassociated") is True
-                      for vehicle in vehicles)
+        handoff = any(
+            vehicle.get("id_reassociated") is True or
+            vehicle.get("repark_confirmed_by_recorded_stall") is True
+            for vehicle in vehicles
+        )
         if (not handoff and self.last is not None
                 and now - self.last < self.interval):
             return
@@ -49,6 +53,7 @@ class ParkingDiagnosticRecorder:
                 "", "", "", "", "", state_summary, "NO_CAR",
                 "", "", "", "", 
                 (round(float(video_seconds), 2) if video_seconds is not None else ""),
+                "", "",
             ])
         for vehicle in vehicles:
             instantaneous = vehicle.get("zone_candidate") or ""
@@ -68,6 +73,26 @@ class ParkingDiagnosticRecorder:
                 warnings.append("IGNORED_OUTSIDE_MONITOR_AREA")
             elif vehicle.get("night_verified") is False:
                 warnings.append("NIGHT_CAR_NOT_VERIFIED")
+            # The tracker may have no smoothed zone even though the video
+            # state machine has positively identified a stopped car. Record
+            # that independent proof in its own fields rather than pretending
+            # it is the tracker vote (seen 24 times in the Nov 9 CSV).
+            confirmed = vehicle.get("confirmed_parked_space")
+            if confirmed:
+                confirmation_reason = (
+                    "recorded-repark" if vehicle.get(
+                        "repark_confirmed_by_recorded_stall") else "tracker"
+                )
+            elif (phase == "parked" and vehicle.get("demo_stopped") is True
+                  and vehicle.get("demo_zone")):
+                confirmed = vehicle["demo_zone"]
+                confirmation_reason = "recorded-stopped"
+            else:
+                confirmation_reason = ""
+            geometry_source = (
+                vehicle.get("demo_geometry_basis")
+                or vehicle.get("zone_basis") or "unknown"
+            )
             self.writer.writerow([
                 stamp, vehicle.get("track_id") if vehicle.get("track_id") is not None else "",
                 phase, int(bool(vehicle.get("stationary"))),
@@ -83,8 +108,9 @@ class ParkingDiagnosticRecorder:
                 (vehicle.get("raw_track_id") if vehicle.get("raw_track_id") is not None else ""),
                 (vehicle.get("track_id") if vehicle.get("track_id") is not None else ""),
                 ("YES" if vehicle.get("id_reassociated") else ""),
-                "bottom-footprint",
+                geometry_source,
                 (round(float(video_seconds), 2) if video_seconds is not None else ""),
+                confirmed or "", confirmation_reason,
             ])
         self.file.flush()
 

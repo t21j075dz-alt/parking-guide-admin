@@ -28,6 +28,7 @@
   "blocked_confirm_seconds": 2,
   "allow_unverified_initial_empty": false,
   "reid_window_seconds": 12,
+  "live_reparking_sync_enabled": false,
   "initially_confirmed_empty_uids": [],
   "camera_backend": "auto",
   "night_vision_mode": "auto",

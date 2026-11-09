@@ -39,6 +39,8 @@ from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
 from night_vehicle_evidence import NightVehicleEvidenceGate
 from parking_diagnostics import ParkingDiagnosticRecorder
+from reconcile_video_reparking import reconcile_confirmed_video_reparking
+from reconcile_live_reparking import LiveReparkingEvidence, should_enable_live_reparking
 from zone_geometry import normalize_corners, audit_zones
 
 # 古いconfig.jsonでも、同梱の駐車場用トラッカーを優先する。
@@ -138,6 +140,9 @@ def load_config(path: str) -> dict:
         raise ValueError("occupied_hold_seconds は0以上にしてください")
     if float(content.get("reid_window_seconds", 12)) <= 0:
         raise ValueError("reid_window_seconds は0より大きくしてください")
+    if ("live_reparking_sync_enabled" in content
+            and not isinstance(content["live_reparking_sync_enabled"], bool)):
+        raise ValueError("live_reparking_sync_enabled は true / false で設定してください")
     return content
 
 
@@ -271,9 +276,12 @@ class Vehicle:
             # Require fresh, stationary evidence in a new stable stall; an
             # uncertain location, a moving pass or the old stall cannot
             # create a second parking event.
-            new_stall = (self.smoothed_uid is not None and
-                         self.smoothed_uid != self.space_uid)
-            if new_stall and self.stationary:
+            # A car may abort an exit and stop again in the SAME stall,
+            # or park in a different one. EXITING already requires positive
+            # evidence of leaving the old position. Require fresh stable zone
+            # votes, stationary observations, and park_seconds again for both.
+            reparked_stall = self.smoothed_uid is not None
+            if reparked_stall and self.stationary:
                 if self.candidate_uid != self.smoothed_uid:
                     self.candidate_uid = self.smoothed_uid
                     self.candidate_since = now
@@ -652,7 +660,8 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
 
 
 def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
-            segmentation_preview=False, segmentation_tracking=False):
+            segmentation_preview=False, segmentation_tracking=False,
+            compact_zone_labels=False):
     """YOLOの認識結果を、研究発表で見返せる映像に描画する。
 
     検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
@@ -682,7 +691,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         cv2.putText(view, message, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
                     scale, color, thickness, cv2.LINE_AA)
 
-    dense = len(zones) > 12
+    # In recorded demonstrations a dedicated footer now holds full phase
+    # labels. Draw short in-space numbers instead of 6 overlapping text lines.
+    dense = len(zones) > 12 or compact_zone_labels
     for uid, polygon in zones.items():
         points = [(int(x * width), int(y * height)) for x, y in polygon]
         state, color = labels.get(statuses.get(uid, "unknown"), labels["unknown"])
@@ -724,10 +735,18 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         elif is_obstacle:
             track_label = ""  # traffic cones / carts do not have person IDs
         else:
-            track_label = ("ID" + str(ident)) if ident is not None else "ID?"
+            # Unverified/outside-zone matches are still useful for debugging,
+            # but their stable IDs are NOT accepted as managed vehicle tracks.
+            # The 2026-11-09 footage briefly gave a false car ID2 outside the
+            # actual monitored region; don't present it as a confirmed car.
+            track_label = (
+                "ID:UNVERIFIED" if unverified else
+                ("ID" + str(ident)) if ident is not None else "ID?"
+            )
         confidence = detection.get("confidence")
         value = f"{float(confidence):.2f}" if confidence is not None else "-"
-        phase = phases.get(int(ident), "") if ident is not None else ""
+        phase = (phases.get(int(ident), "") if ident is not None and
+                 not unverified else "")
         detected_name = detection.get('name', 'object')
         if unverified:
             detected_name += "? (UNVERIFIED)"
@@ -746,8 +765,11 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
             zone_candidate = detection.get("zone_candidate")
-            phase_name = phases.get(int(ident), "") if ident is not None else ""
-            reported = zone_candidate or detection.get("zone_smoothed") or "?"
+            phase_name = (phases.get(int(ident), "") if ident is not None
+                          and not unverified else "")
+            reported = (zone_candidate or detection.get("zone_smoothed")
+                        or detection.get("confirmed_parked_space")
+                        or "?")
             diagnostic = (f"ZONE {reported} ({detection.get('zone_basis', '?')}) "
                           f"VOTES {detection.get('zone_votes', 0)} "
                           f"STILL {int(bool(detection.get('stationary')))} "
@@ -928,6 +950,18 @@ def main():
         zones, geometry_mode=geometry_mode,
         initially_confirmed_empty_uids=(verified_video_empty if nikko_replay else None))
         if video_mode else None)
+    # A production live guide must opt in explicitly after site verification.
+    # Dry-run always exercises the conservative re-parking path for inspection.
+    live_reparking_enabled = should_enable_live_reparking(
+        video_mode=video_mode, dry_run=args.dry_run, config=config
+    )
+    live_reparking = LiveReparkingEvidence(zones) if live_reparking_enabled else None
+    if not video_mode:
+        print("【リアルタイム再駐車補正】" +
+              ("有効：録画専用の時間的停車根拠をリアルタイム映像で再計算"
+               if live_reparking_enabled else
+               "本番では未有効：config.json のlive_reparking_sync_enabledで有効化"))
+        print("【安全】空き区画の確定は従来どおりSpaceObserverが行います。")
     if video_mode and args.segmentation_tracking:
         print(f"【区画位置の判定】{geometry_mode}（比較実験・クラウド無送信）")
     previous_demo_phases = None
@@ -1150,6 +1184,12 @@ def main():
                 box_smoother.update(vehicles, track_now, frame.shape)
             events = tracks.update(verified_vehicles, zones,
                                    config.get("exit_zone", []), track_now)
+            if live_reparking is not None:
+                # Same positive STOPPED/track-ID reconciliation as recorded
+                # footage, but this auxiliary machine NEVER supplies live
+                # availability or departure events to SpaceObserver.
+                events.extend(live_reparking.update(
+                    tracks, monitored_vehicles, zones, inside, track_now))
             for event in events:
                 pending_sessions[event["session_id"]] = event
             # 区画占有だけには信頼度が低い検出を使わない
@@ -1169,6 +1209,17 @@ def main():
                 statuses, demo_phases = demo_machine.update(
                     monitored_vehicles, zones, inside, video_seconds
                 )
+                # The recorded stall state machine can positively confirm that
+                # the SAME stable-ID car has stopped in another (or its old)
+                # stall. Its geometry may succeed even when the live monitor's
+                # zone_candidate stays None, leaving the vehicle stuck EXITING.
+                # Only synchronize a fresh, verified STOPPED observation;
+                # NEVER infer parking from an OCCUPIED status alone.
+                reparking_events = reconcile_confirmed_video_reparking(
+                    tracks, demo_machine, verified_vehicles, video_seconds
+                )
+                for event in reparking_events:
+                    pending_sessions[event["session_id"]] = event
                 changed = (statuses != previous_statuses
                            or demo_phases != previous_demo_phases)
                 if changed:
@@ -1197,6 +1248,7 @@ def main():
                 annotated_frame, zones, statuses, vehicles, blockers,
                 phases, segmentation_preview=segmentation_model is not None,
                 segmentation_tracking=args.segmentation_tracking,
+                compact_zone_labels=video_mode,
             )
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
