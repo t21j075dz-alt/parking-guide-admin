@@ -660,7 +660,8 @@ def infer_frame(vehicle_model, obstacle_model, frame, confidence: float,
 
 
 def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
-            segmentation_preview=False, segmentation_tracking=False):
+            segmentation_preview=False, segmentation_tracking=False,
+            compact_zone_labels=False):
     """YOLOの認識結果を、研究発表で見返せる映像に描画する。
 
     検出の囲み・クラス名・信頼度・追跡ID・駐車状態を必ず区別する。
@@ -690,7 +691,9 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         cv2.putText(view, message, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
                     scale, color, thickness, cv2.LINE_AA)
 
-    dense = len(zones) > 12
+    # In recorded demonstrations a dedicated footer now holds full phase
+    # labels. Draw short in-space numbers instead of 6 overlapping text lines.
+    dense = len(zones) > 12 or compact_zone_labels
     for uid, polygon in zones.items():
         points = [(int(x * width), int(y * height)) for x, y in polygon]
         state, color = labels.get(statuses.get(uid, "unknown"), labels["unknown"])
@@ -732,10 +735,18 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         elif is_obstacle:
             track_label = ""  # traffic cones / carts do not have person IDs
         else:
-            track_label = ("ID" + str(ident)) if ident is not None else "ID?"
+            # Unverified/outside-zone matches are still useful for debugging,
+            # but their stable IDs are NOT accepted as managed vehicle tracks.
+            # The 2026-11-09 footage briefly gave a false car ID2 outside the
+            # actual monitored region; don't present it as a confirmed car.
+            track_label = (
+                "ID:UNVERIFIED" if unverified else
+                ("ID" + str(ident)) if ident is not None else "ID?"
+            )
         confidence = detection.get("confidence")
         value = f"{float(confidence):.2f}" if confidence is not None else "-"
-        phase = phases.get(int(ident), "") if ident is not None else ""
+        phase = (phases.get(int(ident), "") if ident is not None and
+                 not unverified else "")
         detected_name = detection.get('name', 'object')
         if unverified:
             detected_name += "? (UNVERIFIED)"
@@ -754,8 +765,11 @@ def overlay(frame, zones, statuses, vehicle_detections, obstacles, phases=None,
         draw_text(line, (x1, text_y), .48, color, 2)
         if not is_obstacle:
             zone_candidate = detection.get("zone_candidate")
-            phase_name = phases.get(int(ident), "") if ident is not None else ""
-            reported = zone_candidate or detection.get("zone_smoothed") or "?"
+            phase_name = (phases.get(int(ident), "") if ident is not None
+                          and not unverified else "")
+            reported = (zone_candidate or detection.get("zone_smoothed")
+                        or detection.get("confirmed_parked_space")
+                        or "?")
             diagnostic = (f"ZONE {reported} ({detection.get('zone_basis', '?')}) "
                           f"VOTES {detection.get('zone_votes', 0)} "
                           f"STILL {int(bool(detection.get('stationary')))} "
@@ -1234,6 +1248,7 @@ def main():
                 annotated_frame, zones, statuses, vehicles, blockers,
                 phases, segmentation_preview=segmentation_model is not None,
                 segmentation_tracking=args.segmentation_tracking,
+                compact_zone_labels=video_mode,
             )
             if video_mode:
                 from video_demo_support import draw_demo_phase_labels
