@@ -5,6 +5,19 @@
   if (!tools) return;
   const en = () => document.documentElement.lang.startsWith('en');
   const t = (ja, english) => en() ? english : ja;
+  const closeButtons = [];
+  for (const [panelId, toggleId] of [['admin-tools-panel', 'admin-tools-toggle'], ['admin-settings-panel', 'admin-settings-toggle']]) {
+    const panel = document.getElementById(panelId);
+    if (!panel) continue;
+    const close = document.createElement('button');
+    close.type = 'button'; close.className = 'workspace-panel-close';
+    close.id = panelId + '-close';
+    close.addEventListener('click', () => {
+      const toggle = document.getElementById(toggleId);
+      toggle.click(); toggle.focus();
+    });
+    panel.prepend(close); closeButtons.push(close);
+  }
   const search = document.createElement('input');
   search.type = 'search'; search.id = 'admin-tool-search';
   const label = document.createElement('label');
@@ -59,6 +72,7 @@
     cloud.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
   }
   function language() {
+    closeButtons.forEach(button => button.textContent = t('閉じる', 'Close'));
     label.textContent = t('機能を探す', 'Find a tool');
     search.placeholder = t('区画・営業時間・カメラなど', 'Spaces, opening hours, camera…');
     empty.textContent = t('該当する機能がありません。検索語を変えてください。', 'No matching tools. Try another search.');

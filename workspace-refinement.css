@@ -1,4 +1,5 @@
 /* 編集の主操作と補足の階層をそろえる。 */
+.workspace-panel-close { display: block; position: sticky; top: 0; z-index: 2; margin: 0 0 8px auto; min-height: 44px; background: var(--panel); }
 .tool-search { padding: 10px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .tool-search label { display: block; font-weight: 700; margin-bottom: 6px; }
 .tool-search input { width: 100%; min-height: 44px; border-radius: 9px; }
