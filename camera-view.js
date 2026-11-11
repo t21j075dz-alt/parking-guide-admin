@@ -53,9 +53,23 @@
     const viewer=document.createElement("dialog");viewer.className="camera-viewer";
     const close=document.createElement("button");close.type="button";close.textContent="閉じる";
     const large=document.createElement("img");large.alt="駐車場のカメラ写真";
-    viewer.append(close,large);document.body.append(viewer);close.onclick=()=>viewer.close();
+    const heading=document.createElement("div");heading.className="camera-viewer-heading";
+    const title=document.createElement("strong");title.id="camera-viewer-title";
+    const timestamp=document.createElement("p");timestamp.className="camera-viewer-status";
+    viewer.setAttribute("aria-labelledby",title.id);
+    heading.append(title,close);viewer.append(heading,timestamp,large);document.body.append(viewer);close.onclick=()=>viewer.close();
+    function labels(){
+      title.textContent=text("カメラ写真", "Camera photo");
+      close.textContent=text("閉じる", "Close");
+      expand.textContent=text("写真を大きく表示", "Enlarge photo");
+      expand.disabled=image.hidden;
+      timestamp.textContent=(select.value ? select.value+" · " : "")+status.textContent;
+    }
+    new MutationObserver(labels).observe(status,{childList:true,subtree:true,characterData:true});
+    new MutationObserver(labels).observe(document.documentElement,{attributes:true,attributeFilter:["lang"]});
+    labels();
     expand.onclick=()=>{if(!image.hidden){large.src=image.src;viewer.showModal();}};
-    const sync=()=>{if(viewer.open){if(image.hidden){large.removeAttribute("src");viewer.close();}else if(large.src!==image.src)large.src=image.src;}};
+    const sync=()=>{labels();if(viewer.open){if(image.hidden){large.removeAttribute("src");viewer.close();}else if(large.src!==image.src)large.src=image.src;}};
     new MutationObserver(sync).observe(image,{attributes:true,attributeFilter:["src","hidden"]});
   }
   select.addEventListener("change",show);

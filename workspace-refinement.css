@@ -1,0 +1,27 @@
+/* 編集の主操作と補足の階層をそろえる。 */
+.tool-search { padding: 10px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.tool-search label { display: block; font-weight: 700; margin-bottom: 6px; }
+.tool-search input { width: 100%; min-height: 44px; border-radius: 9px; }
+.tool-search p { font-size: 13px; color: var(--muted); }
+.workspace-help { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; font-size: 12px; color: var(--muted); }
+.workspace-help summary { cursor: pointer; }
+#admin-cloud-summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+#admin-cloud-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.admin-camera-shortcut { min-height: 44px; font-size: 13px; }
+.alignment-step-number { display: none; }
+.alignment-heading { position: sticky; top: -20px; z-index: 5; background: inherit; padding-block: 10px; }
+.alignment-heading > div > p { display: none; }
+.alignment-actions { position: sticky; bottom: -20px; z-index: 4; background: inherit; padding: 12px 0; border-top: 1px solid #cad3dc; }
+.alignment-actions button { min-height: 44px; }
+.camera-viewer { width: min(1200px, 96vw); max-width: 96vw; max-height: 94dvh; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); color: var(--text); }
+.camera-viewer::backdrop { background: #0f172acc; }
+.camera-viewer-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.camera-viewer-heading button { min-height: 44px; }
+.camera-viewer img { display: block; max-width: 100%; max-height: 72dvh; margin: auto; object-fit: contain; border-radius: 8px; }
+.camera-viewer-status { color: var(--muted); font-size: 13px; }
+@media(max-width:650px) {
+  .admin-camera-shortcuts-actions { grid-template-columns: 1fr; }
+  .admin-camera-shortcut { font-size: 13px; }
+  .alignment-actions { bottom: -12px; }
+  .alignment-heading { top: -12px; }
+}
