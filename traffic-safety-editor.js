@@ -21,7 +21,7 @@
     '<label>登録済みの注意事項<select id="traffic-existing"><option value="">新しく追加</option></select></label>' +
     '<label>注意の種類<select id="traffic-type"></select></label>' +
     '<label>案内するタイミング<select id="traffic-stage"><option value="approach">施設に近づくとき</option><option value="onsite">駐車場内</option></select></label>' +
-    '<label>画面表示・読み上げ文<textarea id="traffic-message" maxlength="180" rows="3" placeholder="短く、運転中にもわかる文章"></textarea></label>' +
+    '<label>画面表示・読み上げ文<textarea id="traffic-message" maxlength="160" rows="3" placeholder="短く、運転中にもわかる文章"></textarea></label>' +
     '<label><input type="checkbox" id="traffic-verified"> 現地の標識・店舗案内を確認済み（利用者に公開）</label>' +
     '<label><input type="checkbox" id="traffic-enabled" checked> この注意事項を有効にする</label>' +
     '<p>登録内容は音声生成待ちにも追加されます。未確認の内容は利用者アプリへ表示・読み上げしません。</p>' +
@@ -97,8 +97,8 @@
       return;
     }
     const message = q("traffic-message").value.trim();
-    if (!message || message.length > 180) {
-      q("traffic-editor-status").textContent = "読み上げ文を1～180文字で入力してください。";
+    if (!message || message.length > 160) {
+      q("traffic-editor-status").textContent = "読み上げ文を1～160文字で入力してください。";
       return;
     }
     const selected = q("traffic-existing").value;
