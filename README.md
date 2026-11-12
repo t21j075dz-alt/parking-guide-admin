@@ -1,5 +1,7 @@
 ## 保存済み音声の公開ハッシュ一覧を1,000件以上に対応（2026-10-30）
 
+コードを読む順番と変更後の確認手順は [CODE-MAP.md](CODE-MAP.md) にまとめています。
+
 音声ファイル323件の完成後、将来の施設・店舗追加を想定して、公開対象をハッシュのみとするSQL関数 `public.parking_voice_ready_hashes()` を本番Supabaseへ追加しました。音声利用者アプリから `GET /rest/v1/rpc/parking_voice_ready_hashes` で一覧を取得できます。テーブルの1回の取得に対する既定の1,000行上限を回避できます。
 
 SQL定義は `supabase/sql/parking-voice-ready-hashes-rpc.sql`。関数は `SECURITY INVOKER` とし、`anon` と `authenticated` には生成済み音声の識別子だけを返します。非公開の音声生成待ち行列は引き続き取得できません。データ量がさらに増えた場合には施設単位・音声ごとの取得へ移行する必要があります。
