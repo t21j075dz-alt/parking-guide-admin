@@ -33,6 +33,7 @@ from vehicle_segmentation import (
 )
 from segmentation_quality import resolve_segmentation_settings, infer_segments
 from person_stability import PersonIdStabilizer
+from traffic_safety import CrowdSafetyMonitor
 from person_diagnostics import PersonDiagnosticRecorder
 from vehicle_zone import annotate_vehicle_zones, is_monitored_vehicle
 from night_vision import inference_frame, is_low_light
@@ -121,9 +122,17 @@ def load_config(path: str) -> dict:
             zones[uid] = ordered
     for warning in audit_zones(zones):
         print(f"【区画の位置に注意】{warning}")
-    for name in ("entry_zone", "exit_zone"):
+    for name in ("entry_zone", "exit_zone", "safety_monitor_zone"):
         if content.get(name) and not valid_polygon(content[name]):
             raise ValueError(f"{name} の範囲が正しくありません")
+    for key in ("safety_pedestrian_threshold", "safety_bicycle_threshold"):
+        if key in content and (not isinstance(content[key], int) or
+                               isinstance(content[key], bool) or content[key] < 1):
+            raise ValueError(f"{key} は1以上の整数を設定してください")
+    for key in ("safety_confirm_seconds", "safety_clear_seconds"):
+        if key in content and (not isinstance(content[key], (int, float)) or
+                               isinstance(content[key], bool) or content[key] <= 0):
+            raise ValueError(f"{key} は0より大きい秒数を設定してください")
     confirmed = content.get("initially_confirmed_empty_uids", [])
     if not isinstance(confirmed, list) or any(uid not in zones for uid in confirmed):
         raise ValueError("initially_confirmed_empty_uids は登録済み区画IDにしてください")
@@ -945,6 +954,16 @@ def main():
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     box_smoother = DisplayBoxSmoother() if args.segmentation_tracking else None
     stable_people = PersonIdStabilizer(visible_seconds=1.0)
+    traffic_safety = CrowdSafetyMonitor(
+        spaces=config.get("space_zones", {}),
+        entry_zone=config.get("entry_zone", []),
+        monitor_zone=config.get("safety_monitor_zone", []),
+        person_threshold=int(config.get("safety_pedestrian_threshold", 3)),
+        bicycle_threshold=int(config.get("safety_bicycle_threshold", 2)),
+        confirm_seconds=float(config.get("safety_confirm_seconds", 2.0)),
+        clear_seconds=float(config.get("safety_clear_seconds", 5.0)),
+    ) if (not video_mode and config.get("safety_alerts_enabled", False) is True) else None
+    current_traffic_safety = None
     night_evidence = NightVehicleEvidenceGate(
         lifetime_seconds=float(config.get("reid_window_seconds", 12)))
     last_push, last_print = 0., 0.
@@ -1104,6 +1123,10 @@ def main():
             # not exposed or uploaded as person identities.
             stable_people.update(blockers, track_now)
             person_diagnostic_recorder.write(blockers, track_now if video_mode else now)
+            if traffic_safety is not None:
+                current_traffic_safety = traffic_safety.observe(
+                    vehicles, blockers, now=now)
+
             # Map each raw vehicle to the parking area *before* stable ID
             # association. Nighttime reflections and distant parked cars
             # otherwise pollute ID memory and swap with actual incoming cars.
@@ -1217,6 +1240,21 @@ def main():
                     } for uid, status in statuses.items()])
                     try:
                         writer.upsert("parking_live_status", rows, "facility_id,space_uid")
+                        # 警告は人数・台数とブール値のみ。動画/個人ID/追跡位置は送らない。
+                        # 警告テーブル未作成でも、従来の満空・車両セッションは継続する。
+                        if traffic_safety is not None and current_traffic_safety is not None:
+                            try:
+                                writer.upsert("parking_safety_live", [{
+                                    "facility_id": config["facility_id"],
+                                    "camera_id": config["camera_id"],
+                                    "pedestrian_count": current_traffic_safety["pedestrian_count"],
+                                    "bicycle_count": current_traffic_safety["bicycle_count"],
+                                    "pedestrian_warning": current_traffic_safety["pedestrian_warning"],
+                                    "bicycle_warning": current_traffic_safety["bicycle_warning"],
+                                    "checked_at": utc_now(),
+                                }], "facility_id,camera_id")
+                            except (error.URLError, error.HTTPError, OSError, KeyError) as safety_exc:
+                                print(f"安全警告の共有に失敗: {type(safety_exc).__name__}")
                         if video_mode and not demo_visible:
                             set_demo_visibility(writer, True, config["facility_id"])
                             demo_visible = True
