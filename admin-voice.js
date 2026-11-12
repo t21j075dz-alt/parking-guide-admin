@@ -101,6 +101,21 @@ window.ParkingAdminVoice = (() => {
     if (name) list.push({ text: name, type: "facility" });
     list.push(...destinationNames(layout));
     list.push(...spaceNames(layout));
+    // 管理者が現地で確認した交通案内だけ音声ファイル生成待ちに登録する。
+    const warnings = Array.isArray(layout?.safetyAdvisories) ? layout.safetyAdvisories : [];
+    for (const advisory of warnings) {
+      const message = String(advisory?.message || "").trim();
+      if (advisory?.enabled === true && advisory?.verified === true
+          && message && message.length <= 180) {
+        list.push({ text: typeof normalizeJapaneseSpeech === "function"
+          ? normalizeJapaneseSpeech(message) : message, type: "other" });
+      }
+    }
+    for (const message of [
+      "歩行者が多くなっています。場内では徐行し、周囲にご注意ください。",
+      "自転車が多くなっています。場内では徐行し、周囲にご注意ください。",
+      "歩行者と自転車が多くなっています。場内では徐行し、周囲にご注意ください。",
+    ]) list.push({ text: message, type: "other" });
     return [...new Map(list.map(x => [x.text, x])).values()];
   }
   function itemsForCatalog(facilities, layouts) {
