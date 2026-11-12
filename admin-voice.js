@@ -95,12 +95,24 @@ window.ParkingAdminVoice = (() => {
     }
     return result;
   }
+  function safetyMessageItems(layout) {
+    const warnings = Array.isArray(layout?.safetyAdvisories) ? layout.safetyAdvisories : [];
+    return warnings.flatMap(advisory => {
+      if (advisory?.enabled !== true || advisory?.verified !== true) return [];
+      const raw = String(advisory?.message || "").trim();
+      if (!raw || raw.length > 160) return [];
+      const normalized = typeof normalizeJapaneseSpeech === "function"
+        ? normalizeJapaneseSpeech(raw) : raw;
+      return normalized.length <= 160 ? [{ text: normalized, type: "other" }] : [];
+    });
+  }
   function itemsForFacility(facility, layout) {
     const list = [];
     const name = speechName(facility);
     if (name) list.push({ text: name, type: "facility" });
     list.push(...destinationNames(layout));
     list.push(...spaceNames(layout));
+    list.push(...safetyMessageItems(layout));
     return [...new Map(list.map(x => [x.text, x])).values()];
   }
   function itemsForCatalog(facilities, layouts) {
@@ -113,8 +125,14 @@ window.ParkingAdminVoice = (() => {
     }
     for (const [id, layout] of Object.entries(layouts || {})) {
       if (!(facilities || []).some(f => f.id === id))
-        all.push(...destinationNames(layout), ...spaceNames(layout));
+        all.push(...destinationNames(layout), ...spaceNames(layout), ...safetyMessageItems(layout));
     }
+    // ライブ危険情報用の短文は施設に依存せず、全体の初期準備時に1回だけ登録。
+    for (const message of [
+      "歩行者が多くなっています。徐行し、周囲をご確認ください。",
+      "自転車が多くなっています。徐行し、周囲をご確認ください。",
+      "歩行者と自転車が多くなっています。徐行し、周囲をご確認ください。",
+    ]) all.push({ text: message, type: "other" });
     return [...new Map(all.map(x => [x.text, x])).values()];
   }
   async function call(action, config, token, items) {

@@ -42,5 +42,11 @@
   "camera_preview_max_height": 800,
   "camera_snapshots_enabled": false,
   "public_snapshots_enabled": false,
-  "public_snapshot_masks": []
+  "public_snapshot_masks": [],
+  "safety_alerts_enabled": false,
+  "safety_pedestrian_threshold": 3,
+  "safety_bicycle_threshold": 2,
+  "safety_confirm_seconds": 2,
+  "safety_clear_seconds": 5,
+  "safety_monitor_zone": []
 }
