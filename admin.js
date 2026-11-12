@@ -3005,15 +3005,14 @@ function endDrag(event) {
    右側設定パネル
    ========================================================= */
 
-/** 選択中の複合施設に登録された目的店舗を buildingId 候補として表示する。 */
-/** 店舗の追加・営業時間・入口IDを保存レイアウトと両画面で共有する。 */
+/** 保存済みレイアウトを優先して、現在の施設の目的店舗を取得する。 */
 function getAdminDestinations() {
   const saved=getCurrentLayout()?.destinations;
   return Array.isArray(saved)?saved:(getCurrentFacilityRecord()?.destinations || []);
 }
 
+/** 目的店舗の入口IDを、区画設定の候補として表示する。 */
 function updateBuildingIdOptions() {
-  const facility = getCurrentFacilityRecord();
   const destinations = getAdminDestinations();
 
   elements.buildingIdOptions?.replaceChildren();

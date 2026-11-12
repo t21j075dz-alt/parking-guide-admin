@@ -15,7 +15,6 @@ from statistics import median
 from datetime import datetime, timezone
 from getpass import getpass
 import json
-import os
 from pathlib import Path
 import sys
 import time

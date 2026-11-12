@@ -8,7 +8,7 @@ without a conscious on-site check. The approval expires automatically.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from shutil import copy2
 

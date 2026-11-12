@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Check JavaScript syntax
-        run: node --check admin.js && node --check admin-i18n.js && node --check recording-demo.js && node --check admin-voice.js && node --check voice-speech-readings.js && node --check camera-map-alignment-core.js && node --check camera-map-alignment.js && node --check admin-camera-shortcuts.js
+        run: node scripts/check-source.cjs
       - name: Run admin tests
         run: node --test tests/*.test.cjs
       - name: Install dependencies for camera snapshot tests
@@ -24,7 +24,7 @@ jobs:
         working-directory: parking-vision
         run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Python syntax checks
-        run: python -m py_compile parking-vision/nikko_video_config.py parking-vision/import_nikko_map_alignment.py parking-vision/export_nikko_recording.py parking-vision/video_demo_support.py parking-vision/video_replay.py parking-vision/verify_map_alignment.py parking-vision/import_map_alignment.py parking-vision/monitor.py parking-vision/camera_recording.py parking-vision/yolo_visual_recording.py parking-vision/camera_exposure.py parking-vision/select_external_camera.py parking-vision/calibrate.py parking-vision/train_obstacles.py parking-vision/analyze_video.py parking-vision/label_obstacles.py parking-vision/stable_ids.py parking-vision/compare_tracking.py parking-vision/evaluate_slots.py
+        run: python -m compileall -q parking-vision
 
   browser-ui:
     name: Camera calibration browser smoke
