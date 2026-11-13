@@ -261,8 +261,11 @@ const {chromium}=require("playwright");
     assert.deepEqual(recovered.map_points,[]);
     assert.deepEqual(recovered.space_uids,["space_001"]);
     assert.deepEqual(recovered.excluded_space_uids,["space_002","space_003"]);
-    assert.equal((JSON.parse(localStorage.getItem("parkingCameraMapAlignmentsV1"))[
-      "nikko-test-001|nikko-recording-01"].map_points||[]).length,8,
+    const retainedPointCount=await page.evaluate(()=>{
+      const saved=JSON.parse(localStorage.getItem("parkingCameraMapAlignmentsV1")||"{}");
+      return saved["nikko-test-001|nikko-recording-01"]?.map_points?.length||0;
+    });
+    assert.equal(retainedPointCount,8,
       "old points remain recoverable after changing to direct-photo mode");
     await page.locator("#alignment-close").click();
 
