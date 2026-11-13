@@ -125,13 +125,16 @@
     const paired=Math.min(mapPoints.length,imagePoints.length);
     const completed=paired>=4&&mapPoints.length===imagePoints.length;
     const bad=projected?.alignmentDiagnostics?.outlierIndices?.length||0;
+    const hybridReviewed=editorMode()==="hybrid"&&Object.keys(manualZones).length>0;
+    const blockingOutliers=bad>0&&!hybridReviewed;
     applyButton.disabled=!hasPhoto||!completed||editorMode()==="manual";
-    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0||Boolean(pendingCorners);
-    confirmed.disabled=!projected||!hasPhoto||bad>0||Boolean(pendingCorners);
+    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||
+      blockingOutliers||Boolean(pendingCorners);
+    confirmed.disabled=!projected||!hasPhoto||blockingOutliers||Boolean(pendingCorners);
     pointCount.textContent="対応点 "+paired+" / 最大"+core.MAX_PAIRS+"組";
     nextAction.textContent=!hasPhoto?"先にカメラ写真を読み込んでください"
       : projected
-        ? bad ? "誤差の大きい"+bad+"点を削除・選び直してください"
+        ? bad&&!hybridReviewed ? "誤差大"+bad+"点。点を削除するか写真上で枠を補正してください"
           : confirmed.checked ? "確認済みです。設定JSONを保存できます"
           : "緑の枠を確認。ずれが残る場合は追加点を指定できます"
         : mapPoints.length>imagePoints.length ? "右の写真で同じ場所の点"+(paired+1)+"を選択"
@@ -217,7 +220,7 @@
         ? "4点から計算しました。点を追加すると全体のずれも評価できます。"
         : "採用"+info.inlierIndices.length+"点・誤差大"+bad.size+
           "点・平均誤差（RMS）"+rms.toFixed(1)+"px"+
-          (bad.size?"。赤い点は削除・選び直してください。":"。区画のずれを目視確認してください。");
+          (bad.size?"。全体にずれがあるため、個別補正後に全区画を目視確認してください。":"。区画のずれを目視確認してください。");
       quality.dataset.state=bad.size?"warning":"ready";
     }else{
       quality.textContent=paired<4
@@ -580,7 +583,8 @@
   });
   exportButton.addEventListener("click",()=>{
     if(!projected||!layout()||image.hidden||!confirmed.checked||
-        projected.alignmentDiagnostics?.outlierIndices?.length)return;
+        (projected.alignmentDiagnostics?.outlierIndices?.length
+          && !(editorMode()==="hybrid"&&Object.keys(manualZones).length>0)))return;
     const cam=cameraId.value.trim();
     if(!/^[A-Za-z0-9_-]{1,100}$/.test(cam)){
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
@@ -589,7 +593,9 @@
       const result=materialize();
       if(!result)throw Error("写真上の枠が登録されていません。");
       const info=result.alignmentDiagnostics;
-      if(info?.outlierIndices.length)throw Error("誤差の大きい対応点を削除・選び直してください。");
+      if(info?.outlierIndices.length&&
+         !(editorMode()==="hybrid"&&result.manual_zone_uids?.length))
+        throw Error("誤差の大きい点を削除するか、写真上の枠を個別補正してください。");
       const rmsPx=info?Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
         const [dx,dy]=info.residualVectors[i];
         return sum+(dx*image.naturalWidth)**2+(dy*image.naturalHeight)**2;
@@ -602,7 +608,7 @@
         alignment_method:method,
         ...(info?{alignment_quality:{
           method:info.method,point_count:info.pairCount,
-          inlier_count:info.inlierIndices.length,outlier_indices:[],
+          inlier_count:info.inlierIndices.length,outlier_indices:info.outlierIndices,
           rms_pixels:Number(rmsPx.toFixed(3))}}:{}),
         image_width:image.naturalWidth,image_height:image.naturalHeight,
         map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
