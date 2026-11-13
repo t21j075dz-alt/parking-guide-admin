@@ -572,25 +572,32 @@
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
     }
     try{
-      const result=generateVisibleZones();
-      remember();layoutChanged=false;
+      const result=materialize();
+      if(!result)throw Error("写真上の枠が登録されていません。");
       const info=result.alignmentDiagnostics;
-      if(info.outlierIndices.length)throw Error("誤差の大きい点を削除・選び直してください。");
-      const rmsPx=Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
+      if(info?.outlierIndices.length)throw Error("誤差の大きい対応点を削除・選び直してください。");
+      const rmsPx=info?Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
         const [dx,dy]=info.residualVectors[i];
         return sum+(dx*image.naturalWidth)**2+(dy*image.naturalHeight)**2;
-      },0)/info.inlierIndices.length);
+      },0)/info.inlierIndices.length):null;
+      const method=editorMode()==="auto"?"global-homography"
+        : editorMode()==="manual"?"manual-zones"
+        : info?"hybrid-zones":"manual-zones";
       const payload={
         schema_version:1,facility_id:currentFacility,camera_id:cam,
-        alignment_quality:{method:info.method,point_count:info.pairCount,
+        alignment_method:method,
+        ...(info?{alignment_quality:{
+          method:info.method,point_count:info.pairCount,
           inlier_count:info.inlierIndices.length,outlier_indices:[],
-          rms_pixels:Number(rmsPx.toFixed(3))},
+          rms_pixels:Number(rmsPx.toFixed(3))}}:{}),
         image_width:image.naturalWidth,image_height:image.naturalHeight,
         map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
-        map_points:mapPoints,image_points:imagePoints,
+        map_points:info?mapPoints:[],image_points:info?imagePoints:[],
         space_uids:result.space_uids,space_zones:result.space_zones,
+        manual_zone_uids:result.manual_zone_uids||[],
         excluded_space_uids:result.excluded_space_uids
       };
+      remember();layoutChanged=false;
       const blob=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
       const url=URL.createObjectURL(blob),link=document.createElement("a");
       link.href=url;link.download="camera-map-alignment-"+currentFacility+"-"+cam+".json";
