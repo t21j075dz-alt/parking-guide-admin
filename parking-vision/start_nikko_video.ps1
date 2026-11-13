@@ -2,6 +2,7 @@
 # 画角に映る全区画が対象。実際の現在の空きではありません。
 param(
   [string]$Video = "",
+  [string]$VideoDirectory = "G:\parking-movie",
   [string]$Alignment = "",
   [int]$SpaceCount = 0,
   [string]$SpaceUids = "",
@@ -32,8 +33,36 @@ Write-Host "【注意】実際の道の駅日光の現在の空き情報では�
 Write-Host "【安全】自宅のconfig.jsonや実カメラは変更しません。"
 Write-Host "【Python】$python"
 if ([string]::IsNullOrWhiteSpace($Video)) {
-  $Video = Read-Host "元の録画動画（MP4/MOVなど）のパスを入力。ドラッグしてEnterも可"
+  # 日光の動画はユーザー指定のGドライブを優先。原本を変更しない。
+  if (Test-Path -LiteralPath $VideoDirectory -PathType Container) {
+    $preferred = Join-Path $VideoDirectory "道の駅日光駐車場ライブカメラ_ニコニコ本陣_0533.mp4"
+    if (Test-Path -LiteralPath $preferred -PathType Leaf) {
+      $Video = $preferred
+    } else {
+      $videos = @(Get-ChildItem -LiteralPath $VideoDirectory -File |
+        Where-Object { $_.Extension.ToLowerInvariant() -in @(".mp4", ".mov", ".avi", ".mkv", ".webm") -and
+          $_.Name -notmatch '^(YOLO判定_|yolo_annotated)' } |
+        Sort-Object Name)
+      if ($videos.Count -eq 1) {
+        $Video = $videos[0].FullName
+      } elseif ($videos.Count -gt 1) {
+        Write-Host "【動画の選択】$VideoDirectory"
+        for ($i = 0; $i -lt $videos.Count; $i++) {
+          Write-Host ("{0}. {1}" -f ($i+1), $videos[$i].Name)
+        }
+        $choiceText = (Read-Host "使用する動画の番号（Enterで手動入力）").Trim()
+        $choice = 0
+        if ([int]::TryParse($choiceText, [ref]$choice) -and $choice -ge 1 -and $choice -le $videos.Count) {
+          $Video = $videos[$choice-1].FullName
+        }
+      }
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($Video)) {
+    $Video = Read-Host "元動画のファイル名（例：G:\parking-movie\動画.mp4）を入力"
+  }
 }
+Write-Host "【元動画】$Video"
 $Video = $Video.Trim().Trim('"')
 if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) { throw "元動画が見つかりません: $Video" }
 $Video = (Resolve-Path -LiteralPath $Video).Path
