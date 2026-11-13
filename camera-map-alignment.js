@@ -125,7 +125,7 @@
     const paired=Math.min(mapPoints.length,imagePoints.length);
     const completed=paired>=4&&mapPoints.length===imagePoints.length;
     const bad=projected?.alignmentDiagnostics?.outlierIndices?.length||0;
-    applyButton.disabled=!hasPhoto||!completed;
+    applyButton.disabled=!hasPhoto||!completed||editorMode()==="manual";
     exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0||Boolean(pendingCorners);
     confirmed.disabled=!projected||!hasPhoto||bad>0||Boolean(pendingCorners);
     pointCount.textContent="対応点 "+paired+" / 最大"+core.MAX_PAIRS+"組";
@@ -197,9 +197,8 @@
         if(item.cameraCoverage==="outside" && !box.checked)delete item.cameraCoverage;
         else if(box.checked)item.cameraCoverage="outside";
         if(typeof saveLocal==="function")saveLocal();
-        projected=null;confirmed.checked=false;exported=false;
-        draw();
-        notify("画角外の設定を保存しました。区画を自動計算し直し、映像と一致するか確認してください。");
+        automatic=null;syncZones();draw();persistDraft();
+        notify("画角外の設定を変更しました。写真と区画を再確認してください。");
       });
     }
   }
@@ -439,19 +438,45 @@
     loadPhoto(fileUrl);
   });
   map.addEventListener("click",event=>{
+    if(enabledManual()){
+      const uid=event.target.dataset.slotUid;
+      if(uid){activeUid=uid;slotSelect.value=uid;draw();}
+      return;
+    }
     if(mapPoints.length!==imagePoints.length||mapPoints.length>=core.MAX_PAIRS)return;
-    try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;exported=false;draw();}
+    try{mapPoints.push(pointFromClick(event,map));automatic=null;syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   overlay.addEventListener("click",event=>{
-    if(image.hidden||mapPoints.length!==imagePoints.length+1)return;
-    try{imagePoints.push(pointFromClick(event,overlay));projected=null;confirmed.checked=false;exported=false;draw();}
+    if(image.hidden)return;
+    if(enabledManual()){
+      if(pendingCorners){
+        try{
+          pendingCorners.push(pointFromClick(event,overlay));
+          if(pendingCorners.length===4){
+            const normalized=core.normalizeCameraZone(pendingCorners);
+            manualZones[activeUid]=normalized;
+            pendingCorners=null;syncZones();persistDraft();
+            notify("写真上で"+activeUid+"の四隅を登録しました。必要なら角の丸い点をドラッグして微調整してください。");
+          }
+          draw();
+        }catch(error){
+          pendingCorners.pop();draw();notify("登録できません: "+error.message);
+        }
+        return;
+      }
+      const uid=event.target.dataset.zoneUid;
+      if(uid){activeUid=uid;slotSelect.value=uid;draw();}
+      return;
+    }
+    if(mapPoints.length!==imagePoints.length+1)return;
+    try{imagePoints.push(pointFromClick(event,overlay));automatic=null;syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   get("alignment-undo").addEventListener("click",()=>{
     if(mapPoints.length>imagePoints.length)mapPoints.pop();
     else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
-    projected=null;confirmed.checked=false;exported=false;draw();
+    automatic=null;syncZones();draw();persistDraft();
   });
   get("alignment-reset").addEventListener("click",reset);
   zoom.addEventListener("click",()=>{showWholeMap=!showWholeMap;draw();});
@@ -460,19 +485,19 @@
     image.hidden=true;
     image.removeAttribute("src");
     file.value="";exported=false;
-    restore();
+    restore();showEditor();
     notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
   });
   confirmed.addEventListener("change",refresh);
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
     try{
-      projected=generateVisibleZones();
-      confirmed.checked=false;exported=false;draw();
+      automatic=generateVisibleZones();
+      syncZones();draw();persistDraft();
       notify(currentFacility==="nikko-test-001"
         ? "映像に完全に映る"+projected.space_uids.length+"区画を投影しました。画角外・極小の"+projected.excluded_space_uids.length+"区画は判定対象外です。全区画の位置を確認してください。"
         : "全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
-    }catch(error){projected=null;draw();notify(error.message);}
+    }catch(error){automatic=null;syncZones();draw();notify(error.message);}
   });
   exportButton.addEventListener("click",()=>{
     if(!projected||!layout()||image.hidden||!confirmed.checked||
