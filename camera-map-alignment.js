@@ -521,13 +521,21 @@
   overlay.addEventListener("pointerdown",event=>{
     if(!enabledManual()||pendingCorners||!projected)return;
     const uid=event.target.dataset.zoneUid;
-    const index=Number(event.target.dataset.zoneCorner);
-    if(!uid||!Object.hasOwn(event.target.dataset,"zoneCorner")||
-       !Number.isInteger(index)||index<0||index>3||
-       currentSlot()?.uid!==uid)return;
+    const hasCorner=Object.hasOwn(event.target.dataset,"zoneCorner");
+    const index=hasCorner?Number(event.target.dataset.zoneCorner):null;
+    const movingPolygon=event.target.tagName.toLowerCase()==="polygon";
+    if(!uid||currentSlot()?.uid!==uid||
+       (!movingPolygon&&!hasCorner)||
+       (hasCorner&&(!Number.isInteger(index)||index<0||index>3)))return;
     const corners=projected.space_zones[uid];
     if(!corners)return;
-    drag={uid,index,corners:corners.map(p=>p.slice()),pointerId:event.pointerId};
+    let origin=null;
+    if(movingPolygon){
+      try{origin=pointFromClick(event,overlay);}
+      catch{return;}
+    }
+    drag={uid,index,origin,pointerId:event.pointerId,
+      original:corners.map(p=>p.slice()),corners:corners.map(p=>p.slice())};
     overlay.setPointerCapture?.(event.pointerId);
     event.preventDefault();
   });
@@ -535,7 +543,13 @@
     if(!drag||drag.pointerId!==event.pointerId)return;
     try{
       const p=pointFromClick(event,overlay);
-      drag.corners[drag.index]=p;
+      if(drag.index!==null)drag.corners[drag.index]=p;
+      else{
+        const delta=[p[0]-drag.origin[0],p[1]-drag.origin[1]];
+        const translated=drag.original.map(([x,y])=>[x+delta[0],y+delta[1]]);
+        if(translated.some(point=>point.some(n=>n<0||n>1)))return;
+        drag.corners=translated;
+      }
       draw();
     }catch{/* 写真の外へのドラッグでは移動しない。 */}
   });
