@@ -488,6 +488,71 @@
     restore();showEditor();
     notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
   });
+  methodSelect.addEventListener("change",()=>{
+    pendingCorners=null;drag=null;
+    if(editorMode()==="manual")automatic=null;
+    else if(!automatic&&image.naturalWidth&&mapPoints.length>=4&&mapPoints.length===imagePoints.length){
+      try{automatic=generateVisibleZones();}
+      catch{/* 個別登録のみでも進められる。 */}
+    }
+    syncZones();draw();persistDraft();
+    notify(editorMode()==="manual"
+      ? "地図と写真の点合わせは不要です。区画番号を選び、写真上の四隅を指定してください。"
+      : editorMode()==="hybrid"
+        ? "緑色の区画を選ぶと写真上で個別に補正できます。位置が違う区画だけ直してください。"
+        : "全体の位置合わせに戻りました。写真の補正値は保存済みで、いつでも戻せます。");
+  });
+  slotSelect.addEventListener("change",()=>{
+    activeUid=slotSelect.value;pendingCorners=null;draw();
+  });
+  drawZoneButton.addEventListener("click",()=>{
+    const slot=currentSlot();
+    if(!enabledManual()||image.hidden||!slot||slot.cameraCoverage==="outside"){
+      notify("先に写真と有効な駐車区画を選んでください。");return;
+    }
+    pendingCorners=[];drag=null;confirmed.checked=false;exported=false;
+    draw();notify("写真上で"+activeUid+"の白線の角を4か所クリックしてください。");
+  });
+  clearZoneButton.addEventListener("click",()=>{
+    if(!activeUid||!Object.hasOwn(manualZones,activeUid))return;
+    delete manualZones[activeUid];pendingCorners=null;syncZones();persistDraft();draw();
+    notify("この区画の個別補正を解除しました。自動投影がある場合は元の位置に戻ります。");
+  });
+  overlay.addEventListener("pointerdown",event=>{
+    if(!enabledManual()||pendingCorners||!projected)return;
+    const uid=event.target.dataset.zoneUid;
+    const index=Number(event.target.dataset.zoneCorner);
+    if(!uid||!Object.hasOwn(event.target.dataset,"zoneCorner")||
+       !Number.isInteger(index)||index<0||index>3||
+       currentSlot()?.uid!==uid)return;
+    const corners=projected.space_zones[uid];
+    if(!corners)return;
+    drag={uid,index,corners:corners.map(p=>p.slice()),pointerId:event.pointerId};
+    overlay.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  overlay.addEventListener("pointermove",event=>{
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    try{
+      const p=pointFromClick(event,overlay);
+      drag.corners[drag.index]=p;
+      draw();
+    }catch{/* 写真の外へのドラッグでは移動しない。 */}
+  });
+  function finishDrag(event,commit){
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    const pending=drag;drag=null;
+    if(commit){
+      try{
+        manualZones[pending.uid]=core.normalizeCameraZone(pending.corners);
+        syncZones();persistDraft();
+        notify(pending.uid+"の角を修正しました。動画の白線と一致するか確認してください。");
+      }catch(error){notify("角の移動を取り消しました: "+error.message);}
+    }
+    draw();
+  }
+  overlay.addEventListener("pointerup",event=>finishDrag(event,true));
+  overlay.addEventListener("pointercancel",event=>finishDrag(event,false));
   confirmed.addEventListener("change",refresh);
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
