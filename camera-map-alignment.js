@@ -353,7 +353,7 @@
         catch{/* 壊れた端末内データを投影に使わない。 */}
       }
     }
-    methodSelect.value=["auto","hybrid","manual"].includes(item?.mode)?item.mode:"hybrid";
+    methodSelect.value=["auto","hybrid","manual"].includes(item?.mode)?item.mode:"auto";
     automatic=null;pendingCorners=null;drag=null;
     layoutChanged=Boolean(same&&item.layout_signature
       &&item.layout_signature!==core.layoutSignature(current));
