@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {homography,fitHomography,project,parkingCorners,generateZones,layoutSignature,parkingViewport,MAX_PAIRS}=require("../camera-map-alignment-core.js");
+const {homography,fitHomography,project,parkingCorners,generateZones,normalizeCameraZone,composeCameraZones,layoutSignature,parkingViewport,MAX_PAIRS}=require("../camera-map-alignment-core.js");
 
 const anchors=[[.1,.1],[.9,.1],[.9,.9],[.1,.9]];
 const camera=[[.16,.12],[.78,.20],[.91,.85],[.07,.88]];
@@ -170,4 +170,58 @@ test("old four-point geometry remains stable while invalid counts are rejected",
   assert.throws(()=>fitHomography([],[]),/4～24/);
   const extra=Array.from({length:25},(_,i)=>[.1+(i%5)*.17,.1+Math.floor(i/5)*.17]);
   assert.throws(()=>fitHomography(extra,extra),/4～24/);
+});
+
+test("photo-first mapping registers only manual image polygons without any homography",()=>{
+  const map={facilityId:"nikko-test-001",canvas:{width:1000,height:1000},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:50,y:50,width:70,height:150},
+    {uid:"space_002",objectType:"parkingSpace",x:140,y:50,width:70,height:150},
+    {uid:"space_003",objectType:"parkingSpace",x:240,y:50,width:70,height:150,
+     cameraCoverage:"outside"},
+  ]};
+  const unsorted=[[.2,.3],[.1,.2],[.2,.2],[.1,.3]];
+  const polygon=normalizeCameraZone(unsorted);
+  assert.equal(polygon.length,4);
+  const result=composeCameraZones(map,null,{space_002:polygon});
+  assert.equal(result.alignmentMethod,"manual-zones");
+  assert.deepEqual(result.space_uids,["space_002"]);
+  assert.deepEqual(result.excluded_space_uids,["space_001","space_003"]);
+  assert.deepEqual(result.manual_zone_uids,["space_002"]);
+  assert.equal(result.transform,null);
+  assert.equal(map.objects[0].cameraCoverage,undefined,"source map remains unchanged");
+  assert.equal(map.objects[1].x,140,"original schematic position is preserved");
+});
+
+test("individual photo correction overrides only selected UID in automatic projection",()=>{
+  const map={facilityId:"nikko-test-001",canvas:{width:1000,height:1000},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:150,y:140,width:70,height:100},
+    {uid:"space_002",objectType:"parkingSpace",x:350,y:140,width:70,height:100},
+    {uid:"space_003",objectType:"parkingSpace",x:550,y:140,width:70,height:100,
+     cameraCoverage:"outside"},
+  ]};
+  const anchors=[[0,0],[1,0],[1,1],[0,1]];
+  const automatic=generateZones(map,anchors,anchors,{skipOutsideFrame:true});
+  const revised=[[.11,.23],[.18,.23],[.18,.34],[.11,.34]];
+  const merged=composeCameraZones(map,automatic,{space_001:revised});
+  assert.equal(merged.alignmentMethod,"hybrid-zones");
+  assert.deepEqual(merged.space_uids,["space_001","space_002"]);
+  assert.notDeepEqual(merged.space_zones.space_001,automatic.space_zones.space_001);
+  assert.deepEqual(merged.space_zones.space_002,automatic.space_zones.space_002);
+  assert.deepEqual(merged.excluded_space_uids,["space_003"]);
+  assert.deepEqual(merged.manual_zone_uids,["space_001"]);
+  const restored=composeCameraZones(map,automatic,{});
+  assert.deepEqual(restored.space_zones.space_001,automatic.space_zones.space_001);
+});
+
+test("photo-first polygons reject degenerate geometry and non-map UIDs",()=>{
+  assert.throws(()=>normalizeCameraZone([[0,0],[0,0],[.5,.2],[.2,.5]]),/同じ角/);
+  assert.throws(()=>normalizeCameraZone([[.1,.1],[.2,.2],[.3,.3],[.4,.4]]),/小さすぎる/);
+  assert.throws(()=>normalizeCameraZone([[.1,.1],[.1,.2],[.2,.2]]),/4か所/);
+  const map={canvas:{width:1000,height:1000},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:50,y:50,width:50,height:70,
+     cameraCoverage:"outside"}]};
+  assert.throws(()=>composeCameraZones(map,null,{space_001:[
+    [.1,.1],[.2,.1],[.2,.2],[.1,.2]]}),/登録された駐車枠がありません/);
+  assert.throws(()=>composeCameraZones(map,null,{space_999:[
+    [.1,.1],[.2,.1],[.2,.2],[.1,.2]]}),/存在しない区画/);
 });
