@@ -99,8 +99,8 @@ test("catalog backfill also includes registered parking spaces in uncatalogued e
 test("administrator backfill includes A-Z, 1-99 and every fixed Japanese announcement", () => {
   const api=getModule();
   const list=api.itemsForCatalog([],{});
-  assert.equal(list.filter(x=>x.type==="space").length,125);
-  for (const t of ["えー","ぜっと","いち","じゅうに","きゅうじゅうきゅう"]) {
+  assert.equal(list.filter(x=>x.type==="space").length,127);
+  for (const t of ["えー","ぜっと","いち","じゅうに","きゅうじゅうきゅう","れつ","くかく"]) {
     assert.ok(list.some(x=>x.text===t && x.type==="space"),t);
   }
   assert.ok(list.some(x=>x.text==="繰り返します。" && x.type==="other"));
