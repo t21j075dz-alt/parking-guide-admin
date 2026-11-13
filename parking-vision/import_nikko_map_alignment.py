@@ -78,9 +78,9 @@ def checked_projection(alignment):
     if quality is not None:
         outliers = quality.get("outlier_indices") if isinstance(quality, dict) else None
         valid_outliers = (isinstance(outliers, list)
-                          and len(outliers) == len(set(outliers))
                           and all(type(i) is int and 0 <= i < len(map_points)
-                                  for i in outliers))
+                                  for i in outliers)
+                          and len(outliers) == len(set(outliers)))
         if (not isinstance(quality, dict)
                 or quality.get("method") not in ("four-point", "ransac-least-squares")
                 or type(quality.get("point_count")) is not int
