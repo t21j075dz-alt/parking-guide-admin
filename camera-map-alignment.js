@@ -18,6 +18,10 @@
   const pointCount=get("alignment-point-count"),nextAction=get("alignment-next-action");
   const pointList=get("alignment-point-list"),quality=get("alignment-quality");
   const outlierCount=get("alignment-outlier-count");
+  const editor=get("alignment-photo-editor"),methodSelect=get("alignment-zone-method");
+  const slotSelect=get("alignment-slot-select"),drawZoneButton=get("alignment-draw-zone");
+  const clearZoneButton=get("alignment-clear-zone"),editorHint=get("alignment-photo-editor-hint");
+  const editorCount=get("alignment-photo-editor-count");
   const coverageSettings=get("alignment-coverage-settings"),coverageList=get("alignment-coverage-list");
   const facilityLabel=get("alignment-facility-label"),spaceCount=get("alignment-space-count");
   const photoInfo=get("alignment-image-info"),photoReady=get("alignment-photo-ready");
@@ -26,6 +30,7 @@
   const memoryKey="parkingCameraMapAlignmentsV1";
   let mapPoints=[],imagePoints=[],projected=null,currentFacility="",fileUrl=null;
   let layoutChanged=false, showWholeMap=false, exported=false;
+  let automatic=null,manualZones={},activeUid="",pendingCorners=null,drag=null;
 
   function notify(text){message.textContent=text;}
   function svg(tag,attrs,text){
@@ -43,6 +48,78 @@
     try{return JSON.parse(localStorage.getItem(memoryKey)||"{}")||{};}catch{return {};}
   }
   function storageId(){return currentFacility+"|"+cameraId.value.trim();}
+  function editorMode(){return methodSelect.value;}
+  function enabledManual(){return currentFacility==="nikko-test-001"&&editorMode()!=="auto";}
+  function usableSlots(){
+    return (layout()?.objects||[]).filter(o=>o.objectType==="parkingSpace");
+  }
+  function currentSlot(){return usableSlots().find(o=>o.uid===activeUid)||null;}
+  function showEditor(){
+    editor.hidden=currentFacility!=="nikko-test-001";
+    if(editor.hidden)return;
+    slotSelect.replaceChildren();
+    for(const obj of usableSlots()){
+      const item=document.createElement("option");
+      item.value=obj.uid;
+      item.textContent=String(obj.spaceGroup||"")+
+        " "+String(obj.spaceNumber||obj.name||obj.uid)+" ("+obj.uid+")"+
+        (obj.cameraCoverage==="outside"?"・画角外":"");
+      slotSelect.append(item);
+    }
+    if(!activeUid||!usableSlots().some(o=>o.uid===activeUid))
+      activeUid=usableSlots()[0]?.uid||"";
+    slotSelect.value=activeUid;
+    updateEditorStatus();
+  }
+  function updateEditorStatus(){
+    if(editor.hidden)return;
+    const total=Object.keys(manualZones).length;
+    editorCount.textContent="個別補正 "+total+"件";
+    const slot=currentSlot(),mode=editorMode();
+    drawZoneButton.disabled=mode==="auto"||!slot||slot.cameraCoverage==="outside"||
+      image.hidden||!image.naturalWidth;
+    clearZoneButton.disabled=!slot||!Object.hasOwn(manualZones,slot.uid);
+    editorHint.textContent=pendingCorners
+      ? "写真で"+activeUid+"の四隅を選択中（"+pendingCorners.length+"/4）。白線の角を順にクリックしてください。"
+      : mode==="auto"
+        ? "全体の位置合わせをします。区画ごとの修正には「ずれた枠だけ補正」を選んでください。"
+        : !slot ? "管理マップに駐車枠を登録してください。"
+        : slot.cameraCoverage==="outside" ? "この区画は画角外に指定済みです。修正する場合は範囲外指定を解除してください。"
+        : Object.hasOwn(manualZones,slot.uid)
+          ? "この区画は写真から補正済みです。四隅の丸をドラッグして微調整できます。"
+          : "写真上の緑色の枠を選ぶか、「この枠の四隅を写真で指定」を押してください。";
+  }
+  function materialize(){
+    const mode=editorMode();
+    if(mode==="auto")return automatic;
+    if(mode==="manual"){
+      if(!Object.keys(manualZones).length)return null;
+      return core.composeCameraZones(layout(),null,manualZones);
+    }
+    if(!automatic&&!Object.keys(manualZones).length)return null;
+    return core.composeCameraZones(layout(),automatic,manualZones);
+  }
+  function syncZones(){
+    try{projected=materialize();}
+    catch(error){projected=null;notify("写真の登録を見直してください: "+error.message);}
+    confirmed.checked=false;exported=false;
+  }
+  function persistDraft(){
+    const current=layout();
+    if(!current)return;
+    try{
+      const all=saved();
+      all[storageId()]={map_points:mapPoints,image_points:imagePoints,
+        manual_zones:manualZones,mode:editorMode(),
+        canvas:{width:Number(current.canvas.width),height:Number(current.canvas.height)},
+        layout_signature:core.layoutSignature(current),
+        image_ratio:image.naturalWidth&&image.naturalHeight
+          ? image.naturalWidth/image.naturalHeight
+          : all[storageId()]?.image_ratio||null};
+      localStorage.setItem(memoryKey,JSON.stringify(all));
+    }catch{notify("端末に一時保存できません。最後に設定JSONを書き出してください。");}
+  }
+
   function refresh(){
     const hasPhoto=!image.hidden&&image.naturalWidth>0;
     const paired=Math.min(mapPoints.length,imagePoints.length);
