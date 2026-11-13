@@ -229,3 +229,21 @@
 #alignment-map polygon[data-slot-uid]{cursor:pointer}
 @media(max-width:570px){.alignment-photo-editor{padding:10px}
  .alignment-photo-editor-controls button{width:100%}}
+
+/* 全体の点合わせに失敗しても、写真から登録した区画を安全に使える導線。 */
+.alignment-direct-fallback{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:14px;padding:13px 15px;margin:12px 0;border-radius:10px;
+  background:var(--panel-2,#fff8e8);
+  border:1px solid var(--border,#d5ac60);
+  color:var(--text,#26364a)
+}
+.alignment-direct-fallback>div{flex:1 1 280px;min-width:0}
+.alignment-direct-fallback strong{display:block;font-size:.92rem}
+.alignment-direct-fallback p{margin:5px 0 0;font-size:.8rem;line-height:1.65}
+.alignment-direct-fallback button{flex:0 1 300px;font-size:.84rem;min-height:42px}
+.alignment-direct-fallback[hidden],
+.camera-map-alignment-dialog .alignment-counter[hidden],
+.camera-map-alignment-dialog .alignment-point-review[hidden],
+.camera-map-alignment-dialog .alignment-actions button[hidden]{display:none!important}
+@media(max-width:600px){.alignment-direct-fallback button{flex:1 1 100%;width:100%}}
