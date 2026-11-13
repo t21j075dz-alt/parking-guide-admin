@@ -129,6 +129,7 @@ const {chromium}=require("playwright");
     assert.match(await page.locator("#alignment-outlier-count").textContent(),/誤差大 1点/);
     assert.equal(await page.locator("#alignment-confirm-visual").isDisabled(),true);
     assert.equal(await page.locator("#alignment-export").isEnabled(),false);
+    await page.locator("#alignment-point-details summary").click();
     await page.getByRole("button",{name:"位置合わせ点7を削除"}).click();
     await page.locator("#alignment-project").click();
     assert.match(await page.locator("#alignment-quality").textContent(),/採用6点/);
