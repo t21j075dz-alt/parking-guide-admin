@@ -76,7 +76,7 @@ function Test-Ready {
   & $python @checkArgs 2>$null | Out-Null
   return $LASTEXITCODE -eq 0
 }
-if (-not (Test-Ready)) {
+if (-not (Test-Ready) -or -not [string]::IsNullOrWhiteSpace($Alignment)) {
   Write-Host "【準備】この録画に合う区画座標がまだ校正されていません。"
   if ([string]::IsNullOrWhiteSpace($Alignment) -and $SpaceCount -eq 0 -and [string]::IsNullOrWhiteSpace($SpaceUids)) {
     Write-Host "1. 管理マップから画角内の区画を一括投影（おすすめ）"
@@ -94,9 +94,17 @@ if (-not (Test-Ready)) {
   if (-not [string]::IsNullOrWhiteSpace($Alignment)) {
     $Alignment = $Alignment.Trim().Trim('"')
     if (-not (Test-Path -LiteralPath $Alignment -PathType Leaf)) { throw "位置合わせJSONが見つかりません: $Alignment" }
-    $arguments = @((Join-Path $PSScriptRoot "import_nikko_map_alignment.py"), "--base", "config.json", "--config", $config, "--alignment", $Alignment, "--video", $Video, "--apply")
+    $arguments = @((Join-Path $PSScriptRoot "import_nikko_map_alignment.py"), "--base", "config.json", "--config", $config, "--alignment", $Alignment, "--video", $Video)
+    Write-Host "【事前検査】位置合わせJSONが日光の元動画と一致するか検査します。"
     & $python @arguments
-    if ($LASTEXITCODE -ne 0) { throw "日光の区画設定を保存できませんでした。" }
+    if ($LASTEXITCODE -ne 0) { throw "位置合わせJSONの検査に失敗しました。旧設定は保持します。" }
+    $approval = (Read-Host "動画の3場面を確認して録画設定へ取り込む場合だけ「取込」と入力").Trim()
+    if ($approval -ne "取込") {
+      Write-Host "【中止】録画用設定もクラウドも変更しません。"
+      return
+    }
+    & $python @arguments "--apply"
+    if ($LASTEXITCODE -ne 0) { throw "日光の区画設定を保存できませんでした。旧設定は保持します。" }
   } else {
     if (-not [string]::IsNullOrWhiteSpace($SpaceUids)) {
       $idsArgs = @("--space-uids", $SpaceUids)
