@@ -11,6 +11,7 @@ function getModule() {
   } };
   const context = vm.createContext({window, document:{querySelector:()=>null}});
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../voice-speech-readings.js"),"utf8"), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../voice-guide-scripts.js"),"utf8"), context);
   vm.runInContext(source, context);
   return window.ParkingAdminVoice;
 }
@@ -93,4 +94,15 @@ test("catalog backfill also includes registered parking spaces in uncatalogued e
     "experimental":{objects:[{objectType:"parkingSpace",spaceNumber:"012"}]},
   });
   assert.ok(list.some(x=>x.text==="じゅうに"&&x.type==="space"));
+});
+
+test("administrator backfill includes A-Z, 1-99 and every fixed Japanese announcement", () => {
+  const api=getModule();
+  const list=api.itemsForCatalog([],{});
+  assert.equal(list.filter(x=>x.type==="space").length,125);
+  for (const t of ["えー","ぜっと","いち","じゅうに","きゅうじゅうきゅう"]) {
+    assert.ok(list.some(x=>x.text===t && x.type==="space"),t);
+  }
+  assert.ok(list.some(x=>x.text==="繰り返します。" && x.type==="other"));
+  assert.ok(list.some(x=>x.text.includes("げんちの標識や係員") && x.type==="other"));
 });
