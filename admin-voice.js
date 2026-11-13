@@ -129,6 +129,10 @@ window.ParkingAdminVoice = (() => {
         ? japaneseSpaceReading(letter) : letter;
       list.push({ text: normalize(text), type: "space" });
     }
+    // 英字と数字を結ぶ「A列12番」「B区画7番」用の共通助詞音声。
+    for (const text of ["れつ", "くかく"]) {
+      list.push({ text, type: "space" });
+    }
     for (let number = 1; number <= 99; number += 1) {
       const text = typeof japaneseNumber === "function"
         ? japaneseNumber(number) : String(number);
