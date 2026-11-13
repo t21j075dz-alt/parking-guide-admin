@@ -263,7 +263,9 @@
         map.append(svg("polygon",{
           points:core.parkingCorners(item).map(p=>p.join(",")).join(" "),
           fill:item.cameraCoverage==="outside"?"#acb4c0":"#92d9c3",
-          stroke:item.cameraCoverage==="outside"?"#606a7a":"#177a61","stroke-width":Math.max(1,width/800)
+          stroke:item.uid===activeUid&&enabledManual()?"#ff8b24":item.cameraCoverage==="outside"?"#606a7a":"#177a61",
+          "stroke-width":item.uid===activeUid&&enabledManual()?Math.max(3,width/500):Math.max(1,width/800),
+          "data-slot-uid":item.uid
         }));
         const centerX=Number(item.x)+Number(item.width)/2;
         const centerY=Number(item.y)+Number(item.height)/2;
@@ -280,14 +282,39 @@
     });
     overlay.setAttribute("viewBox","0 0 1 1");
     if(projected)for(const [uid,polygon] of Object.entries(projected.space_zones)){
+      const shown=drag?.uid===uid?drag.corners:polygon;
+      const selected=enabledManual()&&activeUid===uid;
+      const edited=Object.hasOwn(manualZones,uid);
       overlay.append(svg("polygon",{
-        points:polygon.map(p=>p.join(",")).join(" "),
-        fill:"rgba(57,196,139,0.20)",stroke:"#2de6a7","stroke-width":.003
+        points:shown.map(p=>p.join(",")).join(" "),
+        fill:selected?"rgba(255,167,58,0.18)":"rgba(57,196,139,0.20)",
+        stroke:selected?"#ff9c33":edited?"#ffe089":"#2de6a7",
+        "stroke-width":selected?.004:.003,
+        "data-zone-uid":uid
       }));
-      const center=polygon.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4],[0,0]);
+      const center=shown.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4],[0,0]);
       overlay.append(svg("text",{x:center[0],y:center[1],fill:"#ffffff",stroke:"#203f35",
         "stroke-width":.0003,"paint-order":"stroke","text-anchor":"middle",
-        "font-size":.018,"font-weight":"bold"},uid.replace(/^space_0*/,"")));
+        "font-size":.018,"font-weight":"bold","data-zone-uid":uid},uid.replace(/^space_0*/,"")));
+      if(selected)shown.forEach((corner,index)=>{
+        overlay.append(svg("circle",{cx:corner[0],cy:corner[1],r:.013,
+          fill:"#ffb641",stroke:"#fff","stroke-width":.004,
+          "data-zone-uid":uid,"data-zone-corner":index}));
+      });
+    }
+    if(pendingCorners?.length){
+      if(pendingCorners.length>1){
+        overlay.append(svg("polyline",{
+          points:pendingCorners.map(p=>p.join(",")).join(" "),
+          fill:"none",stroke:"#ffb641","stroke-width":.004,
+          "stroke-dasharray":".008 .006","pointer-events":"none"}));
+      }
+      pendingCorners.forEach((p,i)=>{
+        overlay.append(svg("circle",{cx:p[0],cy:p[1],r:.010,
+          fill:"#ffb641",stroke:"#fff","stroke-width":.002,"pointer-events":"none"}));
+        overlay.append(svg("text",{x:p[0]+.009,y:p[1]-.009,fill:"#fff",
+          "font-size":.019,"pointer-events":"none"},String(i+1)));
+      });
     }
     imagePoints.forEach((p,i)=>{
       const bad=projected?.alignmentDiagnostics?.outlierIndices?.includes(i);
