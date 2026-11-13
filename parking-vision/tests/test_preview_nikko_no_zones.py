@@ -5,7 +5,8 @@ import tempfile
 import unittest
 
 from preview_nikko_no_zones import (
-    count_frame, detection_category, read_model_settings, validate_source,
+    count_frame, detection_category, read_model_settings,
+    read_segmentation_preview_settings, validate_source,
 )
 
 
@@ -48,6 +49,50 @@ class DetectionOnlyTests(unittest.TestCase):
             self.assertEqual(config["model"], str(model.resolve()))
             with self.assertRaisesRegex(ValueError, "見つかりません"):
                 read_model_settings(folder / "no-config.json", explicit_model="missing.pt")
+
+    def test_high_quality_custom_segmentation_without_parking_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            trained = folder / "last.pt"
+            trained.write_bytes(b"test segmentation placeholder")
+            data = read_segmentation_preview_settings(
+                folder / "missing-config.json", str(trained), "high")
+            self.assertEqual(data["model"], str(trained.resolve()))
+            self.assertEqual(data["segmentation"].imgsz, 960)
+            self.assertTrue(data["segmentation"].retina_masks)
+            self.assertNotIn("space_zones", data)
+            self.assertNotIn("supabase_url", data)
+            maximum = read_segmentation_preview_settings(
+                folder / "missing-config.json", str(trained), "maximum")
+            self.assertEqual(maximum["segmentation"].imgsz, 1280)
+            self.assertTrue(maximum["segmentation"].retina_masks)
+            with self.assertRaisesRegex(ValueError, "見つかりません"):
+                read_segmentation_preview_settings(
+                    folder / "missing-config.json", str(folder / "no.pt"))
+            with self.assertRaisesRegex(ValueError, "輪郭モデル"):
+                read_segmentation_preview_settings(
+                    folder / "missing-config.json", "")
+
+    def test_segmentation_reads_only_tracking_options_not_occupancy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            trained = folder / "best.pt"
+            trained.write_bytes(b"placeholder")
+            config = folder / "config.json"
+            config.write_text(json.dumps({
+                "facility_id": "nikko-test-001",
+                "camera_id": "nikko-recording-01",
+                "tracking_confidence": .16,
+                "space_zones": {"space_001": [[.1,.1],[.2,.1],[.2,.2],[.1,.2]]},
+                "supabase_url": "https://example.invalid",
+                "publishable_key": "unused",
+                "tracker_file": "botsort.yaml",
+            }), encoding="utf-8")
+            data=read_segmentation_preview_settings(config, str(trained), "high")
+            self.assertEqual(data["confidence"], .16)
+            self.assertNotIn("facility_id", data)
+            self.assertNotIn("space_zones", data)
+            self.assertNotIn("supabase_url", data)
 
     def test_rejects_processed_or_unavailable_video_inputs(self):
         with tempfile.TemporaryDirectory() as tmp:
