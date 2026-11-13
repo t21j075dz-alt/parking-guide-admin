@@ -69,9 +69,28 @@ if (-not (Test-Path -LiteralPath $Video -PathType Leaf)) { throw "元動画が�
 $Video=(Resolve-Path -LiteralPath $Video).Path
 Write-Host "【動画】$Video"
 $config=Join-Path $PSScriptRoot "config.json"
-if (-not (Test-Path -LiteralPath $config -PathType Leaf)) {
-  Write-Host "【確認】config.jsonがないため、学習済みYOLOモデルを指定します。"
-  if ([string]::IsNullOrWhiteSpace($Model)) {
+if ([string]::IsNullOrWhiteSpace($Model)) {
+  $requiresModel = -not (Test-Path -LiteralPath $config -PathType Leaf)
+  if (-not $requiresModel) {
+    try {
+      $settings = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
+      $modelInConfig = ([string]$settings.vehicle_model).Trim()
+      if ([string]::IsNullOrWhiteSpace($modelInConfig)) {
+        $requiresModel = $true
+      } else {
+        $modelRelative = Join-Path $PSScriptRoot $modelInConfig
+        if (-not (Test-Path -LiteralPath $modelInConfig -PathType Leaf) -and
+            -not (Test-Path -LiteralPath $modelRelative -PathType Leaf)) {
+          $requiresModel = $true
+          Write-Host "【モデル未発見】config.jsonの重みファイル: $modelInConfig"
+        }
+      }
+    } catch {
+      $requiresModel = $true
+      Write-Host "【確認】config.jsonを読み込めないため、YOLOモデルのパスを指定してください。"
+    }
+  }
+  if ($requiresModel) {
     $Model=Read-Host "学習済みYOLOの .pt ファイルのパス（ドラッグも可）"
   }
 }
