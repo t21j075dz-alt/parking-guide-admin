@@ -174,7 +174,7 @@ def run(args):
         if args.save_video:
             target = Path(args.output).expanduser().resolve()
             target.mkdir(parents=True, exist_ok=True)
-            output = target / (source.stem + "_YOLO検知のみ_" +
+            output = target / ("nikko_yolo_detections_" +
                                datetime.now().strftime("%Y%m%d_%H%M%S") + ".mp4")
         pause = False
         start_clock = time.monotonic()
@@ -243,7 +243,7 @@ def run(args):
                 elif key in (ord("s"), ord("S")):
                     folder = Path(args.output).expanduser().resolve()
                     folder.mkdir(parents=True, exist_ok=True)
-                    image_path = folder / (source.stem + "_検知確認_" +
+                    image_path = folder / ("nikko_detection_snapshot_" +
                                            datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".png")
                     cv2.imwrite(str(image_path), last)
                     print("【保存】"+str(image_path))
