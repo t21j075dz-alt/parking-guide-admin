@@ -28,7 +28,8 @@
   function show() {
     const row = rows.find((r) => r.camera_id === select.value);
     const age = Date.now() - Date.parse(row?.captured_at);
-    const maxAge = admin ? 30000 : 360000;
+    const replay = lastId === "nikko-test-001";
+    const maxAge = replay ? 20000 : admin ? 30000 : 360000;
     if (
       !row ||
       !Number.isFinite(age) ||
@@ -38,17 +39,20 @@
     ) {
       image.hidden = true;
       image.removeAttribute("src");
-      status.textContent = text("現在の写真を確認できません", "Current photo unavailable");
+      status.textContent = replay
+        ? text("録画画像を確認できません", "Recorded preview unavailable")
+        : text("現在の写真を確認できません", "Current photo unavailable");
       return;
     }
     if (image.getAttribute("src") !== row.image_data) image.src = row.image_data;
     image.hidden = false;
     status.textContent =
-      text("撮影：", "Captured: ") +
+      (replay ? text("過去の録画（現地ライブではありません）・更新：", "Recorded replay (not live) · Updated: ")
+              : text("撮影：", "Captured: ")) +
       new Date(row.captured_at).toLocaleString(english() ? "en-GB" : "ja-JP") +
       text(
-        admin ? " · 5秒ごとに更新" : " · 5分ごとに更新",
-        admin ? " · refreshes every 5 seconds" : " · refreshes every 5 minutes",
+        replay ? " · 約5秒ごとに更新" : admin ? " · 5秒ごとに更新" : " · 5分ごとに更新",
+        replay ? " · refreshes about every 5 seconds" : admin ? " · refreshes every 5 seconds" : " · refreshes every 5 minutes",
       );
   }
   async function refresh(force = false) {
@@ -68,7 +72,7 @@
       return;
     }
     show();
-    if (busy || (!force && Date.now() - lastFetch < (admin ? 5000 : 300000))) return;
+    if (busy || (!force && Date.now() - lastFetch < (admin || id === "nikko-test-001" ? 5000 : 300000))) return;
     const c = window.PARKING_REMOTE_CONFIG || {};
     if (!c.enabled || !/^https:\/\//.test(c.supabaseUrl || "")) return;
     busy = true;
