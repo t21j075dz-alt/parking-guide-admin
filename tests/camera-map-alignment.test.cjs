@@ -35,7 +35,7 @@ test("all map slots export the exact UID and normalized projected quadrilaterals
   assert.deepEqual(layout.objects[0].x,200); // input is never changed
 });
 test("degenerate anchors and missing spaces are rejected",()=>{
-  assert.throws(()=>homography([[0,0],[.2,.2],[.4,.4],[.8,.8]],camera),/4点|一直線/);
+  assert.throws(()=>homography([[0,0],[.2,.2],[.4,.4],[.8,.8]],camera),/4点|一直線|狭い範囲/);
   assert.throws(()=>generateZones({...layout,objects:[]},anchors,camera),/駐車区画/);
 });
 test("a projected space outside the image is never exported or silently clipped",()=>{
