@@ -145,6 +145,14 @@ if ($Share) {
   $approve = (Read-Host "共有する場合だけ「録画共有」と入力").Trim()
   if ($approve -ne "録画共有") { Write-Host "【中止】共有しません。"; return }
   $flags += "--demo-publish"
+  Write-Host "【画像共有】過去の録画の縮小静止画を約5秒ごとに全アプリへ反映できます。"
+  Write-Host "【注意】画像には常に「録画・現地ライブではない」と表示します。"
+  $photoApproval = (Read-Host "静止画も公開する場合だけ「写真も共有」と入力").Trim()
+  if ($photoApproval -eq "写真も共有") {
+    $flags += "--share-recorded-stills"
+  } else {
+    Write-Host "【画像共有OFF】区画の状態だけを管理者・利用者アプリへ反映します。"
+  }
 } else {
   Write-Host "【PC内だけ】クラウドへ送信しません。"
   $flags += "--dry-run"
