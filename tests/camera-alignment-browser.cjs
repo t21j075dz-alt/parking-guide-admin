@@ -87,7 +87,7 @@ const {chromium}=require("playwright");
     await page.waitForFunction(()=>document.querySelector("#alignment-photo-ready")?.dataset?.ready==="true");
     assert.equal(await page.locator("#alignment-image-info").textContent(),"写真 640 × 480 px");
     assert.equal(await page.locator("#alignment-steps li.is-current").getAttribute("data-alignment-step"),"points");
-    const pair=[[.12,.15],[.88,.15],[.88,.84],[.12,.84]];
+    const pair=[[.12,.15],[.88,.15],[.88,.84],[.12,.84],[.47,.32],[.68,.65]];
     for(const [x,y] of pair){
       await page.evaluate(([nx,ny])=>{
         const svg=document.querySelector("#alignment-map");
@@ -104,11 +104,34 @@ const {chromium}=require("playwright");
         svg.dispatchEvent(new MouseEvent("click",{clientX:screen.x,clientY:screen.y,bubbles:true}));
       },[x,y]);
     }
-    assert.equal(await page.locator("#alignment-point-count").textContent(),"対応点 4 / 4 組");
+    assert.equal(await page.locator("#alignment-point-count").textContent(),"対応点 6 / 最大24組");
+    assert.equal(await page.locator("#alignment-point-list li").count(),6);
     assert.equal(await page.locator("#alignment-project").isEnabled(),true);
     await page.locator("#alignment-project").click();
     assert.equal(await page.locator("#alignment-camera-overlay polygon").count(),2);
+    assert.match(await page.locator("#alignment-quality").textContent(),/採用6点/);
     assert.equal(await page.locator("#alignment-export").isEnabled(),false);
+    // A deliberately mismatched seventh pair must be flagged, not silently exported.
+    await page.evaluate(()=>{
+      function choose(id,nx,ny,isMap){
+        const svg=document.getElementById(id);
+        const p=svg.createSVGPoint();
+        p.x=isMap?nx*getCurrentLayout().canvas.width:nx;
+        p.y=isMap?ny*getCurrentLayout().canvas.height:ny;
+        const location=p.matrixTransform(svg.getScreenCTM());
+        svg.dispatchEvent(new MouseEvent("click",{clientX:location.x,clientY:location.y,bubbles:true}));
+      }
+      choose("alignment-map",.36,.68,true);
+      choose("alignment-camera-overlay",.92,.13,false);
+    });
+    assert.equal(await page.locator("#alignment-point-list li").count(),7);
+    await page.locator("#alignment-project").click();
+    assert.match(await page.locator("#alignment-outlier-count").textContent(),/誤差大 1点/);
+    assert.equal(await page.locator("#alignment-confirm-visual").isDisabled(),true);
+    assert.equal(await page.locator("#alignment-export").isEnabled(),false);
+    await page.getByRole("button",{name:"位置合わせ点7を削除"}).click();
+    await page.locator("#alignment-project").click();
+    assert.match(await page.locator("#alignment-quality").textContent(),/採用6点/);
     await page.locator("#alignment-confirm-visual").check();
     assert.equal(await page.locator("#alignment-export").isEnabled(),true);
     const [download]=await Promise.all([
@@ -119,6 +142,11 @@ const {chromium}=require("playwright");
     assert.deepEqual(output.space_uids,["space_001","space_002"]);
     assert.equal(Object.keys(output.space_zones).length,2);
     assert.equal(output.image_width,640);
+    assert.equal(output.map_points.length,6);
+    assert.equal(output.image_points.length,6);
+    assert.equal(output.alignment_quality.method,"ransac-least-squares");
+    assert.equal(output.alignment_quality.point_count,6);
+    assert.deepEqual(output.alignment_quality.outlier_indices,[]);
     await page.screenshot({path:"/tmp/parking-camera-alignment-desktop.png",fullPage:true});
 
     await page.locator("#alignment-close").click();
@@ -157,7 +185,7 @@ const {chromium}=require("playwright");
     assert.ok(widths.body<=widths.screen+2,"mobile page horizontal overflow: "+JSON.stringify(widths));
     await mobile.screenshot({path:"/tmp/parking-camera-alignment-mobile.png"});
     assert.deepEqual(errors,[],"no browser runtime errors");
-    console.log("PASS: desktop/mobile camera-map UI, viewport, four pairs, approval/download, monitor shortcuts");
+    console.log("PASS: desktop/mobile camera-map UI, six points, error removal, approval/download, monitor shortcuts");
   } finally {
     await browser.close();
     await new Promise(resolve=>server.close(resolve));
