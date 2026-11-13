@@ -76,17 +76,24 @@ def checked_projection(alignment):
     if manual_only and quality is not None:
         raise ValueError("写真から直接登録した枠には全体変換の精度診断を付けないでください")
     if quality is not None:
+        outliers = quality.get("outlier_indices") if isinstance(quality, dict) else None
+        valid_outliers = (isinstance(outliers, list)
+                          and len(outliers) == len(set(outliers))
+                          and all(type(i) is int and 0 <= i < len(map_points)
+                                  for i in outliers))
         if (not isinstance(quality, dict)
                 or quality.get("method") not in ("four-point", "ransac-least-squares")
                 or type(quality.get("point_count")) is not int
                 or quality["point_count"] != len(map_points)
                 or type(quality.get("inlier_count")) is not int
-                or quality["inlier_count"] != len(map_points)
-                or quality.get("outlier_indices") != []
+                or not 4 <= quality["inlier_count"] <= len(map_points)
+                or not valid_outliers
+                or quality["inlier_count"] + len(outliers) != len(map_points)
+                or (outliers and (method != "hybrid-zones" or not manual_ids))
                 or type(quality.get("rms_pixels")) not in (int, float)
                 or not isfinite(quality["rms_pixels"])
                 or quality["rms_pixels"] < 0):
-            raise ValueError("位置合わせの精度診断が不正です。外れ点を修正して書き出してください")
+            raise ValueError("位置合わせの精度診断が不正です。外れ点と区画の補正結果を確認してください")
     checked = {}
     for uid in ids:
         try:
