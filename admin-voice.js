@@ -115,8 +115,30 @@ window.ParkingAdminVoice = (() => {
     list.push(...safetyMessageItems(layout));
     return [...new Map(list.map(x => [x.text, x])).values()];
   }
+  /** 日本語台本の固定文・A〜Z・1〜99を全施設共通で準備する。 */
+  function commonSpeechItems() {
+    const list = [];
+    const normalize = text => typeof normalizeJapaneseSpeech === "function"
+      ? normalizeJapaneseSpeech(String(text)) : String(text);
+    for (const fragment of window.ParkingVoiceGuideScripts?.catalogFixed?.() || []) {
+      const text = normalize(fragment).trim();
+      if (text) list.push({ text, type: "other" });
+    }
+    for (const letter of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+      const text = typeof japaneseSpaceReading === "function"
+        ? japaneseSpaceReading(letter) : letter;
+      list.push({ text: normalize(text), type: "space" });
+    }
+    for (let number = 1; number <= 99; number += 1) {
+      const text = typeof japaneseNumber === "function"
+        ? japaneseNumber(number) : String(number);
+      list.push({ text: normalize(text), type: "space" });
+    }
+    return [...new Map(list.map(item => [item.text, item])).values()];
+  }
+
   function itemsForCatalog(facilities, layouts) {
-    const all = [];
+    const all = [...commonSpeechItems()];
     for (const f of facilities || []) all.push(...itemsForFacility(f,layouts?.[f.id]));
     // 3つのモードは共通レイアウトで管理するが音声名は個別に準備する。
     for (const id of ["home-video-demo-001", "home-voice-test-001"]) {
