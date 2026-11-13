@@ -1,4 +1,4 @@
-/* カメラ画像と管理マップの4点対応から、全駐車区画を投影する純粋関数。
+/* カメラ画像と管理マップの4～24点対応から、全駐車区画を投影する純粋関数。
  * 映像・クラウド・既存レイアウトの状態は変更しない。
  * カメラと駐車場の床面が1つの平面であることを前提とする。
  */
@@ -45,25 +45,121 @@
     return a.map(row=>row[8]);
   }
 
-  /** mapPoints/imagePoints は、それぞれ0～1に正規化した対応座標。 */
-  function homography(mapPoints,imagePoints){
-    if(mapPoints?.length!==4 || imagePoints?.length!==4)throw new Error("マップと映像の対応点を4組指定してください。");
+  const MAX_PAIRS=24;
+  // 誤差が画像幅/高さの約1%を超える対応点は外れ点の候補とする。
+  // 4点の厳密投影は従来互換、5点以上は外れ点を除いた最小二乗推定。
+  const INLIER_THRESHOLD=.012;
+
+  function validatePairs(mapPoints,imagePoints){
+    const n=mapPoints?.length;
+    if(!Array.isArray(mapPoints)||!Array.isArray(imagePoints)||
+       n!==imagePoints.length||n<4||n>MAX_PAIRS){
+      throw new Error("マップと映像で同じ場所を4～24組指定してください。");
+    }
     for(const p of [...mapPoints,...imagePoints]){
       point(p);
       if(p.some(v=>v<0||v>1))throw new Error("対応点が画像またはマップの範囲外です。");
     }
-    if(hullArea(mapPoints)<0.005 || hullArea(imagePoints)<0.005){
-      throw new Error("4点が狭い範囲に集中しています。駐車場の広い範囲で4点を選んでください。");
+    if(hullArea(mapPoints)<.005||hullArea(imagePoints)<.005){
+      throw new Error("対応点が狭い範囲に集中しています。駐車場全体に広く配置してください。");
     }
+    return n;
+  }
+
+  /** 正規化したx,y->u,vの8係数を、4点は厳密に、5点以上は最小二乗で解く。 */
+  function solveFromPairs(mapPoints,imagePoints,indices){
     const equations=[],values=[];
-    for(let i=0;i<4;i++){
+    for(const i of indices){
       const [x,y]=mapPoints[i],[u,v]=imagePoints[i];
       equations.push([x,y,1,0,0,0,-x*u,-y*u]);
       values.push(u);
       equations.push([0,0,0,x,y,1,-x*v,-y*v]);
       values.push(v);
     }
-    return solve(equations,values);
+    if(indices.length===4)return solve(equations,values);
+    const normal=Array.from({length:8},()=>Array(8).fill(0));
+    const right=Array(8).fill(0);
+    for(let r=0;r<equations.length;r++){
+      const row=equations[r];
+      for(let i=0;i<8;i++){
+        right[i]+=row[i]*values[r];
+        for(let j=0;j<8;j++)normal[i][j]+=row[i]*row[j];
+      }
+    }
+    return solve(normal,right);
+  }
+
+  function pairResiduals(matrix,mapPoints,imagePoints){
+    return mapPoints.map((p,i)=>{
+      try{
+        const transformed=project(matrix,p);
+        return [transformed[0]-imagePoints[i][0],transformed[1]-imagePoints[i][1]];
+      }catch{return [Infinity,Infinity];}
+    });
+  }
+
+  function inliersFor(residualVectors,threshold){
+    return residualVectors.flatMap(([dx,dy],i)=>
+      Math.hypot(dx,dy)<=threshold?[i]:[]);
+  }
+
+  /** 4点の厳密法と、多点RANSAC+最小二乗法を統一して診断も返す。 */
+  function fitHomography(mapPoints,imagePoints){
+    const n=validatePairs(mapPoints,imagePoints);
+    const all=Array.from({length:n},(_,i)=>i);
+    let matrix,indices=all;
+    if(n===4){
+      matrix=solveFromPairs(mapPoints,imagePoints,all);
+    }else{
+      // 再現性のある4点組合せを最大約500組評価。乱数に依存しない。
+      const combinations=n*(n-1)*(n-2)*(n-3)/24;
+      const stride=Math.max(1,Math.floor(combinations/480));
+      let count=0,best=null;
+      for(let a=0;a<n-3;a++)for(let b=a+1;b<n-2;b++)
+        for(let c=b+1;c<n-1;c++)for(let d=c+1;d<n;d++){
+          if(count++%stride!==0)continue;
+          const sample=[a,b,c,d];
+          if(hullArea(sample.map(i=>mapPoints[i]))<.005 ||
+             hullArea(sample.map(i=>imagePoints[i]))<.005)continue;
+          let trial;
+          try{trial=solveFromPairs(mapPoints,imagePoints,sample);}
+          catch{continue;}
+          const residuals=pairResiduals(trial,mapPoints,imagePoints);
+          const fit=inliersFor(residuals,INLIER_THRESHOLD);
+          if(fit.length<4)continue;
+          const sum=fit.reduce((total,i)=>total+
+            residuals[i][0]**2+residuals[i][1]**2,0);
+          if(!best||fit.length>best.indices.length||
+             (fit.length===best.indices.length&&sum<best.sum)){
+            best={indices:fit,sum};
+          }
+        }
+      if(!best)throw new Error("対応点に整合性がありません。地面上の同じ場所を選び直してください。");
+      indices=best.indices;
+      for(let iteration=0;iteration<3;iteration++){
+        matrix=solveFromPairs(mapPoints,imagePoints,indices);
+        const newIndices=inliersFor(pairResiduals(matrix,mapPoints,imagePoints),INLIER_THRESHOLD);
+        if(newIndices.length<4)throw new Error("一致する対応点が4組未満です。点を確認してください。");
+        if(newIndices.join(",")===indices.join(","))break;
+        indices=newIndices;
+      }
+      // 最後に採用された全点で解き直す（5点以上では最小二乗）。
+      matrix=solveFromPairs(mapPoints,imagePoints,indices);
+    }
+    const residualVectors=pairResiduals(matrix,mapPoints,imagePoints);
+    const finalInliers=inliersFor(residualVectors,INLIER_THRESHOLD);
+    const outlierIndices=all.filter(i=>!finalInliers.includes(i));
+    const accepted=finalInliers.length>=4?finalInliers:indices;
+    const rmsNormalized=Math.sqrt(accepted.reduce((total,i)=>
+      total+residualVectors[i][0]**2+residualVectors[i][1]**2,0)/accepted.length);
+    return {matrix,residualVectors,inlierIndices:accepted,outlierIndices,
+      rmsNormalized,method:n===4?"four-point":"ransac-least-squares",
+      pairCount:n,threshold:INLIER_THRESHOLD};
+  }
+
+  /** 旧来のhomography APIは配列（8係数）を返す。 */
+  function homography(mapPoints,imagePoints){
+    return fitHomography(mapPoints,imagePoints).matrix;
   }
 
   function project(matrix, coord) {
@@ -99,7 +195,8 @@
   function generateZones(layout,mapPoints,imagePoints, options={}) {
     const width=Number(layout?.canvas?.width),height=Number(layout?.canvas?.height);
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw new Error("マップの大きさが不正です。");
-    const transform=homography(mapPoints,imagePoints);
+    const alignmentDiagnostics=fitHomography(mapPoints,imagePoints);
+    const transform=alignmentDiagnostics.matrix;
     const slots=(layout?.objects||[]).filter(o=>o?.objectType==="parkingSpace");
     if(slots.length===0)throw new Error("このマップには駐車区画がありません。");
     const zones={},excluded=[];const seen=new Set();
@@ -133,8 +230,9 @@
       }
       zones[uid]=result.map(p=>p.map(n=>Number(Math.max(0,Math.min(1,n)).toFixed(7))));
     }
-    if(!Object.keys(zones).length)throw new Error("カメラ映像に完全に入る駐車区画がありません。画角と4点を確認してください。");
-    return {space_uids:Object.keys(zones),space_zones:zones,excluded_space_uids:excluded,transform};
+    if(!Object.keys(zones).length)throw new Error("カメラ映像に完全に入る駐車区画がありません。画角と対応点を確認してください。");
+    return {space_uids:Object.keys(zones),space_zones:zones,excluded_space_uids:excluded,
+      transform,alignmentDiagnostics};
   }
 
   /** 位置合わせ後に区画が編集されたかを判断するための安定した配置署名。 */
@@ -175,5 +273,5 @@
     return result;
   }
 
-  return Object.freeze({homography,project,parkingCorners,generateZones,hullArea,layoutSignature,parkingViewport});
+  return Object.freeze({homography,fitHomography,project,parkingCorners,generateZones,hullArea,layoutSignature,parkingViewport,MAX_PAIRS});
 });
