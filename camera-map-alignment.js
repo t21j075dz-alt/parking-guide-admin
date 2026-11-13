@@ -373,7 +373,7 @@
       {skipOutsideFrame:currentFacility==="nikko-test-001"});
   }
   function reset(){
-    mapPoints=[];imagePoints=[];automatic=null;pendingCorners=null;
+    mapPoints=[];imagePoints=[];automatic=null;automaticError=null;pendingCorners=null;
     syncZones();persistDraft();draw();
   }
   function remember(){persistDraft();}
@@ -484,7 +484,8 @@
       return;
     }
     if(mapPoints.length!==imagePoints.length||mapPoints.length>=core.MAX_PAIRS)return;
-    try{mapPoints.push(pointFromClick(event,map));automatic=null;syncZones();draw();persistDraft();}
+    try{mapPoints.push(pointFromClick(event,map));automatic=null;automaticError=null;
+      syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   overlay.addEventListener("click",event=>{
@@ -510,13 +511,14 @@
       return;
     }
     if(mapPoints.length!==imagePoints.length+1)return;
-    try{imagePoints.push(pointFromClick(event,overlay));automatic=null;syncZones();draw();persistDraft();}
+    try{imagePoints.push(pointFromClick(event,overlay));automatic=null;automaticError=null;
+      syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   get("alignment-undo").addEventListener("click",()=>{
     if(mapPoints.length>imagePoints.length)mapPoints.pop();
     else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
-    automatic=null;syncZones();draw();persistDraft();
+    automatic=null;automaticError=null;syncZones();draw();persistDraft();
   });
   get("alignment-reset").addEventListener("click",reset);
   zoom.addEventListener("click",()=>{showWholeMap=!showWholeMap;draw();});
