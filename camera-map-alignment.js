@@ -244,12 +244,12 @@
     const item=saved()[storageId()],current=layout();
     const same=item&&current&&item.canvas?.width===Number(current.canvas.width)
       &&item.canvas?.height===Number(current.canvas.height);
-    mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,4):[];
-    imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,4):[];
+    mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,core.MAX_PAIRS):[];
+    imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,core.MAX_PAIRS):[];
     layoutChanged=Boolean(same&&item.layout_signature
       &&item.layout_signature!==core.layoutSignature(current));
     projected=null;confirmed.checked=false;exported=false;draw();
-    if(mapPoints.length===4&&imagePoints.length===4){
+    if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
       notify(layoutChanged
         ? "駐車区画の配置が前回から変わりました。保存済み4点を再利用できますが、映像上ですべての区画位置を再確認してください。"
         : "前回の4点を読み込みました。最新のカメラ写真を読み込むと自動で区画を再計算します。");
@@ -262,16 +262,16 @@
       const ratio=image.naturalWidth/image.naturalHeight;
       if(prior?.image_ratio && Math.abs(ratio/prior.image_ratio-1)>.015){
         reset();
-        notify("前回の画像と縦横比が異なります。画角や切り抜きが変わった可能性があるため、4点を再設定してください。");
+        notify("前回の画像と縦横比が異なります。画角を確認して対応点を登録し直してください。");
         return;
       }
-      if(mapPoints.length===4&&imagePoints.length===4){
+      if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
         try{
           projected=generateVisibleZones();
           draw();
           notify(layoutChanged
-            ? "マップ変更後の全区画を自動再計算しました。位置が合うか必ず確認し、必要なら4点を選び直してください。"
-            : "保存済みの4点から全区画を自動再計算しました。最新映像で一致を確認してください。");
+            ? "マップ変更後の全区画を再計算しました。各点の誤差と映像上の位置を確認してください。"
+            : "保存済み"+mapPoints.length+"点から再計算しました。必要なら追加点も指定できます。");
           return;
         }catch(error){projected=null;draw();notify("自動再計算できません: "+error.message);return;}
       }
@@ -329,7 +329,7 @@
     loadPhoto(fileUrl);
   });
   map.addEventListener("click",event=>{
-    if(mapPoints.length!==imagePoints.length||mapPoints.length>=4)return;
+    if(mapPoints.length!==imagePoints.length||mapPoints.length>=core.MAX_PAIRS)return;
     try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;exported=false;draw();}
     catch(error){notify(error.message);}
   });
@@ -365,7 +365,8 @@
     }catch(error){projected=null;draw();notify(error.message);}
   });
   exportButton.addEventListener("click",()=>{
-    if(!projected||!layout()||image.hidden||!confirmed.checked)return;
+    if(!projected||!layout()||image.hidden||!confirmed.checked||
+        projected.alignmentDiagnostics?.outlierIndices?.length)return;
     const cam=cameraId.value.trim();
     if(!/^[A-Za-z0-9_-]{1,100}$/.test(cam)){
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
@@ -373,8 +374,17 @@
     try{
       const result=generateVisibleZones();
       remember();layoutChanged=false;
+      const info=result.alignmentDiagnostics;
+      if(info.outlierIndices.length)throw Error("誤差の大きい点を削除・選び直してください。");
+      const rmsPx=Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
+        const [dx,dy]=info.residualVectors[i];
+        return sum+(dx*image.naturalWidth)**2+(dy*image.naturalHeight)**2;
+      },0)/info.inlierIndices.length);
       const payload={
         schema_version:1,facility_id:currentFacility,camera_id:cam,
+        alignment_quality:{method:info.method,point_count:info.pairCount,
+          inlier_count:info.inlierIndices.length,outlier_indices:[],
+          rms_pixels:Number(rmsPx.toFixed(3))},
         image_width:image.naturalWidth,image_height:image.naturalHeight,
         map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
         map_points:mapPoints,image_points:imagePoints,
