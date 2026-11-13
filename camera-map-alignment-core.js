@@ -110,6 +110,12 @@
         throw new Error("区画IDが不正または重複しています: "+uid);
       }
       seen.add(uid);
+      // 道の駅日光の管理マップには映像外の駐車枠も残す。
+      // 明示的に「画角外」とした区画は、計算上は写真内でもYOLOには渡さない。
+      if(skipOutside && slot.cameraCoverage==="outside"){
+        excluded.push(uid);
+        continue;
+      }
       let result;
       try{result=parkingCorners(slot).map(([x,y])=>project(transform,[x/width,y/height]));}
       catch(error){if(skipOutside){excluded.push(uid);continue;}throw error;}
@@ -135,7 +141,7 @@
   function layoutSignature(layout){
     const slots=(layout?.objects||[]).filter(item=>item?.objectType==="parkingSpace")
       .map(item=>[String(item.uid),Number(item.x),Number(item.y),Number(item.width),
-                  Number(item.height),Number(item.rotation||0)])
+                  Number(item.height),Number(item.rotation||0),String(item.cameraCoverage||"auto")])
       .sort((a,b)=>a[0].localeCompare(b[0],"en"));
     return JSON.stringify({
       canvas:[Number(layout?.canvas?.width),Number(layout?.canvas?.height)],
