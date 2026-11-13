@@ -92,6 +92,11 @@ def read_segmentation_preview_settings(config_path, model, quality="high", imgsz
     }
 
 
+def stabilize_vehicle_ids(matcher, detections, video_seconds, frame):
+    """Use the stabilizer's returned records, not the original raw tracker IDs."""
+    return matcher.update(detections, video_seconds, frame=frame)
+
+
 def validate_source(filename):
     path = Path(filename).expanduser().resolve()
     if not path.is_file() or path.suffix.lower() not in VIDEO_EXTENSIONS:
@@ -215,6 +220,17 @@ def run(args):
             print("【追跡】同じ輪郭モデルで検出・マスク・追跡IDを計算し、安定IDを再対応付け")
             print("【注意】車体の見える輪郭であり、タイヤの接地点の実測ではありません。")
         print("【実験】区画なし。検出枠・信頼度・追跡IDを確認します。満空判定はしません。")
+        if args.segmentation_tracking:
+            supported = {str(value).lower().strip().replace("-", "_")
+                         for value in vehicle.names.values()}
+            print("【モデルのクラス】" + ", ".join(sorted(supported)))
+            if not supported.intersection(CLASSES_PERSON):
+                print("【注意】この輪郭モデルに人物クラスがない場合、people=0は人物不在を意味しません。")
+            if not supported.intersection({"traffic_cone", "shopping_cart", "cart"}):
+                print("【注意】障害物クラスがない場合、obstacles=0は障害物不在を意味しません。")
+        if not args.all_frames and not args.save_video:
+            print("【解析方法】通常プレビューでは動画の再生時間に合わせてフレームを間引きます。")
+            print("【全フレームを確認する方法】起動メニュー4（全フレーム解析＋MP4保存）を選択してください。")
         print("【クラウド】Supabaseへは接続せず、登録済み59区画を変更しません。")
         print("【画面】Q=停止 / SPACE=一時停止 / S=静止画保存 / R=最初から再生")
         if args.save_video:
@@ -262,7 +278,10 @@ def run(args):
                         confidence=min(.10, settings["confidence"]))[0]
                     vehicles = tracked_segment_detections(
                         result, frame.shape, VEHICLE_NAMES, CLASS_ALIASES)
-                    stable_ids.update(vehicles, observed_at, frame=frame)
+                    # StableIdMatcher returns NEW detection records with their
+                    # verified IDs; it does not mutate the originals.
+                    vehicles = stabilize_vehicle_ids(
+                        stable_ids, vehicles, observed_at, frame)
                     blockers = detector_boxes(
                         result, frame.shape[1], frame.shape[0], BLOCKING_NAMES)
                     mask_found += sum(
@@ -333,7 +352,9 @@ def run(args):
         if not args.no_window:
             cv2.destroyAllWindows()
 
-    print(f"【結果】YOLO解析フレーム {processed}、動画再生周回 {cycle}")
+    print(f"【結果】YOLO解析フレーム {processed}／元動画 {total or '?'}フレーム／動画再生周回 {cycle}")
+    if total and not args.loop and processed < total and not args.all_frames:
+        print("【補足】再生時間に合わせて一部フレームを間引きました。認識漏れとは区別してください。")
     if args.segmentation_tracking:
         print(f"【車両輪郭】マスク輪郭が得られた検出 {mask_found}件（正解率ではありません）")
     print("【検知ピーク（同一フレーム内）】"+
