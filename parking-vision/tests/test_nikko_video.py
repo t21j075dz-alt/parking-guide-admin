@@ -126,6 +126,41 @@ class NikkoDynamicSpaceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"重複"):
                 checked_projection({**alignment,"excluded_space_uids":["space_002"]})
 
+    def test_multipoint_alignment_accepts_six_to_twentyfour_pairs(self):
+        points = [[.1,.1],[.9,.1],[.9,.9],[.1,.9],[.4,.3],[.7,.7]]
+        data = {
+            "schema_version": 1,
+            "facility_id": FACILITY_ID, "camera_id": CAMERA_ID,
+            "space_uids": ["space_001"],
+            "space_zones": visible_zones(["space_001"]),
+            "excluded_space_uids": ["space_059"],
+            "image_width": 1920, "image_height": 1080,
+            "map_points": points, "image_points": points,
+            "alignment_quality": {
+                "method": "ransac-least-squares",
+                "point_count": 6, "inlier_count": 6,
+                "outlier_indices": [], "rms_pixels": .46,
+            },
+        }
+        zones, excluded, size, _ = checked_projection(data)
+        self.assertEqual(len(zones), 1)
+        self.assertEqual(excluded, ["space_059"])
+        self.assertEqual(size, (1920, 1080))
+        with self.assertRaisesRegex(ValueError, "4～24"):
+            checked_projection({**data, "image_points": points[:5]})
+        with self.assertRaisesRegex(ValueError, "精度診断"):
+            checked_projection({**data, "alignment_quality": {
+                **data["alignment_quality"], "outlier_indices": [2]}})
+        with self.assertRaisesRegex(ValueError, "精度診断"):
+            checked_projection({**data, "alignment_quality": {
+                **data["alignment_quality"], "rms_pixels": float("nan")}})
+        with self.assertRaisesRegex(ValueError, "4～24"):
+            checked_projection({**data, "map_points": points*5,
+                                "image_points": points*5})
+        legacy = {**data, "map_points": points[:4], "image_points": points[:4]}
+        legacy.pop("alignment_quality")
+        self.assertEqual(len(checked_projection(legacy)[0]), 1)
+
     def test_unverified_nikko_stalls_remain_unknown(self):
         ids=visible_space_uids(18)
         machine=RecordedParkingStateMachine(ids,initially_confirmed_empty_uids=["space_002"])

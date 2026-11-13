@@ -818,6 +818,8 @@ def main():
                         help="録画実演の出力先フォルダ（動画再生時のみ指定可能）")
     parser.add_argument("--demo-publish", action="store_true",
                         help="録画実演専用施設だけに判定を共有（実カメラ施設とは分離）")
+    parser.add_argument("--share-recorded-stills", action="store_true",
+                        help="日光録画専用。明示承認後、5秒ごとの録画静止画を全アプリへ共有")
     parser.add_argument("--verified-empty", default="",
                         help="録画の冒頭で目視確認した空き区画ID（カンマ区切り、省略可能）")
     args = parser.parse_args()
@@ -835,6 +837,10 @@ def main():
     )
     require_demo_mode(config, args)
     video_mode = bool(args.video)
+    if args.share_recorded_stills and (
+            not video_mode or config.get("facility_id") != "nikko-test-001"
+            or not args.demo_publish or args.dry_run):
+        raise ValueError("録画画像の共有は日光録画の明示公開モードでだけ使用できます")
     if args.loop_video and not video_mode:
         raise ValueError("--loop-video は --video と一緒に指定してください")
     if args.recording_root and not video_mode:
@@ -950,7 +956,11 @@ def main():
     tracks = VehicleTracker(config["facility_id"], config["camera_id"],
                             float(config.get("park_seconds", 5)),
                             lost_seconds=float(config.get("reid_window_seconds", 12)))
-    snapshots = None if video_mode else SnapshotPublisher(writer, config)
+    if video_mode and args.share_recorded_stills:
+        from recorded_snapshots import RecordedSnapshotPublisher
+        snapshots = RecordedSnapshotPublisher(writer, config)
+    else:
+        snapshots = None if video_mode else SnapshotPublisher(writer, config)
     stable_ids = StableIdMatcher(max_missing=float(config.get("reid_window_seconds", 12)))
     box_smoother = DisplayBoxSmoother() if args.segmentation_tracking else None
     stable_people = PersonIdStabilizer(visible_seconds=1.0)
@@ -1075,8 +1085,12 @@ def main():
                 print("【周回初期化】前回の追跡IDと駐車状態をリセットしました。")
             if snapshots:
                 try:
-                    snapshots.publish(frame)
-                except (error.URLError, OSError, ValueError, KeyError) as exc:
+                    if video_mode:
+                        snapshots.publish(frame, recording.frame_index / recording.fps,
+                                          recording.cycle_number + 1)
+                    else:
+                        snapshots.publish(frame)
+                except (error.URLError, error.HTTPError, OSError, ValueError, KeyError) as exc:
                     print(f"カメラ写真の共有に失敗: {type(exc).__name__}")
             vehicles, blockers = infer_frame(
                 vehicle_model, obstacle_model, frame,
@@ -1305,6 +1319,11 @@ def main():
             except (error.URLError, error.HTTPError, OSError, ValueError) as exc:
                 print(f"【重要】録画実演の共有OFFに失敗しました。"
                       f"20秒で古い状態は無効になりますが管理者が公開設定を確認してください: {exc}")
+        if video_mode and args.share_recorded_stills and snapshots is not None:
+            try:
+                snapshots.disable_public()
+            except (error.URLError, error.HTTPError, OSError, ValueError) as exc:
+                print(f"【重要】録画写真の公開解除に失敗: {exc}。各アプリでは20秒で期限切れです。")
         if camera is not None:
             camera.release()
         if args.preview:

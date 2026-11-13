@@ -178,3 +178,22 @@
 @media(prefers-reduced-motion:reduce){
   .camera-map-alignment-dialog *{scroll-behavior:auto}
 }
+
+/* 4～24点の位置合わせを、点ごとの誤差と削除操作まで見やすく整理する。 */
+.alignment-point-review{margin:10px 0;padding:10px 12px;border-radius:9px;
+  background:var(--panel-2,#f5f6f7);border:1px solid var(--border,#cbd5df);min-width:0}
+.alignment-point-review #alignment-quality{margin:0 0 8px;color:var(--text,#263343);
+  font-size:.82rem;line-height:1.65;overflow-wrap:anywhere}
+.alignment-point-review #alignment-quality[data-state="warning"]{color:#c24c40;font-weight:700}
+#alignment-point-details summary{font-size:.82rem;font-weight:650;cursor:pointer;color:var(--text,#25344b)}
+#alignment-point-details>p{font-size:.77rem;color:var(--muted,#61717e)}
+#alignment-point-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+  gap:7px;list-style:none;max-height:200px;overflow-y:auto;padding:7px 0;margin:5px 0;min-width:0}
+.alignment-point-item{display:flex;align-items:center;justify-content:space-between;gap:5px;
+  min-width:0;padding:5px 8px;border-radius:8px;
+  background:var(--panel,#fff);border:1px solid var(--border,#cbd5df);
+  font-size:.78rem}
+.alignment-point-item>span{overflow-wrap:anywhere;min-width:0}
+.alignment-point-item button{font-size:.72rem;padding:5px 8px;min-height:30px;flex:none}
+.alignment-point-item[data-outlier="true"]{border-color:#ce5555;background:var(--panel-2,#fef2f2)}
+@media(max-width:420px){#alignment-point-list{grid-template-columns:1fr}}

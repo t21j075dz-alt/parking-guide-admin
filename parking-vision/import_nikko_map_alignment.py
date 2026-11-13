@@ -11,6 +11,7 @@ import argparse
 from copy import deepcopy
 from datetime import datetime
 import json
+from math import isfinite
 import os
 from pathlib import Path
 import shutil
@@ -46,14 +47,32 @@ def checked_projection(alignment):
     dimensions = alignment.get("image_width"), alignment.get("image_height")
     if any(type(d) is not int or d <= 0 for d in dimensions):
         raise ValueError("録画画像の解像度が正しくありません")
-    for key in ("map_points", "image_points"):
-        pairs = alignment.get(key)
-        if not isinstance(pairs, list) or len(pairs) != 4:
-            raise ValueError("位置合わせ点は4組必要です")
+    map_points = alignment.get("map_points")
+    image_points = alignment.get("image_points")
+    if (not isinstance(map_points, list) or not isinstance(image_points, list)
+            or not 4 <= len(map_points) <= 24
+            or len(map_points) != len(image_points)):
+        raise ValueError("位置合わせ点は地図と映像で同じ4～24組が必要です")
+    for pairs in (map_points, image_points):
         for pair in pairs:
             if (not isinstance(pair, list) or len(pair) != 2 or
-                    not all(type(n) in (int, float) and 0 <= n <= 1 for n in pair)):
+                    not all(type(n) in (int, float) and isfinite(n)
+                            and 0 <= n <= 1 for n in pair)):
                 raise ValueError("位置合わせ点の範囲が不正です")
+    # 既存の4点JSONは互換。新しい多点JSONの診断結果も保存前に検査。
+    quality = alignment.get("alignment_quality")
+    if quality is not None:
+        if (not isinstance(quality, dict)
+                or quality.get("method") not in ("four-point", "ransac-least-squares")
+                or type(quality.get("point_count")) is not int
+                or quality["point_count"] != len(map_points)
+                or type(quality.get("inlier_count")) is not int
+                or quality["inlier_count"] != len(map_points)
+                or quality.get("outlier_indices") != []
+                or type(quality.get("rms_pixels")) not in (int, float)
+                or not isfinite(quality["rms_pixels"])
+                or quality["rms_pixels"] < 0):
+            raise ValueError("位置合わせの精度診断が不正です。外れ点を修正して書き出してください")
     checked = {}
     for uid in ids:
         try:

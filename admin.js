@@ -4471,7 +4471,7 @@ async function refreshLiveMonitor() {
   try {
     const [visibility, statuses, sessions] = await Promise.all([
       liveMonitorFetch("parking_live_visibility", "is_published", facilityId),
-      liveMonitorFetch("parking_live_status", "space_uid,status,checked_at", facilityId),
+      liveMonitorFetch("parking_live_status", "space_uid,status,source,checked_at", facilityId),
       liveMonitorFetch("parking_vehicle_sessions",
         "track_id,phase,space_uid,parked_at,left_space_at,last_seen_at", facilityId),
     ]);
@@ -4488,9 +4488,20 @@ async function refreshLiveMonitor() {
     const cameraConfirmed = [];
     const totals = {available:0,occupied:0,blocked:0,unknown:0};
     for (const object of registered) {
+      if(facilityId==="nikko-test-001" && object.cameraCoverage==="outside"){
+        const outside = appendLiveItem(liveMonitor.spaces,
+          String(object.spaceNumber || object.name || object.uid) + "：" +
+          liveMonitorLanguage("カメラ範囲外（判定なし）", "Outside camera (not monitored)"));
+        outside.dataset.liveStatus="outside";
+        outside.classList.add("live-monitor-space-item");
+        continue;
+      }
       const status = statusByUid.get(object.uid);
       const age = Date.parse(status?.checked_at || "");
-      const current = Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
+      const current = (facilityId!=="nikko-test-001"
+        || (liveMonitor.published.checked === true
+            && status?.source==="recorded_video_demo"))
+        && Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
       const label = current && ["available","occupied","blocked"].includes(status.status)
         ? status.status : "unknown";
       totals[label]++;
