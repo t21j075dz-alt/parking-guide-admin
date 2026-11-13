@@ -4498,8 +4498,9 @@ async function refreshLiveMonitor() {
       }
       const status = statusByUid.get(object.uid);
       const age = Date.parse(status?.checked_at || "");
-      const current = liveMonitor.published.checked === true
-        && (facilityId!=="nikko-test-001" || status?.source==="recorded_video_demo")
+      const current = (facilityId!=="nikko-test-001"
+        || (liveMonitor.published.checked === true
+            && status?.source==="recorded_video_demo"))
         && Number.isFinite(age) && age <= now + 5000 && now - age <= 20000;
       const label = current && ["available","occupied","blocked"].includes(status.status)
         ? status.status : "unknown";
