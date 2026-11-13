@@ -161,6 +161,36 @@ class NikkoDynamicSpaceTests(unittest.TestCase):
         legacy.pop("alignment_quality")
         self.assertEqual(len(checked_projection(legacy)[0]), 1)
 
+    def test_photo_only_and_hybrid_camera_zones_preserve_original_map_uids(self):
+        visible = ["space_001", "space_023"]
+        rows = {
+            "schema_version": 1, "facility_id": FACILITY_ID, "camera_id": CAMERA_ID,
+            "alignment_method": "manual-zones",
+            "space_uids": visible,
+            "space_zones": visible_zones(visible),
+            "excluded_space_uids": ["space_059"],
+            "manual_zone_uids": visible,
+            "image_width": 1920, "image_height": 1080,
+            "map_points": [], "image_points": [],
+        }
+        zones, outside, dimensions, warnings = checked_projection(rows)
+        self.assertEqual(set(zones), set(visible))
+        self.assertEqual(outside, ["space_059"])
+        self.assertEqual(dimensions, (1920, 1080))
+        with self.assertRaisesRegex(ValueError, "4～24"):
+            checked_projection({**rows, "map_points": [[.1,.1]], "image_points": [[.1,.1]]})
+        with self.assertRaisesRegex(ValueError, "手動登録"):
+            checked_projection({**rows, "manual_zone_uids": ["space_001"]})
+        with self.assertRaisesRegex(ValueError, "精度診断"):
+            checked_projection({**rows, "alignment_quality": {"rms_pixels": 0}})
+        hybrid = {**rows, "alignment_method": "hybrid-zones",
+                  "map_points": [[.1,.1],[.9,.1],[.9,.9],[.1,.9]],
+                  "image_points": [[.1,.1],[.9,.1],[.9,.9],[.1,.9]],
+                  "manual_zone_uids": ["space_023"]}
+        self.assertEqual(set(checked_projection(hybrid)[0]), set(visible))
+        with self.assertRaisesRegex(ValueError, "位置合わせ方法"):
+            checked_projection({**rows, "alignment_method": "untrusted-method"})
+
     def test_unverified_nikko_stalls_remain_unknown(self):
         ids=visible_space_uids(18)
         machine=RecordedParkingStateMachine(ids,initially_confirmed_empty_uids=["space_002"])

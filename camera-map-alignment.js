@@ -18,6 +18,10 @@
   const pointCount=get("alignment-point-count"),nextAction=get("alignment-next-action");
   const pointList=get("alignment-point-list"),quality=get("alignment-quality");
   const outlierCount=get("alignment-outlier-count");
+  const editor=get("alignment-photo-editor"),methodSelect=get("alignment-zone-method");
+  const slotSelect=get("alignment-slot-select"),drawZoneButton=get("alignment-draw-zone");
+  const clearZoneButton=get("alignment-clear-zone"),editorHint=get("alignment-photo-editor-hint");
+  const editorCount=get("alignment-photo-editor-count");
   const coverageSettings=get("alignment-coverage-settings"),coverageList=get("alignment-coverage-list");
   const facilityLabel=get("alignment-facility-label"),spaceCount=get("alignment-space-count");
   const photoInfo=get("alignment-image-info"),photoReady=get("alignment-photo-ready");
@@ -26,6 +30,7 @@
   const memoryKey="parkingCameraMapAlignmentsV1";
   let mapPoints=[],imagePoints=[],projected=null,currentFacility="",fileUrl=null;
   let layoutChanged=false, showWholeMap=false, exported=false;
+  let automatic=null,manualZones={},activeUid="",pendingCorners=null,drag=null;
 
   function notify(text){message.textContent=text;}
   function svg(tag,attrs,text){
@@ -43,14 +48,86 @@
     try{return JSON.parse(localStorage.getItem(memoryKey)||"{}")||{};}catch{return {};}
   }
   function storageId(){return currentFacility+"|"+cameraId.value.trim();}
+  function editorMode(){return methodSelect.value;}
+  function enabledManual(){return currentFacility==="nikko-test-001"&&editorMode()!=="auto";}
+  function usableSlots(){
+    return (layout()?.objects||[]).filter(o=>o.objectType==="parkingSpace");
+  }
+  function currentSlot(){return usableSlots().find(o=>o.uid===activeUid)||null;}
+  function showEditor(){
+    editor.hidden=currentFacility!=="nikko-test-001";
+    if(editor.hidden)return;
+    slotSelect.replaceChildren();
+    for(const obj of usableSlots()){
+      const item=document.createElement("option");
+      item.value=obj.uid;
+      item.textContent=String(obj.spaceGroup||"")+
+        " "+String(obj.spaceNumber||obj.name||obj.uid)+" ("+obj.uid+")"+
+        (obj.cameraCoverage==="outside"?"・画角外":"");
+      slotSelect.append(item);
+    }
+    if(!activeUid||!usableSlots().some(o=>o.uid===activeUid))
+      activeUid=usableSlots()[0]?.uid||"";
+    slotSelect.value=activeUid;
+    updateEditorStatus();
+  }
+  function updateEditorStatus(){
+    if(editor.hidden)return;
+    const total=Object.keys(manualZones).length;
+    editorCount.textContent="個別補正 "+total+"件";
+    const slot=currentSlot(),mode=editorMode();
+    drawZoneButton.disabled=mode==="auto"||!slot||slot.cameraCoverage==="outside"||
+      image.hidden||!image.naturalWidth;
+    clearZoneButton.disabled=!slot||!Object.hasOwn(manualZones,slot.uid);
+    editorHint.textContent=pendingCorners
+      ? "写真で"+activeUid+"の四隅を選択中（"+pendingCorners.length+"/4）。白線の角を順にクリックしてください。"
+      : mode==="auto"
+        ? "全体の位置合わせをします。区画ごとの修正には「ずれた枠だけ補正」を選んでください。"
+        : !slot ? "管理マップに駐車枠を登録してください。"
+        : slot.cameraCoverage==="outside" ? "この区画は画角外に指定済みです。修正する場合は範囲外指定を解除してください。"
+        : Object.hasOwn(manualZones,slot.uid)
+          ? "この区画は写真から補正済みです。四隅の丸をドラッグして微調整できます。"
+          : "写真上の緑色の枠を選ぶか、「この枠の四隅を写真で指定」を押してください。";
+  }
+  function materialize(){
+    const mode=editorMode();
+    if(mode==="auto")return automatic;
+    if(mode==="manual"){
+      if(!Object.keys(manualZones).length)return null;
+      return core.composeCameraZones(layout(),null,manualZones);
+    }
+    if(!automatic&&!Object.keys(manualZones).length)return null;
+    return core.composeCameraZones(layout(),automatic,manualZones);
+  }
+  function syncZones(){
+    try{projected=materialize();}
+    catch(error){projected=null;notify("写真の登録を見直してください: "+error.message);}
+    confirmed.checked=false;exported=false;
+  }
+  function persistDraft(){
+    const current=layout();
+    if(!current)return;
+    try{
+      const all=saved();
+      all[storageId()]={map_points:mapPoints,image_points:imagePoints,
+        manual_zones:manualZones,mode:editorMode(),
+        canvas:{width:Number(current.canvas.width),height:Number(current.canvas.height)},
+        layout_signature:core.layoutSignature(current),
+        image_ratio:image.naturalWidth&&image.naturalHeight
+          ? image.naturalWidth/image.naturalHeight
+          : all[storageId()]?.image_ratio||null};
+      localStorage.setItem(memoryKey,JSON.stringify(all));
+    }catch{notify("端末に一時保存できません。最後に設定JSONを書き出してください。");}
+  }
+
   function refresh(){
     const hasPhoto=!image.hidden&&image.naturalWidth>0;
     const paired=Math.min(mapPoints.length,imagePoints.length);
     const completed=paired>=4&&mapPoints.length===imagePoints.length;
     const bad=projected?.alignmentDiagnostics?.outlierIndices?.length||0;
-    applyButton.disabled=!hasPhoto||!completed;
-    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0;
-    confirmed.disabled=!projected||!hasPhoto||bad>0;
+    applyButton.disabled=!hasPhoto||!completed||editorMode()==="manual";
+    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0||Boolean(pendingCorners);
+    confirmed.disabled=!projected||!hasPhoto||bad>0||Boolean(pendingCorners);
     pointCount.textContent="対応点 "+paired+" / 最大"+core.MAX_PAIRS+"組";
     nextAction.textContent=!hasPhoto?"先にカメラ写真を読み込んでください"
       : projected
@@ -64,7 +141,7 @@
       node.classList.toggle("is-complete",index<paired);
       node.classList.toggle("is-current",index===paired&&paired<4);
     });
-    const active=!hasPhoto?0:!completed?1:!projected?2:!confirmed.checked?2:3;
+    const active=!hasPhoto?0:!projected?(completed?2:1):!confirmed.checked?2:3;
     steps.forEach((node,index)=>{
       node.classList.toggle("is-current",index===active);
       node.classList.toggle("is-complete",index<active||(index===3&&exported));
@@ -85,6 +162,7 @@
         ? "録画の判定対象 "+projected.space_uids.length+"区画／対象外 "+projected.excluded_space_uids.length+"区画。映像内の全区画が合っているか確認してください。"
         : projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
       : "区画位置は未確定です。既存の駐車状態は変更されません。";
+    updateEditorStatus();
   }
   function pointFromClick(event,element){
     const matrix=element.getScreenCTM();
@@ -119,9 +197,8 @@
         if(item.cameraCoverage==="outside" && !box.checked)delete item.cameraCoverage;
         else if(box.checked)item.cameraCoverage="outside";
         if(typeof saveLocal==="function")saveLocal();
-        projected=null;confirmed.checked=false;exported=false;
-        draw();
-        notify("画角外の設定を保存しました。区画を自動計算し直し、映像と一致するか確認してください。");
+        automatic=null;syncZones();draw();persistDraft();
+        notify("画角外の設定を変更しました。写真と区画を再確認してください。");
       });
     }
   }
@@ -185,7 +262,9 @@
         map.append(svg("polygon",{
           points:core.parkingCorners(item).map(p=>p.join(",")).join(" "),
           fill:item.cameraCoverage==="outside"?"#acb4c0":"#92d9c3",
-          stroke:item.cameraCoverage==="outside"?"#606a7a":"#177a61","stroke-width":Math.max(1,width/800)
+          stroke:item.uid===activeUid&&enabledManual()?"#ff8b24":item.cameraCoverage==="outside"?"#606a7a":"#177a61",
+          "stroke-width":item.uid===activeUid&&enabledManual()?Math.max(3,width/500):Math.max(1,width/800),
+          "data-slot-uid":item.uid
         }));
         const centerX=Number(item.x)+Number(item.width)/2;
         const centerY=Number(item.y)+Number(item.height)/2;
@@ -202,14 +281,39 @@
     });
     overlay.setAttribute("viewBox","0 0 1 1");
     if(projected)for(const [uid,polygon] of Object.entries(projected.space_zones)){
+      const shown=drag?.uid===uid?drag.corners:polygon;
+      const selected=enabledManual()&&activeUid===uid;
+      const edited=Object.hasOwn(manualZones,uid);
       overlay.append(svg("polygon",{
-        points:polygon.map(p=>p.join(",")).join(" "),
-        fill:"rgba(57,196,139,0.20)",stroke:"#2de6a7","stroke-width":.003
+        points:shown.map(p=>p.join(",")).join(" "),
+        fill:selected?"rgba(255,167,58,0.18)":"rgba(57,196,139,0.20)",
+        stroke:selected?"#ff9c33":edited?"#ffe089":"#2de6a7",
+        "stroke-width":selected?.004:.003,
+        "data-zone-uid":uid
       }));
-      const center=polygon.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4],[0,0]);
+      const center=shown.reduce((s,p)=>[s[0]+p[0]/4,s[1]+p[1]/4],[0,0]);
       overlay.append(svg("text",{x:center[0],y:center[1],fill:"#ffffff",stroke:"#203f35",
         "stroke-width":.0003,"paint-order":"stroke","text-anchor":"middle",
-        "font-size":.018,"font-weight":"bold"},uid.replace(/^space_0*/,"")));
+        "font-size":.018,"font-weight":"bold","data-zone-uid":uid},uid.replace(/^space_0*/,"")));
+      if(selected)shown.forEach((corner,index)=>{
+        overlay.append(svg("circle",{cx:corner[0],cy:corner[1],r:.013,
+          fill:"#ffb641",stroke:"#fff","stroke-width":.004,
+          "data-zone-uid":uid,"data-zone-corner":index}));
+      });
+    }
+    if(pendingCorners?.length){
+      if(pendingCorners.length>1){
+        overlay.append(svg("polyline",{
+          points:pendingCorners.map(p=>p.join(",")).join(" "),
+          fill:"none",stroke:"#ffb641","stroke-width":.004,
+          "stroke-dasharray":".008 .006","pointer-events":"none"}));
+      }
+      pendingCorners.forEach((p,i)=>{
+        overlay.append(svg("circle",{cx:p[0],cy:p[1],r:.010,
+          fill:"#ffb641",stroke:"#fff","stroke-width":.002,"pointer-events":"none"}));
+        overlay.append(svg("text",{x:p[0]+.009,y:p[1]-.009,fill:"#fff",
+          "font-size":.019,"pointer-events":"none"},String(i+1)));
+      });
     }
     imagePoints.forEach((p,i)=>{
       const bad=projected?.alignmentDiagnostics?.outlierIndices?.includes(i);
@@ -229,56 +333,60 @@
     return core.generateZones(layout(),mapPoints,imagePoints,
       {skipOutsideFrame:currentFacility==="nikko-test-001"});
   }
-  function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;exported=false;draw();}
-  function remember(){
-    try{
-      const all=saved();
-      all[storageId()]={map_points:mapPoints,image_points:imagePoints,
-        canvas:{width:Number(layout().canvas.width),height:Number(layout().canvas.height)},
-        layout_signature:core.layoutSignature(layout()),
-        image_ratio:image.naturalWidth/image.naturalHeight};
-      localStorage.setItem(memoryKey,JSON.stringify(all));
-    }catch{notify("端末への位置合わせ保存に失敗しました。JSONを書き出して保管してください。");}
+  function reset(){
+    mapPoints=[];imagePoints=[];automatic=null;pendingCorners=null;
+    syncZones();persistDraft();draw();
   }
+  function remember(){persistDraft();}
   function restore(){
     const item=saved()[storageId()],current=layout();
     const same=item&&current&&item.canvas?.width===Number(current.canvas.width)
       &&item.canvas?.height===Number(current.canvas.height);
     mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,core.MAX_PAIRS):[];
     imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,core.MAX_PAIRS):[];
+    manualZones={};
+    if(same&&item.manual_zones&&typeof item.manual_zones==="object"&&!Array.isArray(item.manual_zones)){
+      const eligible=new Map(usableSlots().map(o=>[o.uid,o]));
+      for(const [uid,raw] of Object.entries(item.manual_zones)){
+        if(!eligible.has(uid)||eligible.get(uid).cameraCoverage==="outside")continue;
+        try{manualZones[uid]=core.normalizeCameraZone(raw);}
+        catch{/* 壊れた端末内データを投影に使わない。 */}
+      }
+    }
+    methodSelect.value=["auto","hybrid","manual"].includes(item?.mode)?item.mode:"auto";
+    automatic=null;pendingCorners=null;drag=null;
     layoutChanged=Boolean(same&&item.layout_signature
       &&item.layout_signature!==core.layoutSignature(current));
     projected=null;confirmed.checked=false;exported=false;draw();
     if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
       notify(layoutChanged
-        ? "駐車区画の配置が前回から変わりました。保存済み4点を再利用できますが、映像上ですべての区画位置を再確認してください。"
-        : "前回の4点を読み込みました。最新のカメラ写真を読み込むと自動で区画を再計算します。");
+        ? "マップが変更されています。既存の点と個別補正が映像に合うか確認してください。"
+        : "前回の"+mapPoints.length+"点と個別補正を読み込みました。写真で再確認してください。");
     }
   }
   function loadPhoto(src){
     image.onload=()=>{
-      image.hidden=false;projected=null;confirmed.checked=false;exported=false;
+      image.hidden=false;projected=null;automatic=null;pendingCorners=null;confirmed.checked=false;exported=false;
       const prior=saved()[storageId()];
       const ratio=image.naturalWidth/image.naturalHeight;
       if(prior?.image_ratio && Math.abs(ratio/prior.image_ratio-1)>.015){
-        reset();
-        notify("前回の画像と縦横比が異なります。画角を確認して対応点を登録し直してください。");
+        mapPoints=[];imagePoints=[];automatic=null;manualZones={};
+        syncZones();draw();
+        notify("前回と画像の縦横比が異なるため、保存済みの位置合わせ・個別枠を使いません。今回の画像で登録し直してください。");
         return;
       }
-      if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
-        try{
-          projected=generateVisibleZones();
-          draw();
-          notify(layoutChanged
-            ? "マップ変更後の全区画を再計算しました。各点の誤差と映像上の位置を確認してください。"
-            : "保存済み"+mapPoints.length+"点から再計算しました。必要なら追加点も指定できます。");
-          return;
-        }catch(error){projected=null;draw();notify("自動再計算できません: "+error.message);return;}
+      if(editorMode()!=="manual"&&mapPoints.length>=4&&mapPoints.length===imagePoints.length){
+        try{automatic=generateVisibleZones();}
+        catch(error){automatic=null;notify("全体の自動計算ができません: "+error.message+
+          "。写真から直接登録することもできます。");}
       }
-      draw();
-      notify("画像を読み込みました。マップと映像で対応する床面の点を交互に選んでください。");
+      syncZones();draw();
+      notify(projected
+        ? "写真を読み込みました。枠の位置を確認し、ずれた区画は写真上で四隅を修正してください。"
+        : "写真を読み込みました。全体を位置合わせするか、写真から直接駐車枠を登録してください。");
     };
-    image.onerror=()=>{image.hidden=true;reset();notify("画像を読み込めませんでした。別の写真を選んでください。");};
+    image.onerror=()=>{image.hidden=true;automatic=null;projected=null;draw();
+      notify("画像を読み込めませんでした。別の写真を選んでください。");};
     image.src=src;
   }
   const launch=()=>{
@@ -290,6 +398,7 @@
     image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
     showWholeMap=false;exported=false;
     dialog.showModal();restore();
+    showEditor();
     renderCoverageChoices();
     facilityLabel.textContent=document.querySelector("#facility-select")?.selectedOptions?.[0]?.textContent
       ||currentFacility;
@@ -329,19 +438,45 @@
     loadPhoto(fileUrl);
   });
   map.addEventListener("click",event=>{
+    if(enabledManual()){
+      const uid=event.target.dataset.slotUid;
+      if(uid){activeUid=uid;slotSelect.value=uid;draw();}
+      return;
+    }
     if(mapPoints.length!==imagePoints.length||mapPoints.length>=core.MAX_PAIRS)return;
-    try{mapPoints.push(pointFromClick(event,map));projected=null;confirmed.checked=false;exported=false;draw();}
+    try{mapPoints.push(pointFromClick(event,map));automatic=null;syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   overlay.addEventListener("click",event=>{
-    if(image.hidden||mapPoints.length!==imagePoints.length+1)return;
-    try{imagePoints.push(pointFromClick(event,overlay));projected=null;confirmed.checked=false;exported=false;draw();}
+    if(image.hidden)return;
+    if(enabledManual()){
+      if(pendingCorners){
+        try{
+          pendingCorners.push(pointFromClick(event,overlay));
+          if(pendingCorners.length===4){
+            const normalized=core.normalizeCameraZone(pendingCorners);
+            manualZones[activeUid]=normalized;
+            pendingCorners=null;syncZones();persistDraft();
+            notify("写真上で"+activeUid+"の四隅を登録しました。必要なら角の丸い点をドラッグして微調整してください。");
+          }
+          draw();
+        }catch(error){
+          pendingCorners.pop();draw();notify("登録できません: "+error.message);
+        }
+        return;
+      }
+      const uid=event.target.dataset.zoneUid;
+      if(uid){activeUid=uid;slotSelect.value=uid;draw();}
+      return;
+    }
+    if(mapPoints.length!==imagePoints.length+1)return;
+    try{imagePoints.push(pointFromClick(event,overlay));automatic=null;syncZones();draw();persistDraft();}
     catch(error){notify(error.message);}
   });
   get("alignment-undo").addEventListener("click",()=>{
     if(mapPoints.length>imagePoints.length)mapPoints.pop();
     else if(imagePoints.length){mapPoints.pop();imagePoints.pop();}
-    projected=null;confirmed.checked=false;exported=false;draw();
+    automatic=null;syncZones();draw();persistDraft();
   });
   get("alignment-reset").addEventListener("click",reset);
   zoom.addEventListener("click",()=>{showWholeMap=!showWholeMap;draw();});
@@ -350,19 +485,98 @@
     image.hidden=true;
     image.removeAttribute("src");
     file.value="";exported=false;
-    restore();
+    restore();showEditor();
     notify("カメラを変更しました。対象カメラの写真を読み直して位置を確認してください。");
   });
+  methodSelect.addEventListener("change",()=>{
+    pendingCorners=null;drag=null;
+    if(editorMode()==="manual")automatic=null;
+    else if(!automatic&&image.naturalWidth&&mapPoints.length>=4&&mapPoints.length===imagePoints.length){
+      try{automatic=generateVisibleZones();}
+      catch{/* 個別登録のみでも進められる。 */}
+    }
+    syncZones();draw();persistDraft();
+    notify(editorMode()==="manual"
+      ? "地図と写真の点合わせは不要です。区画番号を選び、写真上の四隅を指定してください。"
+      : editorMode()==="hybrid"
+        ? "緑色の区画を選ぶと写真上で個別に補正できます。位置が違う区画だけ直してください。"
+        : "全体の位置合わせに戻りました。写真の補正値は保存済みで、いつでも戻せます。");
+  });
+  slotSelect.addEventListener("change",()=>{
+    activeUid=slotSelect.value;pendingCorners=null;draw();
+  });
+  drawZoneButton.addEventListener("click",()=>{
+    const slot=currentSlot();
+    if(!enabledManual()||image.hidden||!slot||slot.cameraCoverage==="outside"){
+      notify("先に写真と有効な駐車区画を選んでください。");return;
+    }
+    pendingCorners=[];drag=null;confirmed.checked=false;exported=false;
+    draw();notify("写真上で"+activeUid+"の白線の角を4か所クリックしてください。");
+  });
+  clearZoneButton.addEventListener("click",()=>{
+    if(!activeUid||!Object.hasOwn(manualZones,activeUid))return;
+    delete manualZones[activeUid];pendingCorners=null;syncZones();persistDraft();draw();
+    notify("この区画の個別補正を解除しました。自動投影がある場合は元の位置に戻ります。");
+  });
+  overlay.addEventListener("pointerdown",event=>{
+    if(!enabledManual()||pendingCorners||!projected)return;
+    const uid=event.target.dataset.zoneUid;
+    const hasCorner=Object.hasOwn(event.target.dataset,"zoneCorner");
+    const index=hasCorner?Number(event.target.dataset.zoneCorner):null;
+    const movingPolygon=event.target.tagName.toLowerCase()==="polygon";
+    if(!uid||currentSlot()?.uid!==uid||
+       (!movingPolygon&&!hasCorner)||
+       (hasCorner&&(!Number.isInteger(index)||index<0||index>3)))return;
+    const corners=projected.space_zones[uid];
+    if(!corners)return;
+    let origin=null;
+    if(movingPolygon){
+      try{origin=pointFromClick(event,overlay);}
+      catch{return;}
+    }
+    drag={uid,index,origin,pointerId:event.pointerId,
+      original:corners.map(p=>p.slice()),corners:corners.map(p=>p.slice())};
+    overlay.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  overlay.addEventListener("pointermove",event=>{
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    try{
+      const p=pointFromClick(event,overlay);
+      if(drag.index!==null)drag.corners[drag.index]=p;
+      else{
+        const delta=[p[0]-drag.origin[0],p[1]-drag.origin[1]];
+        const translated=drag.original.map(([x,y])=>[x+delta[0],y+delta[1]]);
+        if(translated.some(point=>point.some(n=>n<0||n>1)))return;
+        drag.corners=translated;
+      }
+      draw();
+    }catch{/* 写真の外へのドラッグでは移動しない。 */}
+  });
+  function finishDrag(event,commit){
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    const pending=drag;drag=null;
+    if(commit){
+      try{
+        manualZones[pending.uid]=core.normalizeCameraZone(pending.corners);
+        syncZones();persistDraft();
+        notify(pending.uid+"の角を修正しました。動画の白線と一致するか確認してください。");
+      }catch(error){notify("角の移動を取り消しました: "+error.message);}
+    }
+    draw();
+  }
+  overlay.addEventListener("pointerup",event=>finishDrag(event,true));
+  overlay.addEventListener("pointercancel",event=>finishDrag(event,false));
   confirmed.addEventListener("change",refresh);
   applyButton.addEventListener("click",()=>{
     if(image.hidden||!image.naturalWidth){notify("先にカメラ画像を読み込んでください。");return;}
     try{
-      projected=generateVisibleZones();
-      confirmed.checked=false;exported=false;draw();
+      automatic=generateVisibleZones();
+      syncZones();draw();persistDraft();
       notify(currentFacility==="nikko-test-001"
         ? "映像に完全に映る"+projected.space_uids.length+"区画を投影しました。画角外・極小の"+projected.excluded_space_uids.length+"区画は判定対象外です。全区画の位置を確認してください。"
         : "全区画を自動配置しました。画像上の緑色の枠を確認し、正しい場合だけJSONを書き出してください。");
-    }catch(error){projected=null;draw();notify(error.message);}
+    }catch(error){automatic=null;syncZones();draw();notify(error.message);}
   });
   exportButton.addEventListener("click",()=>{
     if(!projected||!layout()||image.hidden||!confirmed.checked||
@@ -372,25 +586,32 @@
       notify("カメラIDは半角英数字・ハイフン・アンダースコアで入力してください。");return;
     }
     try{
-      const result=generateVisibleZones();
-      remember();layoutChanged=false;
+      const result=materialize();
+      if(!result)throw Error("写真上の枠が登録されていません。");
       const info=result.alignmentDiagnostics;
-      if(info.outlierIndices.length)throw Error("誤差の大きい点を削除・選び直してください。");
-      const rmsPx=Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
+      if(info?.outlierIndices.length)throw Error("誤差の大きい対応点を削除・選び直してください。");
+      const rmsPx=info?Math.sqrt(info.inlierIndices.reduce((sum,i)=>{
         const [dx,dy]=info.residualVectors[i];
         return sum+(dx*image.naturalWidth)**2+(dy*image.naturalHeight)**2;
-      },0)/info.inlierIndices.length);
+      },0)/info.inlierIndices.length):null;
+      const method=editorMode()==="auto"?"global-homography"
+        : editorMode()==="manual"?"manual-zones"
+        : info?"hybrid-zones":"manual-zones";
       const payload={
         schema_version:1,facility_id:currentFacility,camera_id:cam,
-        alignment_quality:{method:info.method,point_count:info.pairCount,
+        alignment_method:method,
+        ...(info?{alignment_quality:{
+          method:info.method,point_count:info.pairCount,
           inlier_count:info.inlierIndices.length,outlier_indices:[],
-          rms_pixels:Number(rmsPx.toFixed(3))},
+          rms_pixels:Number(rmsPx.toFixed(3))}}:{}),
         image_width:image.naturalWidth,image_height:image.naturalHeight,
         map_canvas:{width:layout().canvas.width,height:layout().canvas.height},
-        map_points:mapPoints,image_points:imagePoints,
+        map_points:info?mapPoints:[],image_points:info?imagePoints:[],
         space_uids:result.space_uids,space_zones:result.space_zones,
+        manual_zone_uids:result.manual_zone_uids||[],
         excluded_space_uids:result.excluded_space_uids
       };
+      remember();layoutChanged=false;
       const blob=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
       const url=URL.createObjectURL(blob),link=document.createElement("a");
       link.href=url;link.download="camera-map-alignment-"+currentFacility+"-"+cam+".json";

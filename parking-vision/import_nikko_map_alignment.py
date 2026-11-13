@@ -47,12 +47,24 @@ def checked_projection(alignment):
     dimensions = alignment.get("image_width"), alignment.get("image_height")
     if any(type(d) is not int or d <= 0 for d in dimensions):
         raise ValueError("録画画像の解像度が正しくありません")
+    method = alignment.get("alignment_method", "global-homography")
+    if method not in ("global-homography", "hybrid-zones", "manual-zones"):
+        raise ValueError("位置合わせ方法が不正です")
     map_points = alignment.get("map_points")
     image_points = alignment.get("image_points")
+    manual_only = method == "manual-zones"
     if (not isinstance(map_points, list) or not isinstance(image_points, list)
-            or not 4 <= len(map_points) <= 24
-            or len(map_points) != len(image_points)):
-        raise ValueError("位置合わせ点は地図と映像で同じ4～24組が必要です")
+            or len(map_points) != len(image_points)
+            or (manual_only and len(map_points) != 0)
+            or (not manual_only and not 4 <= len(map_points) <= 24)):
+        raise ValueError("全体の位置合わせは4～24組、写真からの直接登録は対応点0組で指定してください")
+    manual_ids = alignment.get("manual_zone_uids", [])
+    if (not isinstance(manual_ids, list) or len(manual_ids) != len(set(manual_ids))
+            or not all(isinstance(uid, str) for uid in manual_ids)
+            or not set(manual_ids).issubset(set(ids))
+            or (manual_only and set(manual_ids) != set(ids))
+            or (method == "global-homography" and manual_ids)):
+        raise ValueError("写真上で手動登録した駐車枠IDが一致しません")
     for pairs in (map_points, image_points):
         for pair in pairs:
             if (not isinstance(pair, list) or len(pair) != 2 or
@@ -61,6 +73,8 @@ def checked_projection(alignment):
                 raise ValueError("位置合わせ点の範囲が不正です")
     # 既存の4点JSONは互換。新しい多点JSONの診断結果も保存前に検査。
     quality = alignment.get("alignment_quality")
+    if manual_only and quality is not None:
+        raise ValueError("写真から直接登録した枠には全体変換の精度診断を付けないでください")
     if quality is not None:
         if (not isinstance(quality, dict)
                 or quality.get("method") not in ("four-point", "ransac-least-squares")

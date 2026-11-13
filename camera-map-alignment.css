@@ -197,3 +197,35 @@
 .alignment-point-item button{font-size:.72rem;padding:5px 8px;min-height:30px;flex:none}
 .alignment-point-item[data-outlier="true"]{border-color:#ce5555;background:var(--panel-2,#fef2f2)}
 @media(max-width:420px){#alignment-point-list{grid-template-columns:1fr}}
+
+/* 研究用・写真優先の個別区画位置合わせ。マップの区画自体は変更しない。 */
+.alignment-photo-editor{margin:12px 0 0;padding:12px 14px;
+  border:1px solid var(--border,#c7d0df);border-radius:10px;
+  background:var(--panel-2,#f3f6fb);min-width:0}
+.alignment-photo-editor[hidden]{display:none}
+.alignment-photo-editor-heading{display:flex;gap:12px;align-items:flex-start;
+  justify-content:space-between;flex-wrap:wrap}
+.alignment-photo-editor-heading>div{flex:1 1 300px;min-width:0}
+.alignment-photo-editor-heading strong{color:var(--text,#1c2e45);font-size:.92rem}
+.alignment-photo-editor-heading p{margin:5px 0 7px;color:var(--muted,#657285);
+  font-size:.79rem;line-height:1.5}
+.alignment-photo-editor-heading>span{font-size:.76rem;font-weight:700;
+  color:var(--text,#27445d);border:1px solid var(--border,#b8c7d4);
+  border-radius:50px;padding:5px 9px;white-space:nowrap}
+.alignment-photo-editor-controls{display:flex;align-items:end;flex-wrap:wrap;gap:9px;margin:9px 0}
+.alignment-photo-editor-controls label{display:flex;flex:1 1 200px;flex-direction:column;
+  gap:5px;font-size:.78rem;color:var(--muted,#58697c);min-width:0}
+.alignment-photo-editor-controls select{width:100%;min-width:0;min-height:38px;
+  padding:6px 8px;border:1px solid var(--border,#adb9c8);
+  border-radius:8px;color:var(--text,#1a2d42);background:var(--panel,#fff)}
+.alignment-photo-editor-controls button{font-size:.8rem;min-height:38px;max-width:100%}
+#alignment-photo-editor-hint{margin:6px 0;padding:8px;border-radius:7px;
+  background:var(--panel,#fff);border:1px solid var(--border,#c6d5e0);
+  color:var(--text,#243c57);font-size:.8rem;line-height:1.6}
+.alignment-photo-editor .alignment-pane-help{font-size:.75rem;color:var(--muted,#536778)}
+#alignment-camera-overlay polygon[data-zone-uid]{cursor:pointer}
+#alignment-camera-overlay circle[data-zone-corner]{cursor:grab;touch-action:none;pointer-events:all}
+#alignment-camera-overlay circle[data-zone-corner]:active{cursor:grabbing}
+#alignment-map polygon[data-slot-uid]{cursor:pointer}
+@media(max-width:570px){.alignment-photo-editor{padding:10px}
+ .alignment-photo-editor-controls button{width:100%}}
