@@ -463,6 +463,12 @@
     <span id="alignment-space-count">駐車枠を読み込み中</span>
     <span id="alignment-image-info">カメラ写真なし</span>
   </div>
+  <details id="alignment-coverage-settings" class="alignment-help" hidden>
+    <summary>カメラに映らない駐車枠を指定</summary>
+    <p>映像外の駐車枠も管理マップに残せます。該当する枠にチェックを入れると、動画のYOLO判定・空き案内から除外されます。位置合わせで自動判定した画角外の区画も除外します。</p>
+    <div id="alignment-coverage-list" class="alignment-coverage-list"></div>
+    <p>画角外の区画は「空き」ではなく未確認として扱います。別のカメラを追加するまでは録画から判定しません。</p>
+  </details>
   <div class="alignment-settings">
     <label>カメラID <input id="alignment-camera-id" type="text" maxlength="100" autocomplete="off" spellcheck="false" value="home-camera-01"/></label>
     <button type="button" id="alignment-use-camera">現在のカメラ写真を使用</button>
