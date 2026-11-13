@@ -235,6 +235,73 @@
       transform,alignmentDiagnostics};
   }
 
+  /** 写真を直接なぞった4頂点。実行側のzone_geometry.normalize_cornersと同じ安全条件。 */
+  function normalizeCameraZone(corners){
+    if(!Array.isArray(corners)||corners.length!==4)
+      throw new Error("駐車枠の角を写真上で4か所指定してください。");
+    const coords=corners.map(p=>{
+      point(p);
+      if(p.some(n=>n<0||n>1))throw new Error("駐車枠は写真の内側に指定してください。");
+      return p.slice();
+    });
+    const cx=coords.reduce((a,p)=>a+p[0]/4,0);
+    const cy=coords.reduce((a,p)=>a+p[1]/4,0);
+    const ordered=coords.slice().sort((a,b)=>
+      Math.atan2(a[1]-cy,a[0]-cx)-Math.atan2(b[1]-cy,b[0]-cx));
+    if(new Set(ordered.map(p=>p.map(x=>x.toFixed(5)).join(":"))).size!==4)
+      throw new Error("同じ角を複数回選んでいます。別の四隅を指定してください。");
+    if(Math.abs(signedArea(ordered))<.00005)
+      throw new Error("枠が小さすぎるか、四隅がほぼ一直線です。");
+    const signs=[];
+    for(let i=0;i<4;i++){
+      const a=ordered[i],b=ordered[(i+1)%4],c=ordered[(i+2)%4];
+      const z=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+      if(Math.abs(z)<.0000005)
+        throw new Error("四隅の形が崩れています。区画の白線に沿って選び直してください。");
+      signs.push(z>0);
+    }
+    if(!signs.every(v=>v===signs[0]))
+      throw new Error("四隅が凸四角形になりません。枠線に沿って指定してください。");
+    return ordered.map(p=>p.map(n=>Number(n.toFixed(5))));
+  }
+
+  /** 管理マップのUIDを保存し、カメラ側の個別枠だけ上書きする。
+   * automatic=nullなら写真だけの直接登録。指定しない区画はすべて画角外。
+   * カメラ範囲外を明示した枠は、写真の手動登録でも空き判定の対象にしない。
+   */
+  function composeCameraZones(layout,automatic,manualZones={}){
+    const slots=(layout?.objects||[]).filter(o=>o?.objectType==="parkingSpace");
+    if(!slots.length)throw new Error("管理マップに駐車枠がありません。");
+    if(!manualZones||typeof manualZones!=="object"||Array.isArray(manualZones))
+      throw new Error("写真の駐車枠設定が不正です。");
+    const ids=new Set(slots.map(slot=>String(slot.uid)));
+    if(ids.size!==slots.length)throw new Error("区画IDが重複しています。");
+    const valid=(uid)=>/^space_[A-Za-z0-9_-]+$/.test(uid);
+    const src=automatic?.space_zones||{};
+    for(const uid of Object.keys(src))if(!ids.has(uid)||!valid(uid))
+      throw new Error("管理マップに存在しない区画の自動投影です: "+uid);
+    for(const uid of Object.keys(manualZones))if(!ids.has(uid)||!valid(uid))
+      throw new Error("管理マップに存在しない区画の手動設定です: "+uid);
+    const zones={},excluded=[];
+    for(const slot of slots){
+      const uid=String(slot.uid);
+      if(!valid(uid))throw new Error("区画IDが不正です: "+uid);
+      if(slot.cameraCoverage==="outside"){
+        excluded.push(uid);continue;
+      }
+      const raw=Object.hasOwn(manualZones,uid)?manualZones[uid]:src[uid];
+      if(raw===undefined){excluded.push(uid);continue;}
+      zones[uid]=normalizeCameraZone(raw);
+    }
+    if(!Object.keys(zones).length)
+      throw new Error("写真上に登録された駐車枠がありません。区画を1つ以上登録してください。");
+    return {space_uids:Object.keys(zones),space_zones:zones,excluded_space_uids:excluded,
+      transform:automatic?.transform??null,
+      alignmentDiagnostics:automatic?.alignmentDiagnostics??null,
+      alignmentMethod:automatic?"hybrid-zones":"manual-zones",
+      manual_zone_uids:Object.keys(manualZones).filter(uid=>Object.hasOwn(zones,uid))};
+  }
+
   /** 位置合わせ後に区画が編集されたかを判断するための安定した配置署名。 */
   function layoutSignature(layout){
     const slots=(layout?.objects||[]).filter(item=>item?.objectType==="parkingSpace")
@@ -273,5 +340,5 @@
     return result;
   }
 
-  return Object.freeze({homography,fitHomography,project,parkingCorners,generateZones,hullArea,layoutSignature,parkingViewport,MAX_PAIRS});
+  return Object.freeze({homography,fitHomography,project,parkingCorners,generateZones,normalizeCameraZone,composeCameraZones,hullArea,layoutSignature,parkingViewport,MAX_PAIRS});
 });
