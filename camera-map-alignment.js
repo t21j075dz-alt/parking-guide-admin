@@ -16,6 +16,7 @@
   const file=get("alignment-file"), confirmed=get("alignment-confirm-visual");
   const zoom=get("alignment-map-zoom"),steps=[...get("alignment-steps").children];
   const pointCount=get("alignment-point-count"),nextAction=get("alignment-next-action");
+  const coverageSettings=get("alignment-coverage-settings"),coverageList=get("alignment-coverage-list");
   const facilityLabel=get("alignment-facility-label"),spaceCount=get("alignment-space-count");
   const photoInfo=get("alignment-image-info"),photoReady=get("alignment-photo-ready");
   const placeholder=get("alignment-image-placeholder"),markers=[...get("alignment-point-markers").children];
@@ -93,6 +94,33 @@
     if(x<0||x>1||y<0||y>1)throw Error("画像内の点を選んでください。");
     return [x,y];
   }
+  /** 日光専用。監視範囲外を指定しても駐車枠そのものは消去しない。 */
+  function renderCoverageChoices(){
+    coverageList.replaceChildren();
+    coverageSettings.hidden=currentFacility!=="nikko-test-001";
+    if(coverageSettings.hidden)return;
+    const current=layout();
+    for(const item of (current?.objects||[]).filter(obj=>obj.objectType==="parkingSpace")){
+      const label=document.createElement("label");
+      label.className="alignment-coverage-option";
+      const box=document.createElement("input");
+      box.type="checkbox";
+      box.checked=item.cameraCoverage==="outside";
+      const name=document.createElement("span");
+      name.textContent=String(item.spaceNumber||item.name||item.uid)+"（"+item.uid+"）";
+      label.append(box,name);
+      coverageList.append(label);
+      box.addEventListener("change",()=>{
+        if(item.cameraCoverage==="outside" && !box.checked)delete item.cameraCoverage;
+        else if(box.checked)item.cameraCoverage="outside";
+        if(typeof saveLocal==="function")saveLocal();
+        projected=null;confirmed.checked=false;exported=false;
+        draw();
+        notify("画角外の設定を保存しました。区画を自動計算し直し、映像と一致するか確認してください。");
+      });
+    }
+  }
+
   function draw(){
     const current=layout();
     map.replaceChildren();overlay.replaceChildren();
@@ -108,7 +136,8 @@
       try{
         map.append(svg("polygon",{
           points:core.parkingCorners(item).map(p=>p.join(",")).join(" "),
-          fill:"#92d9c3",stroke:"#177a61","stroke-width":Math.max(1,width/800)
+          fill:item.cameraCoverage==="outside"?"#acb4c0":"#92d9c3",
+          stroke:item.cameraCoverage==="outside"?"#606a7a":"#177a61","stroke-width":Math.max(1,width/800)
         }));
         const centerX=Number(item.x)+Number(item.width)/2;
         const centerY=Number(item.y)+Number(item.height)/2;
@@ -210,6 +239,7 @@
     image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
     showWholeMap=false;exported=false;
     dialog.showModal();restore();
+    renderCoverageChoices();
     facilityLabel.textContent=document.querySelector("#facility-select")?.selectedOptions?.[0]?.textContent
       ||currentFacility;
     refresh();
