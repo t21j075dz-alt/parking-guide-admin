@@ -1,5 +1,5 @@
 /* 管理マップ↔カメラ映像の初回位置合わせ。
- * 4組の床面対応点だけを選び、区画を投影する。
+ * 4〜24組の床面対応点で誤差を評価しながら区画を投影する。
  * 確認前にクラウド・YOLO設定を変更しない。
  */
 (() => {
@@ -16,6 +16,8 @@
   const file=get("alignment-file"), confirmed=get("alignment-confirm-visual");
   const zoom=get("alignment-map-zoom"),steps=[...get("alignment-steps").children];
   const pointCount=get("alignment-point-count"),nextAction=get("alignment-next-action");
+  const pointList=get("alignment-point-list"),quality=get("alignment-quality");
+  const outlierCount=get("alignment-outlier-count");
   const coverageSettings=get("alignment-coverage-settings"),coverageList=get("alignment-coverage-list");
   const facilityLabel=get("alignment-facility-label"),spaceCount=get("alignment-space-count");
   const photoInfo=get("alignment-image-info"),photoReady=get("alignment-photo-ready");
@@ -44,16 +46,19 @@
   function refresh(){
     const hasPhoto=!image.hidden&&image.naturalWidth>0;
     const paired=Math.min(mapPoints.length,imagePoints.length);
-    const completed=mapPoints.length===4&&imagePoints.length===4;
+    const completed=paired>=4&&mapPoints.length===imagePoints.length;
+    const bad=projected?.alignmentDiagnostics?.outlierIndices?.length||0;
     applyButton.disabled=!hasPhoto||!completed;
-    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto;
-    confirmed.disabled=!projected||!hasPhoto;
-    pointCount.textContent="対応点 "+paired+" / 4 組";
+    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0;
+    confirmed.disabled=!projected||!hasPhoto||bad>0;
+    pointCount.textContent="対応点 "+paired+" / 最大"+core.MAX_PAIRS+"組";
     nextAction.textContent=!hasPhoto?"先にカメラ写真を読み込んでください"
       : projected
-        ? confirmed.checked ? "確認済みです。設定JSONを保存できます" : "緑の枠がすべて正しいか確認してください"
-        : completed ? "4組そろいました。自動計算に進んでください"
+        ? bad ? "誤差の大きい"+bad+"点を削除・選び直してください"
+          : confirmed.checked ? "確認済みです。設定JSONを保存できます"
+          : "緑の枠を確認。ずれが残る場合は追加点を指定できます"
         : mapPoints.length>imagePoints.length ? "右の写真で同じ場所の点"+(paired+1)+"を選択"
+        : completed ? "全区画の位置を自動計算できます。追加点も選択できます"
         : "左のマップで点"+(paired+1)+"を選択";
     markers.forEach((node,index)=>{
       node.classList.toggle("is-complete",index<paired);
@@ -121,6 +126,49 @@
     }
   }
 
+  /** 点ごとの投影誤差を実画像のpxで表示。誤った組を個別削除できる。 */
+  function renderPointReview(){
+    pointList.replaceChildren();
+    const info=projected?.alignmentDiagnostics;
+    const bad=new Set(info?.outlierIndices||[]);
+    const paired=Math.min(mapPoints.length,imagePoints.length);
+    const px=([dx,dy])=>Math.hypot(dx*image.naturalWidth,dy*image.naturalHeight);
+    if(info){
+      const rms=Math.sqrt(info.inlierIndices.reduce((sum,i)=>
+        sum+px(info.residualVectors[i])**2,0)/Math.max(1,info.inlierIndices.length));
+      quality.textContent=info.pairCount===4
+        ? "4点から計算しました。点を追加すると全体のずれも評価できます。"
+        : "採用"+info.inlierIndices.length+"点・誤差大"+bad.size+
+          "点・平均誤差（RMS）"+rms.toFixed(1)+"px"+
+          (bad.size?"。赤い点は削除・選び直してください。":"。区画のずれを目視確認してください。");
+      quality.dataset.state=bad.size?"warning":"ready";
+    }else{
+      quality.textContent=paired<4
+        ? "最低4組。6〜12組を駐車場全体に散らすと誤差を検証しやすくなります。"
+        : "登録済み"+paired+"組。自動計算すると点ごとのずれを確認できます。";
+      delete quality.dataset.state;
+    }
+    outlierCount.textContent=bad.size?"（誤差大 "+bad.size+"点）":"（"+paired+"組）";
+    for(let i=0;i<paired;i++){
+      const li=document.createElement("li");
+      li.className="alignment-point-item";
+      if(bad.has(i))li.dataset.outlier="true";
+      const label=document.createElement("span");
+      label.textContent="点"+(i+1)+(info
+        ? " · "+(bad.has(i)?"誤差大 ":"ずれ ")+px(info.residualVectors[i]).toFixed(1)+"px"
+        : " · 地図・写真登録済み");
+      const remove=document.createElement("button");
+      remove.type="button";remove.className="secondary-button";remove.textContent="削除";
+      remove.setAttribute("aria-label","位置合わせ点"+(i+1)+"を削除");
+      remove.addEventListener("click",()=>{
+        mapPoints.splice(i,1);imagePoints.splice(i,1);
+        projected=null;confirmed.checked=false;exported=false;
+        draw();notify("点"+(i+1)+"を削除しました。必要なら選び直して再計算してください。");
+      });
+      li.append(label,remove);pointList.append(li);
+    }
+  }
+
   function draw(){
     const current=layout();
     map.replaceChildren();overlay.replaceChildren();
@@ -148,7 +196,8 @@
     }
     mapPoints.forEach((p,i)=>{
       const x=p[0]*width,y=p[1]*height;
-      map.append(svg("circle",{cx:x,cy:y,r:Math.max(3,width/160),fill:"#e07121",stroke:"white","stroke-width":Math.max(1,width/1000)}));
+      const bad=projected?.alignmentDiagnostics?.outlierIndices?.includes(i);
+      map.append(svg("circle",{cx:x,cy:y,r:Math.max(3,width/160),fill:bad?"#dc3545":"#e07121",stroke:"white","stroke-width":Math.max(1,width/1000)}));
       map.append(svg("text",{x:x+width/95,y:y-height/95,fill:"#a33e10","font-size":Math.max(12,width/65),"font-weight":"bold"},i+1));
     });
     overlay.setAttribute("viewBox","0 0 1 1");
@@ -163,15 +212,17 @@
         "font-size":.018,"font-weight":"bold"},uid.replace(/^space_0*/,"")));
     }
     imagePoints.forEach((p,i)=>{
-      overlay.append(svg("circle",{cx:p[0],cy:p[1],r:.009,fill:"#ffbf66",stroke:"white","stroke-width":.002}));
+      const bad=projected?.alignmentDiagnostics?.outlierIndices?.includes(i);
+      overlay.append(svg("circle",{cx:p[0],cy:p[1],r:.009,fill:bad?"#dc3545":"#ffbf66",stroke:"white","stroke-width":.002}));
       overlay.append(svg("text",{x:p[0]+.012,y:p[1]-.012,fill:"#fff","font-size":.025,"font-weight":"bold"},i+1));
     });
-    if(mapPoints.length!==4||imagePoints.length!==4){
+    if(mapPoints.length<4||mapPoints.length!==imagePoints.length){
       const n=Math.min(mapPoints.length,imagePoints.length)+1;
       notify(mapPoints.length>imagePoints.length
         ? "② カメラ映像で、マップの点"+n+"と同じ床面上の位置を選んでください。"
         : "① マップで対応点"+n+"を選んでください。離れた白線の角などを選びます。");
     }
+    renderPointReview();
     refresh();
   }
   function generateVisibleZones(){
