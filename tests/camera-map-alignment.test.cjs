@@ -111,3 +111,24 @@ test("Nikko alignment refuses a camera that sees zero complete parking spaces",(
   const actual=[[0,0],[1,0],[1,1],[0,1]];
   assert.throws(()=>generateZones(map,actual,actual,{skipOutsideFrame:true}),/駐車区画がありません/);
 });
+
+test("explicitly excluded Nikko spaces stay in master map but never become camera zones",()=>{
+  const map={facilityId:"nikko-test-001",canvas:{width:1000,height:1000},objects:[
+    {uid:"space_001",objectType:"parkingSpace",x:150,y:150,width:90,height:150},
+    {uid:"space_002",objectType:"parkingSpace",x:350,y:150,width:90,height:150,
+     cameraCoverage:"outside"},
+    {uid:"space_003",objectType:"parkingSpace",x:550,y:150,width:90,height:150},
+  ]};
+  const anchors=[[0,0],[1,0],[1,1],[0,1]];
+  const result=generateZones(map,anchors,anchors,{skipOutsideFrame:true});
+  assert.deepEqual(result.space_uids,["space_001","space_003"]);
+  assert.deepEqual(result.excluded_space_uids,["space_002"]);
+  assert.equal(Object.keys(result.space_zones).length,2);
+  assert.equal(map.objects.length,3);
+  assert.equal(map.objects[1].cameraCoverage,"outside");
+  const before=layoutSignature(map);
+  const changed=structuredClone(map);
+  delete changed.objects[1].cameraCoverage;
+  assert.notEqual(layoutSignature(changed),before);
+  assert.equal(generateZones(changed,anchors,anchors,{skipOutsideFrame:true}).space_uids.length,3);
+});
