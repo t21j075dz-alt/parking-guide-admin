@@ -126,8 +126,8 @@
     const completed=paired>=4&&mapPoints.length===imagePoints.length;
     const bad=projected?.alignmentDiagnostics?.outlierIndices?.length||0;
     applyButton.disabled=!hasPhoto||!completed;
-    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0;
-    confirmed.disabled=!projected||!hasPhoto||bad>0;
+    exportButton.disabled=!projected||!confirmed.checked||!hasPhoto||bad>0||Boolean(pendingCorners);
+    confirmed.disabled=!projected||!hasPhoto||bad>0||Boolean(pendingCorners);
     pointCount.textContent="対応点 "+paired+" / 最大"+core.MAX_PAIRS+"組";
     nextAction.textContent=!hasPhoto?"先にカメラ写真を読み込んでください"
       : projected
@@ -141,7 +141,7 @@
       node.classList.toggle("is-complete",index<paired);
       node.classList.toggle("is-current",index===paired&&paired<4);
     });
-    const active=!hasPhoto?0:!completed?1:!projected?2:!confirmed.checked?2:3;
+    const active=!hasPhoto?0:!projected?(completed?2:1):!confirmed.checked?2:3;
     steps.forEach((node,index)=>{
       node.classList.toggle("is-current",index===active);
       node.classList.toggle("is-complete",index<active||(index===3&&exported));
@@ -162,6 +162,7 @@
         ? "録画の判定対象 "+projected.space_uids.length+"区画／対象外 "+projected.excluded_space_uids.length+"区画。映像内の全区画が合っているか確認してください。"
         : projected.space_uids.length+"区画の位置を計算しました。映像上の枠が一致しているか確認してください。"
       : "区画位置は未確定です。既存の駐車状態は変更されません。";
+    updateEditorStatus();
   }
   function pointFromClick(event,element){
     const matrix=element.getScreenCTM();
