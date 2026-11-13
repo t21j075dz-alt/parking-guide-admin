@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {homography,project,parkingCorners,generateZones,layoutSignature,parkingViewport}=require("../camera-map-alignment-core.js");
+const {homography,fitHomography,project,parkingCorners,generateZones,layoutSignature,parkingViewport,MAX_PAIRS}=require("../camera-map-alignment-core.js");
 
 const anchors=[[.1,.1],[.9,.1],[.9,.9],[.1,.9]];
 const camera=[[.16,.12],[.78,.20],[.91,.85],[.07,.88]];
@@ -131,4 +131,43 @@ test("explicitly excluded Nikko spaces stay in master map but never become camer
   delete changed.objects[1].cameraCoverage;
   assert.notEqual(layoutSignature(changed),before);
   assert.equal(generateZones(changed,anchors,anchors,{skipOutsideFrame:true}).space_uids.length,3);
+});
+
+test("6–12 distributed points fit a consistent perspective with low reprojection error",()=>{
+  const map=[[.1,.1],[.85,.1],[.82,.85],[.12,.84],[.48,.25],[.72,.55],[.34,.69],[.55,.44]];
+  const camera=map.map(([x,y])=>[(.8*x+.06)/(1+.17*x+.03*y),(.7*y+.1)/(1+.17*x+.03*y)]);
+  const fit=fitHomography(map,camera);
+  assert.equal(fit.method,"ransac-least-squares");
+  assert.equal(fit.pairCount,8);
+  assert.deepEqual(fit.outlierIndices,[]);
+  assert.equal(fit.inlierIndices.length,8);
+  assert.ok(fit.rmsNormalized<1e-8);
+  for(let i=0;i<map.length;i++){
+    const actual=project(fit.matrix,map[i]);
+    assert.ok(Math.hypot(actual[0]-camera[i][0],actual[1]-camera[i][1])<1e-6);
+  }
+});
+
+test("one badly matched point is flagged and does not distort the other spaces",()=>{
+  const map=[[.1,.1],[.85,.1],[.82,.85],[.12,.84],[.48,.25],[.72,.55],[.34,.69],[.55,.44]];
+  const camera=map.map(([x,y])=>[(.8*x+.06)/(1+.17*x+.03*y),(.7*y+.1)/(1+.17*x+.03*y)]);
+  camera[5]=[.05,.95];
+  const fit=fitHomography(map,camera);
+  assert.deepEqual(fit.outlierIndices,[5]);
+  assert.equal(fit.inlierIndices.length,7);
+  assert.ok(fit.rmsNormalized<1e-8);
+  const amended=map.filter((_,i)=>i!==5);
+  const photos=camera.filter((_,i)=>i!==5);
+  const result=fitHomography(amended,photos);
+  assert.deepEqual(result.outlierIndices,[]);
+});
+
+test("old four-point geometry remains stable while invalid counts are rejected",()=>{
+  assert.equal(MAX_PAIRS,24);
+  assert.equal(fitHomography(anchors,camera).method,"four-point");
+  assert.deepEqual(fitHomography(anchors,camera).outlierIndices,[]);
+  assert.throws(()=>fitHomography(anchors.concat([[.5,.5]]),camera),/4～24/);
+  assert.throws(()=>fitHomography([],[]),/4～24/);
+  const extra=Array.from({length:25},(_,i)=>[.1+(i%5)*.17,.1+Math.floor(i/5)*.17]);
+  assert.throws(()=>fitHomography(extra,extra),/4～24/);
 });
