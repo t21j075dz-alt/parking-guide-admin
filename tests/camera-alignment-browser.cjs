@@ -220,6 +220,52 @@ const {chromium}=require("playwright");
     assert.equal(await page.locator("#alignment-export").isDisabled(),true);
     await page.locator("#alignment-close").click();
 
+    // Regression: a persisted manual space must survive unusable global reference points.
+    // The user previously saw "一致する対応点が4組未満" after painstakingly placing a slot.
+    await page.evaluate(()=>{
+      const key="parkingCameraMapAlignmentsV1";
+      const saved=JSON.parse(localStorage.getItem(key)||"{}");
+      const faulty=Array.from({length:8},(_,i)=>[.12+i*.08,.16+i*.08]);
+      saved["nikko-test-001|nikko-recording-01"]={
+        map_points:faulty,
+        image_points:faulty.map(([x,y])=>[y,x]),
+        manual_zones:{space_001:[[.20,.26],[.34,.26],[.34,.44],[.20,.44]]},
+        mode:"hybrid",
+        canvas:{width:1800,height:1200},
+        image_ratio:640/480,
+      };
+      localStorage.setItem(key,JSON.stringify(saved));
+      document.dispatchEvent(new Event("parking:open-camera-alignment"));
+    });
+    await page.locator("#alignment-file").setInputFiles({
+      name:"camera.png",mimeType:"image/png",buffer:Buffer.from(png,"base64"),
+    });
+    await page.waitForFunction(()=>document.querySelector("#alignment-photo-ready")?.dataset?.ready==="true");
+    assert.equal(await page.locator("#alignment-zone-method").inputValue(),"hybrid");
+    assert.match(await page.locator("#alignment-photo-editor-count").textContent(),/1件/);
+    assert.equal(await page.locator("#alignment-direct-fallback").isVisible(),true);
+    assert.equal(await page.locator("#alignment-camera-overlay polygon[data-zone-uid]").count(),1);
+    await page.locator("#alignment-switch-direct").click();
+    assert.equal(await page.locator("#alignment-zone-method").inputValue(),"manual");
+    assert.equal(await page.locator(".alignment-counter").isVisible(),false);
+    assert.equal(await page.locator(".alignment-point-review").isVisible(),false);
+    assert.equal(await page.locator("#alignment-direct-fallback").isVisible(),false);
+    assert.equal(await page.locator("#alignment-camera-overlay circle[data-zone-corner]").count(),4);
+    assert.equal(await page.locator("#alignment-confirm-visual").isEnabled(),true);
+    await page.locator("#alignment-confirm-visual").check();
+    const [fallbackDownload]=await Promise.all([
+      page.waitForEvent("download"),page.locator("#alignment-export").click(),
+    ]);
+    const recovered=JSON.parse(fs.readFileSync(await fallbackDownload.path(),"utf-8"));
+    assert.equal(recovered.alignment_method,"manual-zones");
+    assert.deepEqual(recovered.map_points,[]);
+    assert.deepEqual(recovered.space_uids,["space_001"]);
+    assert.deepEqual(recovered.excluded_space_uids,["space_002","space_003"]);
+    assert.equal((JSON.parse(localStorage.getItem("parkingCameraMapAlignmentsV1"))[
+      "nikko-test-001|nikko-recording-01"].map_points||[]).length,8,
+      "old points remain recoverable after changing to direct-photo mode");
+    await page.locator("#alignment-close").click();
+
     const mobile=await browser.newPage({viewport:{width:390,height:844}});
     mobile.on("pageerror",error=>errors.push("mobile: "+error.message));
     await mobile.route("https://**/*",route=>route.abort());
@@ -235,7 +281,7 @@ const {chromium}=require("playwright");
     assert.ok(widths.body<=widths.screen+2,"mobile page horizontal overflow: "+JSON.stringify(widths));
     await mobile.screenshot({path:"/tmp/parking-camera-alignment-mobile.png"});
     assert.deepEqual(errors,[],"no browser runtime errors");
-    console.log("PASS: 6-point and photo-first mapping, safe out-of-frame UID exclusion, desktop/mobile UI");
+    console.log("PASS: point-fit failure fallback preserves manual zones, 6-point and photo-first mapping, desktop/mobile UI");
   } finally {
     await browser.close();
     await new Promise(resolve=>server.close(resolve));
