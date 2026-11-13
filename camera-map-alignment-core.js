@@ -291,7 +291,9 @@
       }
       const raw=Object.hasOwn(manualZones,uid)?manualZones[uid]:src[uid];
       if(raw===undefined){excluded.push(uid);continue;}
-      zones[uid]=normalizeCameraZone(raw);
+      zones[uid]=Object.hasOwn(manualZones,uid)
+        ? normalizeCameraZone(raw)
+        : raw.map(p=>p.slice());
     }
     if(!Object.keys(zones).length)
       throw new Error("写真上に登録された駐車枠がありません。区画を1つ以上登録してください。");
