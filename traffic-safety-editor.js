@@ -21,7 +21,9 @@
     '<label>登録済みの注意事項<select id="traffic-existing"><option value="">新しく追加</option></select></label>' +
     '<label>注意の種類<select id="traffic-type"></select></label>' +
     '<label>案内するタイミング<select id="traffic-stage"><option value="approach">施設に近づくとき</option><option value="onsite">駐車場内</option></select></label>' +
-    '<label>画面表示・読み上げ文<textarea id="traffic-message" maxlength="160" rows="3" placeholder="短く、運転中にもわかる文章"></textarea></label>' +
+    '<label>画面表示・読み上げ文（日本語）<textarea id="traffic-message" maxlength="160" rows="3" placeholder="短く、運転中にもわかる文章"></textarea></label>' +
+    '<label>English announcement (optional)<textarea id="traffic-message-en" maxlength="160" rows="3" placeholder="Use a verified English translation; do not guess traffic restrictions"></textarea></label>' +
+    '<label><input type="checkbox" id="traffic-message-en-verified"> 英語の文面を原文と照合済み（読み上げに使用）</label>' +
     '<label><input type="checkbox" id="traffic-verified"> 現地の標識・店舗案内を確認済み（利用者に公開）</label>' +
     '<label><input type="checkbox" id="traffic-enabled" checked> この注意事項を有効にする</label>' +
     '<p>登録内容は音声生成待ちにも追加されます。未確認の内容は利用者アプリへ表示・読み上げしません。</p>' +
@@ -49,6 +51,8 @@
     typeInput.value = "right_turn_prohibited";
     q("traffic-stage").value = "approach";
     q("traffic-message").value = types[0][2];
+    q("traffic-message-en").value = "";
+    q("traffic-message-en-verified").checked = false;
     q("traffic-verified").checked = false;
     q("traffic-enabled").checked = true;
     q("traffic-delete").disabled = true;
@@ -69,6 +73,8 @@
     q("traffic-scope").value = item.destinationId || "";
     q("traffic-stage").value = item.stage === "onsite" ? "onsite" : "approach";
     q("traffic-message").value = item.message || "";
+    q("traffic-message-en").value = item.messageEn || "";
+    q("traffic-message-en-verified").checked = item.messageEnVerified === true;
     q("traffic-verified").checked = item.verified === true;
     q("traffic-enabled").checked = item.enabled === true;
     q("traffic-delete").disabled = false;
@@ -88,8 +94,18 @@
   q("traffic-existing").onchange = loadRecord;
   typeInput.onchange = () => {
     const item = types.find(type => type[0] === typeInput.value);
-    if (item && item[0] !== "custom") q("traffic-message").value = item[2];
+    if (item && item[0] !== "custom") {
+      q("traffic-message").value = item[2];
+      q("traffic-message-en-verified").checked = false;
+    }
   };
+  // A change to the source or translation invalidates the previous translation approval.
+  q("traffic-message").addEventListener("input", () => {
+    q("traffic-message-en-verified").checked = false;
+  });
+  q("traffic-message-en").addEventListener("input", () => {
+    q("traffic-message-en-verified").checked = false;
+  });
   q("traffic-save").onclick = () => {
     const layout = getCurrentLayout();
     if (!layout || layout !== activeLayout) {
@@ -101,11 +117,18 @@
       q("traffic-editor-status").textContent = "読み上げ文を1～160文字で入力してください。";
       return;
     }
+    const messageEn = q("traffic-message-en").value.trim();
+    if (messageEn.length > 160 || (q("traffic-message-en-verified").checked && !messageEn)) {
+      q("traffic-editor-status").textContent = "英語案内を確認する場合は、英語の文面を1～160文字で入力してください。";
+      return;
+    }
     const selected = q("traffic-existing").value;
     const list = records().slice();
     const id = selected || "traffic-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
     const record = {
-      id, type: typeInput.value, message, stage: q("traffic-stage").value,
+      id, type: typeInput.value, message,
+      messageEn, messageEnVerified: Boolean(messageEn && q("traffic-message-en-verified").checked),
+      stage: q("traffic-stage").value,
       destinationId: q("traffic-scope").value || "",
       verified: q("traffic-verified").checked,
       enabled: q("traffic-enabled").checked,
