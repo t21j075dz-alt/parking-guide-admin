@@ -454,7 +454,7 @@
   </div>
   <ol class="alignment-steps" id="alignment-steps" aria-label="位置合わせの進み具合">
     <li data-alignment-step="photo"><span class="alignment-step-number">1</span><span>写真を用意</span></li>
-    <li data-alignment-step="points"><span class="alignment-step-number">2</span><span>4か所を合わせる</span></li>
+    <li data-alignment-step="points"><span class="alignment-step-number">2</span><span>4〜24か所を合わせる</span></li>
     <li data-alignment-step="preview"><span class="alignment-step-number">3</span><span>区画を確認</span></li>
     <li data-alignment-step="export"><span class="alignment-step-number">4</span><span>設定を保存</span></li>
   </ol>
@@ -474,7 +474,7 @@
     <button type="button" id="alignment-use-camera">現在のカメラ写真を使用</button>
     <label class="alignment-upload">または写真を選択 <input id="alignment-file" type="file" accept="image/jpeg,image/png,image/webp"/></label>
   </div>
-  <p id="alignment-message" class="alignment-message" role="status" aria-live="polite">マップと写真で同じ場所を4組指定してください。</p>
+  <p id="alignment-message" class="alignment-message" role="status" aria-live="polite">まず4組を指定し、必要なら最大24組まで追加してください。</p>
   <div class="alignment-panes">
     <section class="alignment-pane" id="alignment-map-pane">
       <div class="alignment-pane-heading">
@@ -482,7 +482,7 @@
         <button type="button" id="alignment-map-zoom" class="secondary-button" aria-pressed="false">地図全体を見る</button>
       </div>
       <svg id="alignment-map" aria-label="床面上の基準点を選ぶためのマップ" role="img" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
-      <p class="alignment-pane-help">4点はできるだけ離れた位置から選んでください。区画が小さければ「地図全体を見る」で表示を切り替えられます。</p>
+      <p class="alignment-pane-help">最初の4点はできるだけ離れた位置から選び、ずれが残る場合は5点目以降を追加してください。区画が小さければ「地図全体を見る」で表示を切り替えられます。</p>
     </section>
     <section class="alignment-pane" id="alignment-camera-pane">
       <div class="alignment-pane-heading"><h3>カメラ写真 <small>同じ場所を選択</small></h3><span id="alignment-photo-ready" class="alignment-photo-status">未選択</span></div>
@@ -495,10 +495,18 @@
     </section>
   </div>
   <div class="alignment-counter">
-    <div><strong id="alignment-point-count">対応点 0 / 4 組</strong><span id="alignment-next-action">マップの点1を選んでください</span></div>
+    <div><strong id="alignment-point-count">対応点 0 / 最大24組</strong><span id="alignment-next-action">まず地図の点1を選んでください</span></div>
     <div class="alignment-point-markers" id="alignment-point-markers" aria-hidden="true">
       <span></span><span></span><span></span><span></span>
     </div>
+  </div>
+  <div class="alignment-point-review">
+    <p id="alignment-quality" role="status" aria-live="polite">4組を選ぶと投影できます。6〜12組に増やすと誤差を確認しやすくなります。</p>
+    <details id="alignment-point-details">
+      <summary>対応点ごとのずれ・点の削除 <span id="alignment-outlier-count"></span></summary>
+      <ol id="alignment-point-list" aria-label="登録した位置合わせ点"></ol>
+      <p>誤差が大きい点は「削除」で取り除き、地図と写真で選び直してください。誤った点がある場合は確認済みJSONを保存できません。</p>
+    </details>
   </div>
   <div class="alignment-actions">
     <button type="button" id="alignment-undo" class="secondary-button">1組戻す</button>
@@ -510,7 +518,7 @@
   <p id="alignment-result" class="muted">区画位置は未確定です。既存の駐車状態は変更されません。</p>
   <details class="alignment-help">
     <summary>位置合わせのコツ・注意事項</summary>
-    <p>車の屋根や壁ではなく、地面にある白線の角などを選んでください。4組は広く離れている方が正確に対応させやすくなります。</p>
+    <p>車の屋根や壁ではなく、地面にある白線の角などを選んでください。4〜24組を駐車場の広い範囲に散らして指定すると、全体のずれを確認できます。</p>
     <p>カメラの設置位置や画角を変えた場合は再確認が必要です。映らない区画や高低差のある場所は、この方式だけでは対応できません。</p>
     <p>JSONの保存だけではYOLOの監視設定・利用者アプリに反映しません。実映像への重ね合わせ確認が必要です。</p>
   </details>
