@@ -171,6 +171,55 @@ const {chromium}=require("playwright");
     assert.equal(await page.locator("#live-monitor-spaces li").count(),0);
     assert.equal(await page.locator("#live-monitor-published").isEnabled(),false);
 
+    // Full photo-first flow on Nikko: no homography points are required.
+    await page.evaluate(()=>{
+      state.facilityId="nikko-test-001";
+      state.layouts["nikko-test-001"]={
+        facilityId:"nikko-test-001",canvas:{width:1800,height:1200},
+        objects:[
+          {uid:"space_001",objectType:"parkingSpace",x:250,y:250,width:100,height:140,spaceNumber:"1"},
+          {uid:"space_002",objectType:"parkingSpace",x:450,y:250,width:100,height:140,spaceNumber:"2"},
+          {uid:"space_003",objectType:"parkingSpace",x:650,y:250,width:100,height:140,spaceNumber:"3",
+           cameraCoverage:"outside"},
+        ],
+      };
+      document.dispatchEvent(new Event("parking:open-camera-alignment"));
+    });
+    assert.equal(await page.locator("#alignment-photo-editor").isVisible(),true);
+    await page.locator("#alignment-file").setInputFiles({
+      name:"camera.png",mimeType:"image/png",buffer:Buffer.from(png,"base64"),
+    });
+    await page.waitForFunction(()=>document.querySelector("#alignment-photo-ready")?.dataset?.ready==="true");
+    await page.locator("#alignment-zone-method").selectOption("manual");
+    await page.locator("#alignment-slot-select").selectOption("space_001");
+    await page.locator("#alignment-draw-zone").click();
+    for(const point of [[.20,.26],[.34,.26],[.34,.44],[.20,.44]]){
+      await page.evaluate(([x,y])=>{
+        const svg=document.querySelector("#alignment-camera-overlay");
+        const p=svg.createSVGPoint();p.x=x;p.y=y;
+        const screen=p.matrixTransform(svg.getScreenCTM());
+        svg.dispatchEvent(new MouseEvent("click",{clientX:screen.x,clientY:screen.y,bubbles:true}));
+      },point);
+    }
+    assert.match(await page.locator("#alignment-photo-editor-count").textContent(),/1件/);
+    assert.equal(await page.locator("#alignment-camera-overlay polygon[data-zone-uid]").count(),1);
+    assert.equal(await page.locator("#alignment-camera-overlay circle[data-zone-corner]").count(),4);
+    assert.equal(await page.locator("#alignment-export").isEnabled(),false);
+    await page.locator("#alignment-confirm-visual").check();
+    const [manualDownload]=await Promise.all([
+      page.waitForEvent("download"),page.locator("#alignment-export").click()
+    ]);
+    const manualOutput=JSON.parse(fs.readFileSync(await manualDownload.path(),"utf-8"));
+    assert.equal(manualOutput.alignment_method,"manual-zones");
+    assert.deepEqual(manualOutput.map_points,[]);
+    assert.deepEqual(manualOutput.space_uids,["space_001"]);
+    assert.deepEqual(manualOutput.excluded_space_uids,["space_002","space_003"]);
+    assert.deepEqual(manualOutput.manual_zone_uids,["space_001"]);
+    await page.locator("#alignment-clear-zone").click();
+    assert.equal(await page.locator("#alignment-camera-overlay polygon[data-zone-uid]").count(),0);
+    assert.equal(await page.locator("#alignment-export").isDisabled(),true);
+    await page.locator("#alignment-close").click();
+
     const mobile=await browser.newPage({viewport:{width:390,height:844}});
     mobile.on("pageerror",error=>errors.push("mobile: "+error.message));
     await mobile.route("https://**/*",route=>route.abort());
@@ -186,7 +235,7 @@ const {chromium}=require("playwright");
     assert.ok(widths.body<=widths.screen+2,"mobile page horizontal overflow: "+JSON.stringify(widths));
     await mobile.screenshot({path:"/tmp/parking-camera-alignment-mobile.png"});
     assert.deepEqual(errors,[],"no browser runtime errors");
-    console.log("PASS: desktop/mobile camera-map UI, six points, error removal, approval/download, monitor shortcuts");
+    console.log("PASS: 6-point and photo-first mapping, safe out-of-frame UID exclusion, desktop/mobile UI");
   } finally {
     await browser.close();
     await new Promise(resolve=>server.close(resolve));
