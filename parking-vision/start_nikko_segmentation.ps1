@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # 道の駅日光：写真の駐車区画なしで追加学習済み車両輪郭モデルを可視化
 param(
   [string]$Video = "",
