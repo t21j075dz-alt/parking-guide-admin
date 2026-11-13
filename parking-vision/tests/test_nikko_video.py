@@ -188,6 +188,22 @@ class NikkoDynamicSpaceTests(unittest.TestCase):
                   "image_points": [[.1,.1],[.9,.1],[.9,.9],[.1,.9]],
                   "manual_zone_uids": ["space_023"]}
         self.assertEqual(set(checked_projection(hybrid)[0]), set(visible))
+        # 15点中の一部が外れ点でも、個別補正したハイブリッドは履歴を保持できる。
+        points = [[.10 + (i % 5) * .15, .10 + (i // 5) * .30] for i in range(15)]
+        hybrid_rough = {**hybrid, "map_points": points, "image_points": points,
+                        "alignment_quality": {
+                            "method": "ransac-least-squares", "point_count": 15,
+                            "inlier_count": 7,
+                            "outlier_indices": [7,8,9,10,11,12,13,14],
+                            "rms_pixels": 10.6,
+                        }}
+        self.assertEqual(set(checked_projection(hybrid_rough)[0]), set(visible))
+        with self.assertRaisesRegex(ValueError, "精度診断"):
+            checked_projection({**hybrid_rough, "alignment_method": "global-homography",
+                                "manual_zone_uids": []})
+        with self.assertRaisesRegex(ValueError, "精度診断"):
+            checked_projection({**hybrid_rough, "alignment_quality": {
+                **hybrid_rough["alignment_quality"], "outlier_indices": [[7]]}})
         with self.assertRaisesRegex(ValueError, "位置合わせ方法"):
             checked_projection({**rows, "alignment_method": "untrusted-method"})
 
