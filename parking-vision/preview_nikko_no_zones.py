@@ -63,6 +63,35 @@ def read_model_settings(config_path, explicit_model=""):
     }
 
 
+def read_segmentation_preview_settings(config_path, model, quality="high", imgsz=0):
+    """Use the selected trained instance-segmentation checkpoint without parking zones."""
+    from segmentation_quality import resolve_segmentation_settings
+
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("追加学習した車両輪郭モデル（-seg .pt）のパスを指定してください")
+    candidate = Path(model.strip()).expanduser()
+    if not candidate.is_file():
+        raise ValueError("車両輪郭モデルが見つかりません: " + model)
+    path = Path(config_path).expanduser()
+    data = json.loads(path.read_text(encoding="utf-8-sig")) if path.is_file() else {}
+    if not isinstance(data, dict):
+        raise ValueError("モデル設定ファイルが不正です")
+    seg = resolve_segmentation_settings(
+        quality.lower(), tracking=True, model=str(candidate.resolve()),
+        imgsz=imgsz or None)
+    conf = float(data.get("tracking_confidence", .15))
+    if not 0 < conf <= 1:
+        raise ValueError("追跡信頼度は0から1の範囲です")
+    return {
+        "model": str(candidate.resolve()), "obstacle_model": None,
+        "obstacle_model_unavailable": False, "confidence": conf,
+        "image_size": seg.imgsz,
+        "tracker": str(data.get("tracker_file") or "botsort.yaml"),
+        "night_vision_mode": str(data.get("night_vision_mode") or "auto"),
+        "segmentation": seg,
+    }
+
+
 def validate_source(filename):
     path = Path(filename).expanduser().resolve()
     if not path.is_file() or path.suffix.lower() not in VIDEO_EXTENSIONS:
@@ -139,12 +168,19 @@ def run(args):
     try:
         import cv2
         from ultralytics import YOLO
-        from monitor import infer_frame
+        from monitor import infer_frame, detector_boxes, VEHICLE_NAMES, BLOCKING_NAMES, CLASS_ALIASES
+        from segmentation_quality import infer_segments
+        from vehicle_segmentation import tracked_segment_detections, draw_vehicle_contours
+        from stable_ids import StableIdMatcher
+        from night_vision import inference_frame
     except ImportError as exc:
         raise RuntimeError("YOLO/OpenCVが必要です。研究用venvのrequirements.txtを確認してください") from exc
 
     source = validate_source(args.video)
-    settings = read_model_settings(args.config, args.model)
+    settings = (read_segmentation_preview_settings(
+        args.config, args.segmentation_model, args.segmentation_quality,
+        args.segmentation_imgsz) if args.segmentation_tracking
+        else read_model_settings(args.config, args.model))
     capture = cv2.VideoCapture(str(source))
     if not capture.isOpened():
         capture.release()
@@ -163,18 +199,29 @@ def run(args):
     writer = None
     try:
         vehicle = YOLO(settings["model"])
+        if args.segmentation_tracking and vehicle.task != "segment":
+            raise ValueError("選択した重みは輪郭モデルではありません。task=segmentの.ptを選んでください")
         extra = YOLO(settings["obstacle_model"]) if settings["obstacle_model"] else None
+        stable_ids = StableIdMatcher(max_missing=12.0) if args.segmentation_tracking else None
+        mask_found = 0
         if settings["obstacle_model_unavailable"]:
             print("【注意】障害物モデルの重みが見つかりません。対応する検出のみ表示します。")
         print(f"【元動画】{source} / {fps:.1f} FPS / {total or '?'}フレーム")
-        print(f"【車両YOLOモデル】{settings['model']}")
+        print(f"【使用YOLOモデル】{settings['model']}")
+        if args.segmentation_tracking:
+            seg = settings["segmentation"]
+            print(f"【車両輪郭】追加学習済み -seg／品質 {seg.quality}／"
+                  f"解析 {seg.imgsz}px／高精細マスク {seg.retina_masks}")
+            print("【追跡】同じ輪郭モデルで検出・マスク・追跡IDを計算し、安定IDを再対応付け")
+            print("【注意】車体の見える輪郭であり、タイヤの接地点の実測ではありません。")
         print("【実験】区画なし。検出枠・信頼度・追跡IDを確認します。満空判定はしません。")
         print("【クラウド】Supabaseへは接続せず、登録済み59区画を変更しません。")
         print("【画面】Q=停止 / SPACE=一時停止 / S=静止画保存 / R=最初から再生")
         if args.save_video:
             target = Path(args.output).expanduser().resolve()
             target.mkdir(parents=True, exist_ok=True)
-            output = target / ("nikko_yolo_detections_" +
+            output = target / (("nikko_yolo_segments_" if args.segmentation_tracking
+                                else "nikko_yolo_detections_") +
                                datetime.now().strftime("%Y%m%d_%H%M%S") + ".mp4")
         pause = False
         start_clock = time.monotonic()
@@ -199,21 +246,40 @@ def run(args):
                     # 周回で前のトラッカーIDを流用しない。
                     vehicle = YOLO(settings["model"])
                     extra = YOLO(settings["obstacle_model"]) if settings["obstacle_model"] else None
+                    if args.segmentation_tracking:
+                        stable_ids = StableIdMatcher(max_missing=12.0)
                     frame_count = 0
                     start_clock = time.monotonic()
                     continue
                 frame_count += 1
                 observed_at = (frame_count - 1) / fps
-                vehicles, blockers = infer_frame(
-                    vehicle, extra, frame, settings["confidence"],
-                    tracker_file=settings["tracker"], image_size=settings["image_size"],
-                    occupancy_confidence=settings["confidence"],
-                    night_vision_mode=settings["night_vision_mode"],
-                )
+                if args.segmentation_tracking:
+                    adjusted, _, _ = inference_frame(
+                        frame, mode=settings["night_vision_mode"])
+                    result = infer_segments(
+                        vehicle, adjusted, settings["segmentation"], tracking=True,
+                        tracker_file=settings["tracker"],
+                        confidence=min(.10, settings["confidence"]))[0]
+                    vehicles = tracked_segment_detections(
+                        result, frame.shape, VEHICLE_NAMES, CLASS_ALIASES)
+                    stable_ids.update(vehicles, observed_at, frame=frame)
+                    blockers = detector_boxes(
+                        result, frame.shape[1], frame.shape[0], BLOCKING_NAMES)
+                    mask_found += sum(
+                        bool(d.get("segmentation_contour")) for d in vehicles)
+                else:
+                    vehicles, blockers = infer_frame(
+                        vehicle, extra, frame, settings["confidence"],
+                        tracker_file=settings["tracker"], image_size=settings["image_size"],
+                        occupancy_confidence=settings["confidence"],
+                        night_vision_mode=settings["night_vision_mode"],
+                    )
                 counts = count_frame(vehicles, blockers)
                 for key, count in counts.items():
                     per_frame_peaks[key] = max(per_frame_peaks[key], count)
-                last = draw_preview(frame, vehicles, blockers, observed_at, cycle, cv2)
+                view_frame = (draw_vehicle_contours(frame, vehicles)
+                              if args.segmentation_tracking else frame)
+                last = draw_preview(view_frame, vehicles, blockers, observed_at, cycle, cv2)
                 processed += 1
                 if output is not None:
                     if writer is None:
@@ -251,6 +317,8 @@ def run(args):
                     capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     vehicle = YOLO(settings["model"])
                     extra = YOLO(settings["obstacle_model"]) if settings["obstacle_model"] else None
+                    if args.segmentation_tracking:
+                        stable_ids = StableIdMatcher(max_missing=12.0)
                     frame_count = 0
                     cycle += 1
                     start_clock = time.monotonic()
@@ -266,6 +334,8 @@ def run(args):
             cv2.destroyAllWindows()
 
     print(f"【結果】YOLO解析フレーム {processed}、動画再生周回 {cycle}")
+    if args.segmentation_tracking:
+        print(f"【車両輪郭】マスク輪郭が得られた検出 {mask_found}件（正解率ではありません）")
     print("【検知ピーク（同一フレーム内）】"+
           ", ".join(f"{k}={per_frame_peaks[k]}" for k in
                     ("vehicles","bikes","people","obstacles")))
@@ -279,7 +349,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="日光の録画を駐車枠なしでYOLO検知だけ確認する")
     parser.add_argument("--video", required=True, help="元動画ファイル（Gドライブ等）")
     parser.add_argument("--config", default="config.json", help="モデル設定を読み取るJSON")
-    parser.add_argument("--model", default="", help="モデルの.ptファイル（設定より優先）")
+    parser.add_argument("--model", default="", help="従来の検出モデル.pt（通常モードのみ）")
+    parser.add_argument("--segmentation-tracking", action="store_true",
+                        help="駐車枠なしで車両輪郭と追跡IDを同一-segモデルから表示")
+    parser.add_argument("--segmentation-model", default="",
+                        help="学習済み-seg.ptのフルパス（未指定なら起動しない）")
+    parser.add_argument("--segmentation-quality", default="high",
+                        choices=("standard","high","maximum"),
+                        help="輪郭表示の品質（高精細標準はhigh 960）")
+    parser.add_argument("--segmentation-imgsz", type=int, default=0,
+                        help="輪郭解析サイズ（0なら品質プリセット値）")
     parser.add_argument("--output", default="reports_nikko_detection_only")
     parser.add_argument("--save-video", action="store_true", help="検出矩形を重ねたMP4を保存")
     parser.add_argument("--all-frames", action="store_true", help="間引かずに全フレーム解析")
@@ -287,6 +366,8 @@ def main(argv=None):
     parser.add_argument("--no-window", action="store_true", help="GUI不要の場合")
     parser.add_argument("--max-frames", type=int, default=0, help="先頭から試す解析フレーム数")
     args = parser.parse_args(argv)
+    if args.segmentation_tracking and not args.segmentation_model:
+        parser.error("車両輪郭モデル（--segmentation-model）を指定してください")
     if args.max_frames < 0:
         parser.error("--max-frames は0以上")
     if args.save_video and args.loop:
