@@ -334,56 +334,60 @@
     return core.generateZones(layout(),mapPoints,imagePoints,
       {skipOutsideFrame:currentFacility==="nikko-test-001"});
   }
-  function reset(){mapPoints=[];imagePoints=[];projected=null;confirmed.checked=false;exported=false;draw();}
-  function remember(){
-    try{
-      const all=saved();
-      all[storageId()]={map_points:mapPoints,image_points:imagePoints,
-        canvas:{width:Number(layout().canvas.width),height:Number(layout().canvas.height)},
-        layout_signature:core.layoutSignature(layout()),
-        image_ratio:image.naturalWidth/image.naturalHeight};
-      localStorage.setItem(memoryKey,JSON.stringify(all));
-    }catch{notify("端末への位置合わせ保存に失敗しました。JSONを書き出して保管してください。");}
+  function reset(){
+    mapPoints=[];imagePoints=[];automatic=null;pendingCorners=null;
+    syncZones();persistDraft();draw();
   }
+  function remember(){persistDraft();}
   function restore(){
     const item=saved()[storageId()],current=layout();
     const same=item&&current&&item.canvas?.width===Number(current.canvas.width)
       &&item.canvas?.height===Number(current.canvas.height);
     mapPoints=same&&Array.isArray(item.map_points)?item.map_points.slice(0,core.MAX_PAIRS):[];
     imagePoints=same&&Array.isArray(item.image_points)?item.image_points.slice(0,core.MAX_PAIRS):[];
+    manualZones={};
+    if(same&&item.manual_zones&&typeof item.manual_zones==="object"&&!Array.isArray(item.manual_zones)){
+      const eligible=new Map(usableSlots().map(o=>[o.uid,o]));
+      for(const [uid,raw] of Object.entries(item.manual_zones)){
+        if(!eligible.has(uid)||eligible.get(uid).cameraCoverage==="outside")continue;
+        try{manualZones[uid]=core.normalizeCameraZone(raw);}
+        catch{/* 壊れた端末内データを投影に使わない。 */}
+      }
+    }
+    methodSelect.value=["auto","hybrid","manual"].includes(item?.mode)?item.mode:"hybrid";
+    automatic=null;pendingCorners=null;drag=null;
     layoutChanged=Boolean(same&&item.layout_signature
       &&item.layout_signature!==core.layoutSignature(current));
     projected=null;confirmed.checked=false;exported=false;draw();
     if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
       notify(layoutChanged
-        ? "駐車区画の配置が前回から変わりました。保存済み4点を再利用できますが、映像上ですべての区画位置を再確認してください。"
-        : "前回の4点を読み込みました。最新のカメラ写真を読み込むと自動で区画を再計算します。");
+        ? "マップが変更されています。既存の点と個別補正が映像に合うか確認してください。"
+        : "前回の"+mapPoints.length+"点と個別補正を読み込みました。写真で再確認してください。");
     }
   }
   function loadPhoto(src){
     image.onload=()=>{
-      image.hidden=false;projected=null;confirmed.checked=false;exported=false;
+      image.hidden=false;projected=null;automatic=null;pendingCorners=null;confirmed.checked=false;exported=false;
       const prior=saved()[storageId()];
       const ratio=image.naturalWidth/image.naturalHeight;
       if(prior?.image_ratio && Math.abs(ratio/prior.image_ratio-1)>.015){
-        reset();
-        notify("前回の画像と縦横比が異なります。画角を確認して対応点を登録し直してください。");
+        mapPoints=[];imagePoints=[];automatic=null;manualZones={};
+        syncZones();draw();
+        notify("前回と画像の縦横比が異なるため、保存済みの位置合わせ・個別枠を使いません。今回の画像で登録し直してください。");
         return;
       }
-      if(mapPoints.length>=4&&mapPoints.length===imagePoints.length){
-        try{
-          projected=generateVisibleZones();
-          draw();
-          notify(layoutChanged
-            ? "マップ変更後の全区画を再計算しました。各点の誤差と映像上の位置を確認してください。"
-            : "保存済み"+mapPoints.length+"点から再計算しました。必要なら追加点も指定できます。");
-          return;
-        }catch(error){projected=null;draw();notify("自動再計算できません: "+error.message);return;}
+      if(editorMode()!=="manual"&&mapPoints.length>=4&&mapPoints.length===imagePoints.length){
+        try{automatic=generateVisibleZones();}
+        catch(error){automatic=null;notify("全体の自動計算ができません: "+error.message+
+          "。写真から直接登録することもできます。");}
       }
-      draw();
-      notify("画像を読み込みました。マップと映像で対応する床面の点を交互に選んでください。");
+      syncZones();draw();
+      notify(projected
+        ? "写真を読み込みました。枠の位置を確認し、ずれた区画は写真上で四隅を修正してください。"
+        : "写真を読み込みました。全体を位置合わせするか、写真から直接駐車枠を登録してください。");
     };
-    image.onerror=()=>{image.hidden=true;reset();notify("画像を読み込めませんでした。別の写真を選んでください。");};
+    image.onerror=()=>{image.hidden=true;automatic=null;projected=null;draw();
+      notify("画像を読み込めませんでした。別の写真を選んでください。");};
     image.src=src;
   }
   const launch=()=>{
@@ -395,6 +399,7 @@
     image.hidden=true;image.removeAttribute("src");file.value="";projected=null;confirmed.checked=false;
     showWholeMap=false;exported=false;
     dialog.showModal();restore();
+    showEditor();
     renderCoverageChoices();
     facilityLabel.textContent=document.querySelector("#facility-select")?.selectedOptions?.[0]?.textContent
       ||currentFacility;
