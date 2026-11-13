@@ -6,8 +6,9 @@ import unittest
 
 from preview_nikko_no_zones import (
     count_frame, detection_category, read_model_settings,
-    read_segmentation_preview_settings, validate_source,
+    read_segmentation_preview_settings, stabilize_vehicle_ids, validate_source,
 )
+from stable_ids import StableIdMatcher
 
 
 class DetectionOnlyTests(unittest.TestCase):
@@ -72,6 +73,25 @@ class DetectionOnlyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "輪郭モデル"):
                 read_segmentation_preview_settings(
                     folder / "missing-config.json", "")
+
+    def test_preview_displays_stabilized_id_not_raw_yolo_id(self):
+        matcher = StableIdMatcher(max_missing=12.0)
+        raw = [{
+            "name": "car", "track_id": 87, "confidence": .94,
+            "point": (.4, .7), "bbox": [30., 30., 130., 80.],
+            "segmentation_bbox": [30., 30., 130., 80.],
+            "segmentation_checked": True,
+            "segmentation_confidence": .94,
+            "segmentation_match_iou": .95,
+        }]
+        first = stabilize_vehicle_ids(matcher, raw, 0.0, None)
+        self.assertIsNot(first, raw)
+        self.assertEqual(raw[0]["track_id"], 87, "the input keeps raw YOLO ID")
+        self.assertEqual(first[0]["raw_track_id"], 87)
+        self.assertEqual(first[0]["track_id"], 1)
+        next_frame = stabilize_vehicle_ids(matcher, raw, .2, None)
+        self.assertEqual(next_frame[0]["track_id"], 1)
+        self.assertEqual(next_frame[0]["raw_track_id"], 87)
 
     def test_segmentation_reads_only_tracking_options_not_occupancy(self):
         with tempfile.TemporaryDirectory() as tmp:
